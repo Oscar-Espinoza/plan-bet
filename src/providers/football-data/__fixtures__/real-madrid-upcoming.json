@@ -1,0 +1,52 @@
+{
+  "matches": [
+    {
+      "id": 600002,
+      "utcDate": "2026-08-24T19:00:00Z",
+      "status": "SCHEDULED",
+      "stage": "REGULAR_SEASON",
+      "venue": null,
+      "lastUpdated": "2026-08-17T09:30:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": {
+        "id": 81,
+        "name": "FC Barcelona",
+        "shortName": "Barcelona",
+        "tla": "FCB",
+        "crest": "https://crests.football-data.org/81.png"
+      },
+      "awayTeam": {
+        "id": 86,
+        "name": "Real Madrid CF",
+        "shortName": "Real Madrid",
+        "tla": "RMA",
+        "crest": "https://crests.football-data.org/86.png"
+      },
+      "score": { "fullTime": { "home": null, "away": null } }
+    },
+    {
+      "id": 600001,
+      "utcDate": "2026-08-20T20:00:00Z",
+      "status": "TIMED",
+      "stage": "REGULAR_SEASON",
+      "venue": "Estadio Santiago Bernabéu",
+      "lastUpdated": "2026-08-17T09:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": {
+        "id": 86,
+        "name": "Real Madrid CF",
+        "shortName": "Real Madrid",
+        "tla": "RMA",
+        "crest": "https://crests.football-data.org/86.png"
+      },
+      "awayTeam": {
+        "id": 90,
+        "name": "Real Betis",
+        "shortName": "Betis",
+        "tla": "BET",
+        "crest": "https://crests.football-data.org/90.png"
+      },
+      "score": { "fullTime": { "home": null, "away": null } }
+    }
+  ]
+}

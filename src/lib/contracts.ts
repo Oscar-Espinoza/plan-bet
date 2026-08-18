@@ -3,6 +3,9 @@ import { z } from "zod";
 export const sportSchema = z.enum(["soccer", "baseball"]);
 export type Sport = z.infer<typeof sportSchema>;
 
+export const dataModeSchema = z.enum(["live", "stale", "demo"]);
+export type DataMode = z.infer<typeof dataModeSchema>;
+
 export const teamSlugSchema = z.enum([
   "real-madrid",
   "barcelona",
@@ -20,8 +23,19 @@ export const teamSchema = z.object({
   mark: z.string().min(1).max(3),
   colors: z.object({ primary: z.string(), secondary: z.string() }),
   providerIds: z.record(z.string(), z.string()),
+  crestUrl: z.url().optional(),
 });
 export type Team = z.infer<typeof teamSchema>;
+
+export const gameStatusSchema = z.enum([
+  "scheduled",
+  "live",
+  "finished",
+  "postponed",
+  "cancelled",
+  "unknown",
+]);
+export type GameStatus = z.infer<typeof gameStatusSchema>;
 
 export const gameSummarySchema = z.object({
   id: z.string().min(1),
@@ -34,7 +48,7 @@ export const gameSummarySchema = z.object({
   awayTeamSlug: teamSlugSchema.optional(),
   scheduledAt: z.iso.datetime(),
   venue: z.string().optional(),
-  status: z.literal("scheduled"),
+  status: gameStatusSchema,
 });
 export type GameSummary = z.infer<typeof gameSummarySchema>;
 
@@ -46,12 +60,12 @@ const availabilitySchema = z.object({
 
 export const soccerContextSchema = z.object({
   kind: z.literal("soccer"),
-  tablePosition: z.number().int().positive(),
-  points: z.number().int().nonnegative(),
-  record: z.string(),
-  recentForm: z.array(z.enum(["W", "D", "L"])).length(5),
+  tablePosition: z.number().int().positive().optional(),
+  points: z.number().int().nonnegative().optional(),
+  record: z.string().optional(),
+  recentForm: z.array(z.enum(["W", "D", "L"])).max(5),
   availability: z.array(availabilitySchema),
-  matchupNotes: z.array(z.string()).min(1),
+  matchupNotes: z.array(z.string()),
 });
 export type SoccerContext = z.infer<typeof soccerContextSchema>;
 
@@ -87,8 +101,12 @@ export const sourceSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
+  provider: z.string(),
+  operation: z.string(),
+  url: z.url().optional(),
   observedAt: z.iso.datetime(),
 });
+export type SourceReference = z.infer<typeof sourceSchema>;
 
 export const evidenceFactSchema = z.object({
   id: z.string(),
@@ -101,7 +119,7 @@ export type EvidenceFact = z.infer<typeof evidenceFactSchema>;
 
 export const briefingSchema = z.object({
   gameId: z.string(),
-  mode: z.literal("demo"),
+  mode: z.enum(["demo", "ai"]),
   summary: z.string(),
   items: z
     .array(
@@ -119,13 +137,44 @@ export const briefingSchema = z.object({
 });
 export type Briefing = z.infer<typeof briefingSchema>;
 
+export const attributionSchema = z.object({
+  name: z.string().min(1),
+  url: z.url(),
+});
+
+export const freshnessSchema = z.object({
+  mode: dataModeSchema,
+  provider: z.string().min(1),
+  sourceObservedAt: z.iso.datetime(),
+  fetchedAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime().optional(),
+  attribution: attributionSchema,
+});
+export type Freshness = z.infer<typeof freshnessSchema>;
+
 export const gameSnapshotSchema = z.object({
-  mode: z.literal("demo"),
-  generatedAt: z.iso.datetime(),
   game: gameSummarySchema,
   context: sportContextSchema,
   sources: z.array(sourceSchema).min(1),
   evidenceFacts: z.array(evidenceFactSchema).min(1),
-  briefing: briefingSchema,
+  freshness: freshnessSchema,
 });
 export type GameSnapshot = z.infer<typeof gameSnapshotSchema>;
+
+export const gameScheduleSchema = z.object({
+  team: teamSchema,
+  games: z.array(gameSummarySchema),
+  context: sportContextSchema,
+  freshness: freshnessSchema,
+});
+export type GameSchedule = z.infer<typeof gameScheduleSchema>;
+
+export type GameDetailData = {
+  snapshot: GameSnapshot;
+  briefing: Briefing;
+};
+
+export type ApiSuccess<T> = { data: T };
+export type ApiFailure = {
+  error: { code: string; message: string; requestId: string };
+};

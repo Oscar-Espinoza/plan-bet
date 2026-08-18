@@ -353,6 +353,14 @@ a {
   color: var(--green);
 }
 
+.demo-stamp[data-mode="stale"] svg {
+  color: var(--amber);
+}
+
+.demo-stamp[data-mode="demo"] svg {
+  color: var(--muted);
+}
+
 .section-grid {
   display: grid;
   gap: 1rem;
@@ -363,6 +371,20 @@ a {
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   background: var(--surface);
+}
+
+.loading-panel {
+  min-height: 12rem;
+  animation: loading-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes loading-pulse {
+  from {
+    background: var(--surface);
+  }
+  to {
+    background: var(--surface-muted);
+  }
 }
 
 .panel-header {
@@ -832,6 +854,26 @@ a {
   height: 0.45rem;
   border-radius: 50%;
   background: var(--green);
+}
+
+.freshness-panel[data-mode="stale"] {
+  border-left-color: var(--amber);
+}
+
+.freshness-panel[data-mode="stale"] .freshness-dot {
+  background: var(--amber);
+}
+
+.freshness-panel[data-mode="demo"] {
+  border-left-color: var(--muted);
+}
+
+.freshness-panel[data-mode="demo"] .freshness-dot {
+  background: var(--muted);
+}
+
+.freshness-panel .button {
+  margin-top: 0.65rem;
 }
 
 .back-link {

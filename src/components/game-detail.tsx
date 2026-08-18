@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Bookmark,
@@ -12,6 +13,7 @@ import {
   Clock3,
   MapPin,
   Plus,
+  RefreshCw,
   Save,
   ShieldCheck,
 } from "lucide-react";
@@ -20,8 +22,7 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import type { Team } from "@/lib/contracts";
-import { getSnapshot } from "@/lib/seed";
+import type { GameDetailData, Team } from "@/lib/contracts";
 import { useMatchdayStore } from "@/lib/store";
 
 function Provided({ value }: { value?: string }) {
@@ -36,9 +37,16 @@ function Provided({ value }: { value?: string }) {
   );
 }
 
-export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
-  const snapshot = getSnapshot(gameId)!;
-  const { game, context, briefing, evidenceFacts, sources } = snapshot;
+export function GameDetail({
+  data,
+  team,
+}: {
+  data: GameDetailData;
+  team: Team;
+}) {
+  const router = useRouter();
+  const { snapshot, briefing } = data;
+  const { game, context, evidenceFacts, sources, freshness } = snapshot;
   const [watchText, setWatchText] = useState("");
   const [message, setMessage] = useState("");
   const recapNote = useMatchdayStore((state) => state.recapNotes[game.id]);
@@ -81,7 +89,7 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
 
   const openBrief = () => {
     viewBriefing(game.id, team.slug);
-    setMessage("Demo brief opened.");
+    setMessage("Evidence brief opened.");
   };
 
   return (
@@ -92,10 +100,20 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
       <header className="matchup-header panel">
         <div className="matchup-topline">
           <div>
-            <StatusTag tone="positive">Scheduled</StatusTag>
+            <StatusTag
+              tone={
+                game.status === "cancelled"
+                  ? "warning"
+                  : game.status === "postponed" || freshness.mode === "stale"
+                    ? "warning"
+                    : "positive"
+              }
+            >
+              {game.status[0]!.toUpperCase() + game.status.slice(1)}
+            </StatusTag>
             <span className="competition-label">{game.competition}</span>
           </div>
-          <DemoStamp compact />
+          <DemoStamp compact freshness={freshness} />
         </div>
         <div className="matchup-scoreboard">
           <div className="matchup-team">
@@ -142,19 +160,27 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
                 <div className="context-stats">
                   <div>
                     <span>Table</span>
-                    <strong>#{context.tablePosition}</strong>
+                    <strong>
+                      {context.tablePosition
+                        ? `#${context.tablePosition}`
+                        : "Not provided"}
+                    </strong>
                   </div>
                   <div>
                     <span>Points</span>
-                    <strong>{context.points}</strong>
+                    <strong>{context.points ?? "Not provided"}</strong>
                   </div>
                   <div>
                     <span>Record</span>
-                    <strong>{context.record}</strong>
+                    <strong>{context.record ?? "Not provided"}</strong>
                   </div>
                   <div>
                     <span>Last five</span>
-                    <strong>{context.recentForm.join(" · ")}</strong>
+                    <strong>
+                      {context.recentForm.length
+                        ? context.recentForm.join(" · ")
+                        : "Not provided"}
+                    </strong>
                   </div>
                 </div>
                 <div className="context-columns">
@@ -184,11 +210,15 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
                   </div>
                   <div>
                     <h3>Matchup notes</h3>
-                    <ul className="context-notes">
-                      {context.matchupNotes.map((note) => (
-                        <li key={note}>{note}</li>
-                      ))}
-                    </ul>
+                    {context.matchupNotes.length ? (
+                      <ul className="context-notes">
+                        {context.matchupNotes.map((note) => (
+                          <li key={note}>{note}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="not-provided">Not provided</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -343,8 +373,11 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
 
           <section className="panel">
             <div className="panel-header">
-              <h2 className="panel-title">Demo sources</h2>
-              <StatusTag>2 references</StatusTag>
+              <h2 className="panel-title">Sources</h2>
+              <StatusTag>
+                {sources.length}{" "}
+                {sources.length === 1 ? "reference" : "references"}
+              </StatusTag>
             </div>
             <div className="source-list">
               {sources.map((source) => (
@@ -353,10 +386,18 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
                     {String(sources.indexOf(source) + 1).padStart(2, "0")}
                   </span>
                   <div>
-                    <strong>{source.name}</strong>
+                    <strong>
+                      {source.url ? (
+                        <a href={source.url} target="_blank" rel="noreferrer">
+                          {source.name}
+                        </a>
+                      ) : (
+                        source.name
+                      )}
+                    </strong>
                     <p>{source.description}</p>
                   </div>
-                  <time dateTime={source.observedAt}>Demo snapshot</time>
+                  <LocalDateTime value={source.observedAt} short />
                 </div>
               ))}
             </div>
@@ -411,11 +452,22 @@ export function GameDetail({ gameId, team }: { gameId: string; team: Team }) {
             </form>
           </section>
           <div className="side-disclaimer">
-            <strong>Portfolio demo</strong>
+            <strong>Session 02 data boundary</strong>
             <p>
-              No live API or live AI generation is active in Session 01. The
-              brief above is a cited, prewritten example.
+              Soccer uses validated football-data.org snapshots when available;
+              baseball remains seeded. The brief is deterministic—live AI is not
+              active yet.
             </p>
+            {game.sport === "soccer" && freshness.mode !== "live" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => router.refresh()}
+              >
+                <RefreshCw aria-hidden="true" size={14} /> Retry live data
+              </Button>
+            )}
           </div>
         </aside>
       </div>

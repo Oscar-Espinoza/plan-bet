@@ -1,0 +1,54 @@
+{
+  "matches": [
+    {
+      "id": 500001,
+      "utcDate": "2026-08-01T19:00:00Z",
+      "status": "FINISHED",
+      "lastUpdated": "2026-08-01T22:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": { "id": 86, "name": "Real Madrid CF" },
+      "awayTeam": { "id": 90, "name": "Real Betis" },
+      "score": { "fullTime": { "home": 2, "away": 0 } }
+    },
+    {
+      "id": 500002,
+      "utcDate": "2026-08-05T19:00:00Z",
+      "status": "FINISHED",
+      "lastUpdated": "2026-08-05T22:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": { "id": 95, "name": "Valencia CF" },
+      "awayTeam": { "id": 86, "name": "Real Madrid CF" },
+      "score": { "fullTime": { "home": 1, "away": 1 } }
+    },
+    {
+      "id": 500003,
+      "utcDate": "2026-08-09T19:00:00Z",
+      "status": "FINISHED",
+      "lastUpdated": "2026-08-09T22:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": { "id": 86, "name": "Real Madrid CF" },
+      "awayTeam": { "id": 77, "name": "Athletic Club" },
+      "score": { "fullTime": { "home": 1, "away": 2 } }
+    },
+    {
+      "id": 500004,
+      "utcDate": "2026-08-12T19:00:00Z",
+      "status": "FINISHED",
+      "lastUpdated": "2026-08-12T22:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": { "id": 78, "name": "Atlético Madrid" },
+      "awayTeam": { "id": 86, "name": "Real Madrid CF" },
+      "score": { "fullTime": { "home": 0, "away": 3 } }
+    },
+    {
+      "id": 500005,
+      "utcDate": "2026-08-16T19:00:00Z",
+      "status": "FINISHED",
+      "lastUpdated": "2026-08-16T22:00:00Z",
+      "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+      "homeTeam": { "id": 86, "name": "Real Madrid CF" },
+      "awayTeam": { "id": 298, "name": "Girona FC" },
+      "score": { "fullTime": { "home": 4, "away": 1 } }
+    }
+  ]
+}

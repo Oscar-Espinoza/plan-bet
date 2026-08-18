@@ -155,10 +155,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-foot">
-          <span className="eyebrow">Session 01</span>
+          <span className="eyebrow">Session 02</span>
           <p>
-            Local-first portfolio preview. All sports data is an explicit demo
-            snapshot.
+            Validated live soccer with last-known-good and demo fallback.
+            Baseball remains an explicit demo snapshot.
           </p>
         </div>
       </aside>

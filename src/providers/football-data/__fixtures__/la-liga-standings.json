@@ -1,0 +1,38 @@
+{
+  "competition": { "id": 2014, "name": "Primera Division", "code": "PD" },
+  "standings": [
+    {
+      "type": "TOTAL",
+      "table": [
+        {
+          "position": 1,
+          "team": {
+            "id": 81,
+            "name": "FC Barcelona",
+            "shortName": "Barcelona",
+            "tla": "FCB"
+          },
+          "playedGames": 3,
+          "won": 3,
+          "draw": 0,
+          "lost": 0,
+          "points": 9
+        },
+        {
+          "position": 2,
+          "team": {
+            "id": 86,
+            "name": "Real Madrid CF",
+            "shortName": "Real Madrid",
+            "tla": "RMA"
+          },
+          "playedGames": 3,
+          "won": 2,
+          "draw": 1,
+          "lost": 0,
+          "points": 7
+        }
+      ]
+    }
+  ]
+}

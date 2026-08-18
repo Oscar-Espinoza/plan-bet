@@ -7,20 +7,18 @@ import {
   ChevronRight,
   ClipboardCheck,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { DemoStamp } from "@/components/demo-stamp";
 import { LocalDateTime } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import {
-  generateGames,
-  getSnapshot,
-  getTeam,
-  getTeamsBySport,
-} from "@/lib/seed";
+import { getTeamsBySport } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 import type { Sport } from "@/lib/contracts";
+import type { DashboardData } from "@/data/sports-data";
 import { cn } from "@/lib/utils";
 
 function FormStrip({ form }: { form: ("W" | "D" | "L")[] }) {
@@ -38,15 +36,15 @@ function FormStrip({ form }: { form: ("W" | "D" | "L")[] }) {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ data }: { data: DashboardData }) {
+  const router = useRouter();
   const selectedSport = useMatchdayStore((state) => state.selectedSport);
   const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
   const selectSport = useMatchdayStore((state) => state.selectSport);
   const selectTeam = useMatchdayStore((state) => state.selectTeam);
   const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
-  const team = getTeam(selectedTeamSlug)!;
-  const games = generateGames(selectedTeamSlug);
-  const context = getSnapshot(games[0].id)!.context;
+  const schedule = data[selectedTeamSlug];
+  const { team, games, context, freshness } = schedule;
   const relevantItems = watchlistItems.filter(
     (item) => item.teamSlug === selectedTeamSlug && item.status === "open",
   );
@@ -65,7 +63,7 @@ export function Dashboard() {
             </p>
           </div>
         </div>
-        <DemoStamp />
+        <DemoStamp freshness={freshness} />
       </header>
 
       <div className="mobile-workspace-switcher panel">
@@ -123,45 +121,57 @@ export function Dashboard() {
                 Upcoming games
               </h2>
             </div>
-            <StatusTag tone="positive">5 scheduled</StatusTag>
+            <StatusTag
+              tone={freshness.mode === "stale" ? "warning" : "positive"}
+            >
+              {games.length} {games.length === 1 ? "game" : "games"}
+            </StatusTag>
           </div>
           <div className="game-list">
-            {games.map((game, index) => {
-              const isHome = game.homeTeamSlug === team.slug;
-              const opponent = isHome ? game.awayTeam : game.homeTeam;
-              return (
-                <Link
-                  className="game-row"
-                  href={`/games/${game.id}`}
-                  key={game.id}
-                  aria-label={`Open ${team.shortName} versus ${opponent}`}
-                >
-                  <div className="game-index">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="game-date">
-                    <CalendarDays aria-hidden="true" size={15} />
-                    <LocalDateTime value={game.scheduledAt} />
-                  </div>
-                  <div className="game-matchup">
-                    <div className="game-opponent">
-                      <span className="game-site">{isHome ? "vs" : "at"}</span>{" "}
-                      {opponent}
+            {games.length ? (
+              games.map((game, index) => {
+                const isHome = game.homeTeamSlug === team.slug;
+                const opponent = isHome ? game.awayTeam : game.homeTeam;
+                return (
+                  <Link
+                    className="game-row"
+                    href={`/games/${game.id}`}
+                    key={game.id}
+                    aria-label={`Open ${team.shortName} versus ${opponent}`}
+                  >
+                    <div className="game-index">
+                      {String(index + 1).padStart(2, "0")}
                     </div>
-                    <div className="game-meta">{game.competition}</div>
-                  </div>
-                  <div className="game-venue">
-                    <MapPin aria-hidden="true" size={14} />{" "}
-                    {game.venue ?? "Not provided"}
-                  </div>
-                  <ChevronRight
-                    className="game-chevron"
-                    aria-hidden="true"
-                    size={18}
-                  />
-                </Link>
-              );
-            })}
+                    <div className="game-date">
+                      <CalendarDays aria-hidden="true" size={15} />
+                      <LocalDateTime value={game.scheduledAt} />
+                    </div>
+                    <div className="game-matchup">
+                      <div className="game-opponent">
+                        <span className="game-site">
+                          {isHome ? "vs" : "at"}
+                        </span>{" "}
+                        {opponent}
+                      </div>
+                      <div className="game-meta">{game.competition}</div>
+                    </div>
+                    <div className="game-venue">
+                      <MapPin aria-hidden="true" size={14} />{" "}
+                      {game.venue ?? "Not provided"}
+                    </div>
+                    <ChevronRight
+                      className="game-chevron"
+                      aria-hidden="true"
+                      size={18}
+                    />
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="mini-empty">
+                <p>No upcoming games were provided for this team.</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -169,7 +179,7 @@ export function Dashboard() {
           <section className="panel">
             <div className="panel-header">
               <h2 className="panel-title">Current read</h2>
-              <span className="fine-print">Demo values</span>
+              <span className="fine-print">{freshness.attribution.name}</span>
             </div>
             <div className="stat-stack">
               <div className="stat-row">
@@ -177,18 +187,18 @@ export function Dashboard() {
                 <strong>
                   #
                   {context.kind === "soccer"
-                    ? context.tablePosition
+                    ? (context.tablePosition ?? "Not provided")
                     : context.divisionRank}
                 </strong>
               </div>
               <div className="stat-row">
                 <span>Record</span>
-                <strong>{context.record}</strong>
+                <strong>{context.record ?? "Not provided"}</strong>
               </div>
               {context.kind === "soccer" ? (
                 <div className="stat-row">
                   <span>Points</span>
-                  <strong>{context.points}</strong>
+                  <strong>{context.points ?? "Not provided"}</strong>
                 </div>
               ) : (
                 <div className="stat-row">
@@ -198,7 +208,11 @@ export function Dashboard() {
               )}
               <div className="form-block">
                 <span>Recent form</span>
-                <FormStrip form={context.recentForm} />
+                {context.recentForm.length ? (
+                  <FormStrip form={context.recentForm} />
+                ) : (
+                  <span className="not-provided">Not provided</span>
+                )}
               </div>
             </div>
           </section>
@@ -237,15 +251,31 @@ export function Dashboard() {
             )}
           </section>
 
-          <section className="freshness-panel">
+          <section className="freshness-panel" data-mode={freshness.mode}>
             <div>
               <span className="freshness-dot" />
-              <strong>Demo source ready</strong>
+              <strong>
+                {freshness.mode === "live"
+                  ? "Live soccer cache ready"
+                  : freshness.mode === "stale"
+                    ? "Using last-known-good data"
+                    : "Demo fallback ready"}
+              </strong>
             </div>
             <p>
-              Date-relative schedules refresh when the app loads. Context values
-              are designed examples, not live provider data.
+              Source: {freshness.attribution.name}. Fetched{" "}
+              <LocalDateTime value={freshness.fetchedAt} short />.
             </p>
+            {freshness.mode !== "live" && team.sport === "soccer" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => router.refresh()}
+              >
+                <RefreshCw aria-hidden="true" size={14} /> Retry live data
+              </Button>
+            )}
           </section>
         </aside>
       </div>

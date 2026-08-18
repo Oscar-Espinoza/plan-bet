@@ -34,7 +34,7 @@ const rawTeams: Team[] = [
     abbreviation: "RMA",
     mark: "RM",
     colors: { primary: "#d8c26e", secondary: "#f7f3dd" },
-    providerIds: { demo: "soc-001" },
+    providerIds: { demo: "soc-001", "football-data": "86" },
   },
   {
     slug: "barcelona",
@@ -44,7 +44,7 @@ const rawTeams: Team[] = [
     abbreviation: "FCB",
     mark: "FCB",
     colors: { primary: "#a8274c", secondary: "#1e4fa3" },
-    providerIds: { demo: "soc-002" },
+    providerIds: { demo: "soc-002", "football-data": "81" },
   },
   {
     slug: "new-york-yankees",
@@ -456,6 +456,8 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
       name: "Demo schedule feed",
       description:
         "Date-relative fixture, venue, and competition data for the portfolio preview.",
+      provider: "demo",
+      operation: "schedule",
       observedAt: demoGeneratedAt,
     },
     {
@@ -463,6 +465,8 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
       name: "Demo analyst notebook",
       description:
         "Plausible, non-live form and matchup context created for Session 01.",
+      provider: "demo",
+      operation: "context",
       observedAt: demoGeneratedAt,
     },
   ];
@@ -555,13 +559,81 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
   };
   briefingSchema.parse(briefing);
   return gameSnapshotSchema.parse({
-    mode: "demo",
-    generatedAt: demoGeneratedAt,
     game,
     context,
     sources,
     evidenceFacts,
-    briefing,
+    freshness: {
+      mode: "demo",
+      provider: "demo",
+      sourceObservedAt: demoGeneratedAt,
+      fetchedAt: demoGeneratedAt,
+      attribution: {
+        name: "Matchday Plan demo data",
+        url: "https://plan-bet.vercel.app",
+      },
+    },
+  });
+}
+
+export function getDemoBriefing(id: string, now = new Date()) {
+  const game = getGame(id, now);
+  if (!game) return undefined;
+  const snapshot = makeSnapshot(game);
+  const team = getTeam(game.teamSlug)!;
+  const context = snapshot.context;
+  const formValue = context.recentForm.join(" · ");
+  const standingValue =
+    context.kind === "soccer"
+      ? `#${context.tablePosition ?? "Not provided"} · ${context.points ?? "Not provided"} pts`
+      : `#${context.divisionRank} division · ${context.record}`;
+  return briefingSchema.parse({
+    gameId: game.id,
+    mode: "demo",
+    summary: `${team.shortName} enter this scheduled matchup with a clear set of form, availability, and venue cues to review.`,
+    items: [
+      {
+        id: `${game.id}-brief-1`,
+        category: "Form",
+        text: `${team.shortName}'s recent sequence is ${formValue}.`,
+        evidenceIds: [`${game.id}-fact-form`],
+      },
+      {
+        id: `${game.id}-brief-2`,
+        category: "Standing",
+        text: `The current demo standing is ${standingValue}.`,
+        evidenceIds: [`${game.id}-fact-standing`],
+      },
+      {
+        id: `${game.id}-brief-3`,
+        category: "Setting",
+        text: `The matchup is scheduled at ${game.venue ?? "a venue not provided"}.`,
+        evidenceIds: [`${game.id}-fact-venue`],
+      },
+      {
+        id: `${game.id}-brief-4`,
+        category: "Availability",
+        text:
+          snapshot.evidenceFacts.find((fact) =>
+            fact.id.endsWith("-fact-availability"),
+          )?.value ?? "Not provided",
+        evidenceIds: [`${game.id}-fact-availability`],
+      },
+      {
+        id: `${game.id}-brief-5`,
+        category: "Matchup",
+        text:
+          snapshot.evidenceFacts.find((fact) =>
+            fact.id.endsWith("-fact-matchup"),
+          )?.value ?? "Not provided",
+        evidenceIds: [`${game.id}-fact-matchup`],
+      },
+    ],
+    limitations: [
+      "This is a designed example, not a live report.",
+      "Confirm lineups, injuries, and probable starters with official sources before the event.",
+    ],
+    generatedAt: demoGeneratedAt,
   });
 }
 
@@ -589,12 +661,16 @@ export function getSnapshot(id: string, now = new Date()) {
 
 export function validateSeedData() {
   const currentSnapshots = allGames.map((game) => makeSnapshot(game));
+  const currentBriefings = allGames.map((game) => getDemoBriefing(game.id)!);
   const parsedTeams = teamSchema.array().parse(teams);
   const parsedGames = gameSummarySchema.array().parse(allGames);
   const parsedSnapshots = gameSnapshotSchema.array().parse(currentSnapshots);
   for (const snapshot of parsedSnapshots) {
     const evidenceIds = new Set(snapshot.evidenceFacts.map((fact) => fact.id));
-    for (const item of snapshot.briefing.items) {
+    const briefing = currentBriefings.find(
+      (candidate) => candidate.gameId === snapshot.game.id,
+    )!;
+    for (const item of briefing.items) {
       if (!item.evidenceIds.every((id) => evidenceIds.has(id))) {
         throw new Error(`Briefing ${item.id} references missing evidence`);
       }

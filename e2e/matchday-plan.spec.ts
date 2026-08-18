@@ -15,9 +15,8 @@ test("Barcelona prep workflow persists, records activity, and resets safely", as
     page.getByRole("heading", { level: 1, name: "FC Barcelona" }),
   ).toBeVisible();
 
-  await page
-    .getByRole("link", { name: /Open Barcelona versus Real Betis/i })
-    .click();
+  await expect(page.locator(".game-row").first()).toBeVisible();
+  await page.locator(".game-row").first().click();
   await expect(
     page.locator(".matchup-team-name").filter({ hasText: "FC Barcelona" }),
   ).toBeVisible();
@@ -121,4 +120,39 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
     page.getByRole("heading", { name: "Game not found" }),
   ).toBeVisible();
   expect(browserErrors).toEqual([]);
+});
+
+test("canonical team APIs validate input and expose freshness metadata", async ({
+  request,
+}) => {
+  const teams = await request.get("/api/teams");
+  expect(teams.ok()).toBe(true);
+  expect((await teams.json()).data).toHaveLength(4);
+
+  const schedule = await request.get("/api/teams/real-madrid/games?limit=2");
+  expect(schedule.ok()).toBe(true);
+  const body = await schedule.json();
+  expect(body.data.games).toHaveLength(2);
+  expect(["live", "stale", "demo"]).toContain(body.data.freshness.mode);
+  if (body.data.freshness.mode !== "demo") {
+    expect(body.data.freshness.provider).toBe("football-data");
+    expect(body.data.freshness.attribution.name).toBe("football-data.org");
+  }
+
+  const invalid = await request.get("/api/teams/real-madrid/games?limit=11");
+  expect(invalid.status()).toBe(400);
+
+  const legacy = await request.get("/api/games/soc-rma-01");
+  expect(legacy.ok()).toBe(true);
+  expect((await legacy.json()).data.game.id).toBe("soc-rma-01");
+
+  const health = await request.get("/api/health");
+  const healthBody = await health.json();
+  expect([200, 503]).toContain(health.status());
+  if (healthBody.data.checks.database.configured) {
+    expect(["healthy", "degraded"]).toContain(healthBody.data.status);
+  } else {
+    expect(healthBody.data.status).toBe("unavailable");
+  }
+  expect(JSON.stringify(healthBody)).not.toContain("postgresql://");
 });

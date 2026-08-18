@@ -16,7 +16,8 @@ export default defineConfig({
   webServer: externalBaseUrl
     ? undefined
     : {
-        command: "pnpm start",
+        command:
+          "DATABASE_URL= FOOTBALL_DATA_API_TOKEN= MATCHDAY_DATA_MODE=demo pnpm start",
         url: "http://127.0.0.1:3000",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
