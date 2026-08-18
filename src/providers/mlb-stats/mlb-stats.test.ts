@@ -105,6 +105,11 @@ describe("MLB and Savant normalization", () => {
     expect(
       data.snapshots[0]?.snapshot.evidenceFacts.length,
     ).toBeGreaterThanOrEqual(9);
+    expect(data.snapshots[0]?.snapshot.evidenceFacts[0]).toMatchObject({
+      label: "Scheduled time",
+      value: data.schedule.games[0]!.scheduledAt,
+      valueType: "datetime",
+    });
   });
 
   it("keeps shared provider and evidence IDs stable under reordered input", async () => {

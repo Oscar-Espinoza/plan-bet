@@ -29,11 +29,23 @@ function WorkspaceControls() {
   const selectTeam = useMatchdayStore((state) => state.selectTeam);
   const resetDemo = useMatchdayStore((state) => state.resetDemo);
   const router = useRouter();
+  const pathname = usePathname();
   const sportTeams = getTeamsBySport(selectedSport);
+  // A game page is pinned to one matchup, so a new selection has nowhere to
+  // land there—send it to that team's upcoming games instead.
+  const showsSelection = !pathname.startsWith("/games/");
+
+  const handleSport = (sport: Sport) => {
+    if (sport === selectedSport) return;
+    selectSport(sport);
+    if (!showsSelection) router.push("/");
+  };
 
   const handleTeam = (value: string) => {
     const team = teams.find((candidate) => candidate.slug === value);
-    if (team) selectTeam(team.slug);
+    if (!team) return;
+    selectTeam(team.slug);
+    if (!showsSelection) router.push("/");
   };
 
   const handleReset = () => {
@@ -51,7 +63,7 @@ function WorkspaceControls() {
               selectedSport === sport && "sport-button-active",
             )}
             key={sport}
-            onClick={() => selectSport(sport)}
+            onClick={() => handleSport(sport)}
             aria-pressed={selectedSport === sport}
           >
             {sport === "soccer" ? "Soccer" : "Baseball"}

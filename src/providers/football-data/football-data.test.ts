@@ -54,6 +54,28 @@ describe("football-data normalization", () => {
     );
   });
 
+  it("marks the scheduled time as a datetime instead of prose", () => {
+    const data = normalizeSoccerTeamData({
+      slug: "real-madrid",
+      team,
+      upcoming,
+      recent,
+      standings,
+      fetchedAt: new Date("2026-08-17T10:00:00Z"),
+    });
+    const game = data.schedule.games[0]!;
+
+    expect(data.snapshots[0]?.snapshot.evidenceFacts[0]).toMatchObject({
+      label: "Scheduled time",
+      value: game.scheduledAt,
+      valueType: "datetime",
+    });
+    expect(data.briefingByGame[game.id]?.items[0]).toMatchObject({
+      text: "Scheduled time:",
+      timestamp: game.scheduledAt,
+    });
+  });
+
   it("keeps game and evidence IDs stable when provider arrays reorder", () => {
     const normalize = (matches: typeof upcoming) =>
       normalizeSoccerTeamData({

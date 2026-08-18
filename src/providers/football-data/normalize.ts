@@ -10,6 +10,7 @@ import {
   type Team,
   type TeamSlug,
 } from "@/lib/contracts";
+import { createBriefingItem } from "@/lib/briefing";
 import { getTeam } from "@/lib/seed";
 import type {
   FootballDataMatch,
@@ -199,6 +200,7 @@ export function normalizeSoccerTeamData(input: {
         id: `${factPrefix}-schedule`,
         label: "Scheduled time",
         value: game.scheduledAt,
+        valueType: "datetime" as const,
         sourceId: sourceIds.schedule,
         observedAt,
       },
@@ -250,12 +252,9 @@ export function normalizeSoccerTeamData(input: {
       gameId: game.id,
       mode: "demo",
       summary: `A deterministic evidence review for ${team.shortName}'s upcoming fixture. No live AI is active yet.`,
-      items: facts.map((fact, index) => ({
-        id: `${game.id}-brief-${index + 1}`,
-        category: fact.label,
-        text: `${fact.label}: ${fact.value}.`,
-        evidenceIds: [fact.id],
-      })),
+      items: facts.map((fact, index) =>
+        createBriefingItem(fact, `${game.id}-brief-${index + 1}`),
+      ),
       limitations: [
         "This briefing is a deterministic template, not live AI generation.",
         "football-data.org does not provide injury availability in this integration.",

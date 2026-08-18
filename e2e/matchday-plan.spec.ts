@@ -186,6 +186,35 @@ test("Yankees detail, watchlist, Activity, sport switching, and archived routes 
   expect(browserErrors).toEqual([]);
 });
 
+test("switching team or sport from a game page opens that team's games", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+
+  await page.goto("/");
+  await page.locator(".game-row").first().click();
+  await expect(page).toHaveURL(/\/games\//);
+
+  await page.getByLabel("Selected team").selectOption("barcelona");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "FC Barcelona" }),
+  ).toBeVisible();
+
+  await page.locator(".game-row").first().click();
+  await expect(page).toHaveURL(/\/games\//);
+  await page
+    .getByLabel("Select sport")
+    .getByRole("button", { name: "Baseball" })
+    .click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
+  ).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
 test("canonical team APIs validate input and expose freshness metadata", async ({
   request,
 }) => {

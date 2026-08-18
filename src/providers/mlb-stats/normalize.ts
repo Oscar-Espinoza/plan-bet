@@ -336,6 +336,7 @@ export function normalizeBaseballTeamData(input: {
         id: `${factPrefix}-schedule`,
         label: "Scheduled time",
         value: game.scheduledAt,
+        valueType: "datetime" as const,
         sourceId: sourceIds.schedule,
         observedAt,
       },

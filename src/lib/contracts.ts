@@ -135,10 +135,15 @@ export const evidenceFactSchema = z.object({
   id: z.string(),
   label: z.string(),
   value: z.string(),
+  // Machine values keep their canonical provider form; the reader decides how to
+  // present them. "datetime" values are ISO strings rendered in the browser
+  // timezone rather than shown raw.
+  valueType: z.enum(["text", "datetime"]).default("text"),
   sourceId: z.string(),
   observedAt: z.iso.datetime(),
 });
 export type EvidenceFact = z.infer<typeof evidenceFactSchema>;
+export type EvidenceFactInput = z.input<typeof evidenceFactSchema>;
 
 export const briefingSchema = z.object({
   gameId: z.string(),
@@ -150,6 +155,9 @@ export const briefingSchema = z.object({
         id: z.string(),
         category: z.string(),
         text: z.string(),
+        // Set when the item ends on a timestamp, so the reader can render it in
+        // the browser timezone instead of inlining an ISO string in the prose.
+        timestamp: z.iso.datetime().optional(),
         evidenceIds: z.array(z.string()).min(1),
       }),
     )
@@ -175,13 +183,25 @@ export const freshnessSchema = z.object({
 });
 export type Freshness = z.infer<typeof freshnessSchema>;
 
-export const gameSnapshotSchema = z.object({
-  game: gameSummarySchema,
-  context: sportContextSchema,
-  sources: z.array(sourceSchema).min(1),
-  evidenceFacts: z.array(evidenceFactSchema).min(1),
-  freshness: freshnessSchema,
-});
+export const gameSnapshotSchema = z
+  .object({
+    game: gameSummarySchema,
+    context: sportContextSchema,
+    sources: z.array(sourceSchema).min(1),
+    evidenceFacts: z.array(evidenceFactSchema).min(1),
+    freshness: freshnessSchema,
+  })
+  // A fact carrying the game's own scheduled timestamp is a datetime whatever
+  // the stored row says, so snapshots cached before `valueType` existed still
+  // render in the browser timezone instead of showing a raw ISO string.
+  .transform((snapshot) => ({
+    ...snapshot,
+    evidenceFacts: snapshot.evidenceFacts.map((fact) =>
+      fact.value === snapshot.game.scheduledAt
+        ? { ...fact, valueType: "datetime" as const }
+        : fact,
+    ),
+  }));
 export type GameSnapshot = z.infer<typeof gameSnapshotSchema>;
 
 export const gameScheduleSchema = z.object({

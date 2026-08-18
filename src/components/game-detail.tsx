@@ -404,7 +404,15 @@ export function GameDetail({
                   {briefing.items.map((item) => (
                     <li key={item.id}>
                       <span>{item.category}</span>
-                      <p>{item.text}</p>
+                      <p>
+                        {item.text}
+                        {item.timestamp && (
+                          <>
+                            {" "}
+                            <LocalDateTime value={item.timestamp} />.
+                          </>
+                        )}
+                      </p>
                       <small>
                         {item.evidenceIds.length} cited{" "}
                         {item.evidenceIds.length === 1 ? "fact" : "facts"}
@@ -436,7 +444,13 @@ export function GameDetail({
                     {evidenceFacts.map((fact) => (
                       <div key={fact.id}>
                         <span>{fact.label}</span>
-                        <strong>{fact.value}</strong>
+                        <strong>
+                          {fact.valueType === "datetime" ? (
+                            <LocalDateTime value={fact.value} />
+                          ) : (
+                            fact.value
+                          )}
+                        </strong>
                         <small>Ref: {fact.id}</small>
                       </div>
                     ))}
