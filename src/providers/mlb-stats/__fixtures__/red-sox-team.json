@@ -1,0 +1,15 @@
+{
+  "teams": [
+    {
+      "id": 111,
+      "name": "Boston Red Sox",
+      "teamName": "Red Sox",
+      "shortName": "Boston",
+      "abbreviation": "BOS",
+      "fileCode": "bos",
+      "venue": { "id": 3, "name": "Fenway Park" },
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 201, "name": "American League East" }
+    }
+  ]
+}

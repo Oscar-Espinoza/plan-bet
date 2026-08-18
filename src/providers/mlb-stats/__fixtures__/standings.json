@@ -1,0 +1,36 @@
+{
+  "records": [
+    {
+      "teamRecords": [
+        {
+          "team": {
+            "id": 147,
+            "name": "New York Yankees",
+            "abbreviation": "NYY"
+          },
+          "divisionRank": "2",
+          "wins": 69,
+          "losses": 55,
+          "records": {
+            "splitRecords": [{ "wins": 5, "losses": 5, "type": "lastTen" }]
+          },
+          "lastUpdated": "2026-08-18T10:00:00Z"
+        },
+        {
+          "team": {
+            "id": 111,
+            "name": "Boston Red Sox",
+            "abbreviation": "BOS"
+          },
+          "divisionRank": "3",
+          "wins": 65,
+          "losses": 59,
+          "records": {
+            "splitRecords": [{ "wins": 6, "losses": 4, "type": "lastTen" }]
+          },
+          "lastUpdated": "2026-08-18T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}

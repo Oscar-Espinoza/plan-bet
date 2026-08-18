@@ -1,0 +1,38 @@
+{
+  "totalGames": 1,
+  "dates": [
+    {
+      "date": "2026-08-24",
+      "games": [
+        {
+          "gamePk": 900003,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-08-24T23:10:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Scheduled"
+          },
+          "teams": {
+            "away": {
+              "team": {
+                "id": 147,
+                "name": "New York Yankees",
+                "abbreviation": "NYY"
+              }
+            },
+            "home": {
+              "team": {
+                "id": 111,
+                "name": "Boston Red Sox",
+                "abbreviation": "BOS"
+              }
+            }
+          },
+          "venue": { "id": 3, "name": "Fenway Park" },
+          "seriesDescription": "Regular Season"
+        }
+      ]
+    }
+  ]
+}

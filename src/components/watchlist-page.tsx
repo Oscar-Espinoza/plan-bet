@@ -18,6 +18,7 @@ import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
 import { filterWatchlist } from "@/lib/storage";
+import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { getTeam, teams } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 import type { Sport, TeamSlug } from "@/lib/contracts";
@@ -275,7 +276,9 @@ export function WatchlistPage() {
                         className="watch-game-link"
                         href={`/games/${item.gameId}`}
                       >
-                        Open matchup{" "}
+                        {isLegacyBaseballGameId(item.gameId)
+                          ? "Open archived demo"
+                          : "Open matchup"}{" "}
                         <ExternalLink aria-hidden="true" size={12} />
                       </Link>
                     )}

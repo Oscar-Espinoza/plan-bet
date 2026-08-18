@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   briefingSchema,
   gameScheduleSchema,
@@ -7,7 +6,6 @@ import {
   teamSchema,
   type Briefing,
   type Freshness,
-  type GameSnapshot,
   type GameStatus,
   type Team,
   type TeamSlug,
@@ -18,6 +16,7 @@ import type {
   FootballDataStandings,
   FootballDataTeam,
 } from "@/providers/football-data/schemas";
+import type { ProviderSnapshot } from "@/providers/contracts";
 
 export const FOOTBALL_DATA_PROVIDER = "football-data";
 export const FOOTBALL_DATA_ATTRIBUTION = {
@@ -36,10 +35,6 @@ const TRACKED_SLUGS_BY_ID = new Map<number, TeamSlug>(
     slug as TeamSlug,
   ]),
 );
-
-export function stableHash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
 
 export function normalizeFootballStatus(status: string): GameStatus {
   const normalized = status.toUpperCase();
@@ -86,7 +81,7 @@ function resultFor(match: FootballDataMatch, teamId: number) {
 
 export type NormalizedSoccerTeamData = {
   schedule: ReturnType<typeof gameScheduleSchema.parse>;
-  snapshots: GameSnapshot[];
+  snapshots: ProviderSnapshot[];
   briefingByGame: Record<string, Briefing>;
 };
 
@@ -156,7 +151,7 @@ export function normalizeSoccerTeamData(input: {
       status: normalizeFootballStatus(match.status),
     }));
 
-  const snapshots: GameSnapshot[] = [];
+  const snapshots: ProviderSnapshot[] = [];
   const briefingByGame: Record<string, Briefing> = {};
   for (const game of games) {
     const raw = input.upcoming.find(
@@ -245,7 +240,12 @@ export function normalizeSoccerTeamData(input: {
       evidenceFacts: facts,
       freshness: { ...freshness, sourceObservedAt: observedAt },
     });
-    snapshots.push(snapshot);
+    snapshots.push({
+      providerGameId: String(raw.id),
+      canonicalGameId: providerGameId(raw.id),
+      route: { id: game.id, teamSlug: slug },
+      snapshot,
+    });
     briefingByGame[game.id] = briefingSchema.parse({
       gameId: game.id,
       mode: "demo",

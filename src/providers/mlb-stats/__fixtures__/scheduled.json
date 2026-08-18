@@ -1,0 +1,82 @@
+{
+  "totalGames": 2,
+  "dates": [
+    {
+      "date": "2026-08-20",
+      "games": [
+        {
+          "gamePk": 900001,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-08-20T23:05:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Scheduled",
+            "codedGameState": "S"
+          },
+          "teams": {
+            "away": {
+              "team": {
+                "id": 111,
+                "name": "Boston Red Sox",
+                "teamName": "Red Sox",
+                "abbreviation": "BOS",
+                "fileCode": "bos"
+              },
+              "probablePitcher": { "id": 700001, "fullName": "Avery Park" }
+            },
+            "home": {
+              "team": {
+                "id": 147,
+                "name": "New York Yankees",
+                "teamName": "Yankees",
+                "abbreviation": "NYY",
+                "fileCode": "nyy"
+              },
+              "probablePitcher": { "id": 700002, "fullName": "Jordan Lee" }
+            }
+          },
+          "venue": { "id": 3313, "name": "Yankee Stadium" },
+          "seriesDescription": "Regular Season"
+        }
+      ]
+    },
+    {
+      "date": "2026-08-22",
+      "games": [
+        {
+          "gamePk": 900002,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-08-22T17:05:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Scheduled"
+          },
+          "teams": {
+            "away": {
+              "team": {
+                "id": 110,
+                "name": "Baltimore Orioles",
+                "teamName": "Orioles",
+                "abbreviation": "BAL",
+                "fileCode": "bal"
+              }
+            },
+            "home": {
+              "team": {
+                "id": 147,
+                "name": "New York Yankees",
+                "teamName": "Yankees",
+                "abbreviation": "NYY",
+                "fileCode": "nyy"
+              }
+            }
+          },
+          "venue": { "id": 3313, "name": "Yankee Stadium" },
+          "seriesDescription": "Regular Season"
+        }
+      ]
+    }
+  ]
+}

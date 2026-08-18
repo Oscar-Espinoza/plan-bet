@@ -1,35 +1,51 @@
 import { NextResponse } from "next/server";
 import { checkDatabaseConnection, isDatabaseConfigured } from "@/db/client";
-import { getRecentProviderState } from "@/data/soccer-repository";
+import { getRecentProviderState } from "@/data/sports-repository";
+import { getProviderHealthDefinitions } from "@/providers/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const database = await checkDatabaseConnection();
-  const providerConfigured = Boolean(
-    process.env.FOOTBALL_DATA_API_TOKEN?.trim(),
-  );
-  let recentIngestion:
-    Awaited<ReturnType<typeof getRecentProviderState>> | undefined;
-  if (database.status === "healthy") {
-    try {
-      recentIngestion = await getRecentProviderState();
-    } catch {
-      recentIngestion = undefined;
+  const definitions = getProviderHealthDefinitions();
+  const providerChecks = {} as Record<
+    keyof typeof definitions,
+    { configured: boolean; status: string; lastRunAt?: string }
+  >;
+
+  for (const [key, definition] of Object.entries(definitions) as [
+    keyof typeof definitions,
+    (typeof definitions)[keyof typeof definitions],
+  ][]) {
+    let recent: Awaited<ReturnType<typeof getRecentProviderState>> | undefined;
+    if (database.status === "healthy") {
+      try {
+        recent = await getRecentProviderState(definition.provider);
+      } catch {
+        recent = undefined;
+      }
     }
+    providerChecks[key] = {
+      configured: definition.configured,
+      status: !definition.configured
+        ? "unconfigured"
+        : recent?.status === "failed"
+          ? "degraded"
+          : "configured",
+      lastRunAt: recent?.startedAt?.toISOString(),
+    };
   }
-  const providerStatus = !providerConfigured
-    ? "unconfigured"
-    : recentIngestion?.status === "failed"
-      ? "degraded"
-      : "configured";
+
+  const providerDegraded = Object.values(providerChecks).some(
+    (check) => check.status !== "configured",
+  );
   const status =
     database.status !== "healthy"
       ? "unavailable"
-      : providerStatus === "configured"
-        ? "healthy"
-        : "degraded";
+      : providerDegraded
+        ? "degraded"
+        : "healthy";
 
   return NextResponse.json(
     {
@@ -42,11 +58,7 @@ export async function GET() {
             status: database.status,
             durationMs: database.durationMs,
           },
-          footballData: {
-            configured: providerConfigured,
-            status: providerStatus,
-            lastRunAt: recentIngestion?.startedAt?.toISOString(),
-          },
+          ...providerChecks,
         },
       },
     },

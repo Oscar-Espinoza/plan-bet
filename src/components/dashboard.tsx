@@ -36,6 +36,10 @@ function FormStrip({ form }: { form: ("W" | "D" | "L")[] }) {
   );
 }
 
+function decimal(value: number) {
+  return value.toFixed(3).replace(/^0/, "");
+}
+
 export function Dashboard({ data }: { data: DashboardData }) {
   const router = useRouter();
   const selectedSport = useMatchdayStore((state) => state.selectedSport);
@@ -185,10 +189,13 @@ export function Dashboard({ data }: { data: DashboardData }) {
               <div className="stat-row">
                 <span>{context.kind === "soccer" ? "Table" : "Division"}</span>
                 <strong>
-                  #
                   {context.kind === "soccer"
-                    ? (context.tablePosition ?? "Not provided")
-                    : context.divisionRank}
+                    ? context.tablePosition
+                      ? `#${context.tablePosition}`
+                      : "Not provided"
+                    : context.divisionRank
+                      ? `#${context.divisionRank}`
+                      : "Not provided"}
                 </strong>
               </div>
               <div className="stat-row">
@@ -203,7 +210,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
               ) : (
                 <div className="stat-row">
                   <span>Last ten</span>
-                  <strong>{context.lastTen}</strong>
+                  <strong>{context.lastTen ?? "Not provided"}</strong>
                 </div>
               )}
               <div className="form-block">
@@ -214,6 +221,36 @@ export function Dashboard({ data }: { data: DashboardData }) {
                   <span className="not-provided">Not provided</span>
                 )}
               </div>
+              {context.kind === "baseball" &&
+                (context.statcast?.trackedTeam ? (
+                  <>
+                    <div className="stat-row">
+                      <span>Statcast season</span>
+                      <strong>{context.statcast.trackedTeam.season}</strong>
+                    </div>
+                    <div className="stat-row">
+                      <span>BA / xBA</span>
+                      <strong>
+                        {decimal(context.statcast.trackedTeam.battingAverage)} /{" "}
+                        {decimal(
+                          context.statcast.trackedTeam.expectedBattingAverage,
+                        )}
+                      </strong>
+                    </div>
+                    <div className="stat-row">
+                      <span>wOBA / xwOBA</span>
+                      <strong>
+                        {decimal(context.statcast.trackedTeam.woba)} /{" "}
+                        {decimal(context.statcast.trackedTeam.expectedWoba)}
+                      </strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="stat-row">
+                    <span>Statcast batting</span>
+                    <strong>Not provided</strong>
+                  </div>
+                ))}
             </div>
           </section>
 
@@ -256,7 +293,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
               <span className="freshness-dot" />
               <strong>
                 {freshness.mode === "live"
-                  ? "Live soccer cache ready"
+                  ? `Live ${team.sport} cache ready`
                   : freshness.mode === "stale"
                     ? "Using last-known-good data"
                     : "Demo fallback ready"}
@@ -266,7 +303,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
               Source: {freshness.attribution.name}. Fetched{" "}
               <LocalDateTime value={freshness.fetchedAt} short />.
             </p>
-            {freshness.mode !== "live" && team.sport === "soccer" && (
+            {freshness.mode !== "live" && (
               <Button
                 type="button"
                 variant="ghost"

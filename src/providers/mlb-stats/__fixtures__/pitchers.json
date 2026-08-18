@@ -1,0 +1,16 @@
+{
+  "people": [
+    {
+      "id": 700001,
+      "fullName": "Avery Park",
+      "pitchHand": { "code": "L" },
+      "stats": [{ "splits": [{ "season": "2026", "stat": { "era": "3.41" } }] }]
+    },
+    {
+      "id": 700002,
+      "fullName": "Jordan Lee",
+      "pitchHand": { "code": "R" },
+      "stats": [{ "splits": [{ "season": "2026", "stat": { "era": "3.08" } }] }]
+    }
+  ]
+}

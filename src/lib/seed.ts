@@ -54,7 +54,11 @@ const rawTeams: Team[] = [
     abbreviation: "NYY",
     mark: "NY",
     colors: { primary: "#a7b4c8", secondary: "#132448" },
-    providerIds: { demo: "mlb-001" },
+    providerIds: {
+      demo: "mlb-001",
+      "mlb-stats": "147",
+      "baseball-savant": "NYY",
+    },
   },
   {
     slug: "boston-red-sox",
@@ -64,7 +68,11 @@ const rawTeams: Team[] = [
     abbreviation: "BOS",
     mark: "B",
     colors: { primary: "#d24851", secondary: "#17365d" },
-    providerIds: { demo: "mlb-002" },
+    providerIds: {
+      demo: "mlb-002",
+      "mlb-stats": "111",
+      "baseball-savant": "BOS",
+    },
   },
 ];
 
@@ -474,7 +482,9 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
   const standingValue =
     context.kind === "soccer"
       ? `#${context.tablePosition} · ${context.points} pts`
-      : `#${context.divisionRank} division · ${context.record}`;
+      : context.divisionRank && context.record
+        ? `#${context.divisionRank} division · ${context.record}`
+        : "Not provided";
   const evidenceFacts = [
     {
       id: `${sourcePrefix}-fact-form`,
@@ -510,7 +520,7 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
     {
       id: `${sourcePrefix}-fact-matchup`,
       label: "Matchup note",
-      value: context.matchupNotes[0],
+      value: context.matchupNotes?.[0] ?? "Not provided",
       sourceId: `${sourcePrefix}-context`,
       observedAt: demoGeneratedAt,
     },
@@ -547,7 +557,7 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
       {
         id: `${sourcePrefix}-brief-5`,
         category: "Matchup",
-        text: context.matchupNotes[0],
+        text: context.matchupNotes?.[0] ?? "Not provided",
         evidenceIds: [`${sourcePrefix}-fact-matchup`],
       },
     ],
@@ -586,7 +596,9 @@ export function getDemoBriefing(id: string, now = new Date()) {
   const standingValue =
     context.kind === "soccer"
       ? `#${context.tablePosition ?? "Not provided"} · ${context.points ?? "Not provided"} pts`
-      : `#${context.divisionRank} division · ${context.record}`;
+      : context.divisionRank && context.record
+        ? `#${context.divisionRank} division · ${context.record}`
+        : "Not provided";
   return briefingSchema.parse({
     gameId: game.id,
     mode: "demo",

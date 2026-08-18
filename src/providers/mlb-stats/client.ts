@@ -2,37 +2,27 @@ import "server-only";
 
 import { z, type ZodType } from "zod";
 import {
-  footballDataMatchesSchema,
-  footballDataStandingsSchema,
-  footballDataTeamSchema,
-} from "@/providers/football-data/schemas";
+  mlbPeopleResponseSchema,
+  mlbScheduleResponseSchema,
+  mlbStandingsResponseSchema,
+  mlbTeamsResponseSchema,
+} from "@/providers/mlb-stats/schemas";
 import { ProviderError } from "@/providers/provider-error";
 
-const BASE_URL = "https://api.football-data.org/v4";
+const BASE_URL = "https://statsapi.mlb.com/api/v1";
 const DEFAULT_TIMEOUT_MS = 8_000;
-const MAX_RESPONSE_BYTES = 2_000_000;
+export const MLB_MAX_RESPONSE_BYTES = 2_000_000;
 
 type ClientOptions = {
-  token?: string;
   fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
 };
 
-export class FootballDataClient {
-  private readonly token: string;
+export class MlbStatsClient {
   private readonly fetcher: typeof globalThis.fetch;
   private readonly timeoutMs: number;
 
   constructor(options: ClientOptions = {}) {
-    const token = options.token ?? process.env.FOOTBALL_DATA_API_TOKEN;
-    if (!token?.trim()) {
-      throw new ProviderError(
-        "unauthorized",
-        "Football data provider is not configured",
-        "configuration",
-      );
-    }
-    this.token = token;
     this.fetcher = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
@@ -51,7 +41,7 @@ export class FootballDataClient {
     let response: Response;
     try {
       response = await this.fetcher(url, {
-        headers: { "X-Auth-Token": this.token },
+        headers: { "User-Agent": "Matchday Plan/0.1" },
         signal: AbortSignal.timeout(this.timeoutMs),
         cache: "no-store",
       });
@@ -70,7 +60,7 @@ export class FootballDataClient {
     if (response.status === 401 || response.status === 403) {
       throw new ProviderError(
         "unauthorized",
-        "Provider rejected the configured credential",
+        "Provider rejected the request",
         operation,
       );
     }
@@ -82,7 +72,7 @@ export class FootballDataClient {
       );
     }
     const contentLength = Number(response.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_RESPONSE_BYTES) {
+    if (contentLength > MLB_MAX_RESPONSE_BYTES) {
       throw new ProviderError(
         "invalid_payload",
         "Provider response exceeded the size limit",
@@ -106,31 +96,17 @@ export class FootballDataClient {
         { cause: error },
       );
     }
-    if (new TextEncoder().encode(text).byteLength > MAX_RESPONSE_BYTES) {
+    if (new TextEncoder().encode(text).byteLength > MLB_MAX_RESPONSE_BYTES) {
       throw new ProviderError(
         "invalid_payload",
         "Provider response exceeded the size limit",
         operation,
       );
     }
-
     if (!response.ok) {
-      let invalidCredential = false;
-      if (response.status === 400) {
-        try {
-          const errorPayload = JSON.parse(text) as { message?: unknown };
-          invalidCredential =
-            typeof errorPayload.message === "string" &&
-            /api token is invalid/i.test(errorPayload.message);
-        } catch {
-          // A non-JSON error body is handled as a generic unavailable response.
-        }
-      }
       throw new ProviderError(
-        invalidCredential ? "unauthorized" : "unavailable",
-        invalidCredential
-          ? "Provider rejected the configured credential"
-          : `Provider returned HTTP ${response.status}`,
+        "unavailable",
+        `Provider returned HTTP ${response.status}`,
         operation,
       );
     }
@@ -149,34 +125,60 @@ export class FootballDataClient {
     }
   }
 
-  getTeam(teamId: number) {
+  getTeam(teamId: number, season: number) {
     return this.request(
       "team_metadata",
       `/teams/${teamId}`,
-      footballDataTeamSchema,
+      mlbTeamsResponseSchema,
+      {
+        season: String(season),
+        hydrate: "division,league,venue",
+      },
     );
   }
 
-  getTeamMatches(
-    teamId: number,
-    operation: "upcoming_matches" | "recent_matches",
-    query: Record<string, string>,
-  ) {
+  getSchedule(input: {
+    teamId: number;
+    season: number;
+    startDate: string;
+    endDate: string;
+    operation: "upcoming_schedule" | "recent_results";
+  }) {
     return this.request(
-      operation,
-      `/teams/${teamId}/matches`,
-      footballDataMatchesSchema,
-      query,
+      input.operation,
+      "/schedule",
+      mlbScheduleResponseSchema,
+      {
+        sportId: "1",
+        teamId: String(input.teamId),
+        season: String(input.season),
+        startDate: input.startDate,
+        endDate: input.endDate,
+        gameTypes: "R,F,D,L,W",
+        hydrate: "team,venue,probablePitcher",
+      },
     );
   }
 
-  getLaLigaStandings() {
+  getStandings(season: number) {
+    return this.request("standings", "/standings", mlbStandingsResponseSchema, {
+      leagueId: "103,104",
+      season: String(season),
+      standingsTypes: "regularSeason",
+      hydrate: "team(division)",
+    });
+  }
+
+  getPitchers(personIds: number[], season: number) {
+    if (!personIds.length) return Promise.resolve({ people: [] });
     return this.request(
-      "standings",
-      "/competitions/PD/standings",
-      footballDataStandingsSchema,
+      "probable_pitchers",
+      "/people",
+      mlbPeopleResponseSchema,
+      {
+        personIds: [...new Set(personIds)].sort((a, b) => a - b).join(","),
+        hydrate: `stats(group=[pitching],type=[season],season=${season})`,
+      },
     );
   }
 }
-
-export { ProviderError } from "@/providers/provider-error";

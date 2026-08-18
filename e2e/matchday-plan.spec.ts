@@ -122,6 +122,70 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
+test("Yankees detail, watchlist, Activity, sport switching, and archived routes remain deterministic", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+
+  await page.goto("/");
+  await page.getByLabel("Selected team").selectOption("new-york-yankees");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
+  ).toBeVisible();
+  await page.locator(".game-row").first().click();
+  await expect(page).toHaveURL(/\/games\/mlb-(?:nyy-01|\d+-new-york-yankees)$/);
+
+  await page.reload();
+  await expect(
+    page.locator(".matchup-team-name").filter({ hasText: "New York Yankees" }),
+  ).toBeVisible();
+  await page.getByLabel("Preparation item").fill("Confirm Yankees starter");
+  await page.getByRole("button", { name: "Add to watchlist" }).click();
+
+  await page.getByRole("link", { name: "Watchlist" }).click();
+  await expect(
+    page.getByText("Confirm Yankees starter", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Open (matchup|archived demo)/ }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Activity" }).click();
+  await expect(
+    page.getByText("Added “Confirm Yankees starter” to the watchlist"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /View (game|archived demo)/ }),
+  ).toBeVisible();
+
+  await page.goto("/games/mlb-nyy-01");
+  await expect(
+    page.getByText("Archived demo item", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("Archived demo item", { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page
+    .getByLabel("Select sport")
+    .getByRole("button", { name: "Soccer" })
+    .click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Real Madrid" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Select sport")
+    .getByRole("button", { name: "Baseball" })
+    .click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
+  ).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
 test("canonical team APIs validate input and expose freshness metadata", async ({
   request,
 }) => {
@@ -146,6 +210,18 @@ test("canonical team APIs validate input and expose freshness metadata", async (
   expect(legacy.ok()).toBe(true);
   expect((await legacy.json()).data.game.id).toBe("soc-rma-01");
 
+  const baseball = await request.get(
+    "/api/teams/new-york-yankees/games?limit=5",
+  );
+  expect(baseball.ok()).toBe(true);
+  const baseballBody = await baseball.json();
+  expect(baseballBody.data.games).toHaveLength(5);
+  expect(baseballBody.data.context.kind).toBe("baseball");
+
+  const archivedBaseball = await request.get("/api/games/mlb-nyy-01");
+  expect(archivedBaseball.ok()).toBe(true);
+  expect((await archivedBaseball.json()).data.game.id).toBe("mlb-nyy-01");
+
   const health = await request.get("/api/health");
   const healthBody = await health.json();
   expect([200, 503]).toContain(health.status());
@@ -155,4 +231,11 @@ test("canonical team APIs validate input and expose freshness metadata", async (
     expect(healthBody.data.status).toBe("unavailable");
   }
   expect(JSON.stringify(healthBody)).not.toContain("postgresql://");
+  expect(healthBody.data.checks).toEqual(
+    expect.objectContaining({
+      footballData: expect.any(Object),
+      mlbStats: expect.any(Object),
+      baseballSavant: expect.any(Object),
+    }),
+  );
 });

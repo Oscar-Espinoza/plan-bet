@@ -13,17 +13,19 @@ let sql: Sql;
 
 async function seedTeams() {
   const values = [
-    ["real-madrid", "86", "Real Madrid"],
-    ["barcelona", "81", "FC Barcelona"],
+    ["real-madrid", "soccer", "football-data", "86", "Real Madrid"],
+    ["barcelona", "soccer", "football-data", "81", "FC Barcelona"],
+    ["new-york-yankees", "baseball", "mlb-stats", "147", "New York Yankees"],
+    ["boston-red-sox", "baseball", "mlb-stats", "111", "Boston Red Sox"],
   ] as const;
-  for (const [slug, externalId, name] of values) {
+  for (const [slug, sport, provider, externalId, name] of values) {
     await sql`
       insert into teams (
         slug, sport, provider, external_id, canonical,
         source_observed_at, fetched_at, expires_at, payload_hash
       ) values (
-        ${slug}, 'soccer', 'football-data', ${externalId},
-        ${JSON.stringify({ slug, sport: "soccer", name })}::jsonb,
+        ${slug}, ${sport}, ${provider}, ${externalId},
+        ${JSON.stringify({ slug, sport, name })}::jsonb,
         now(), now(), now(), ${`hash-${slug}`}
       ) on conflict (slug) do nothing
     `;
@@ -43,7 +45,7 @@ afterAll(async () => {
   await container?.stop();
 });
 
-describe("Session 02 PostgreSQL migration", () => {
+describe("Session 03 shared sports persistence", () => {
   it("applies to an empty PostgreSQL 18 database", async () => {
     const rows = await sql<{ table_name: string }[]>`
       select table_name
@@ -68,7 +70,7 @@ describe("Session 02 PostgreSQL migration", () => {
     const [{ count }] = await sql<{ count: number }[]>`
       select count(*)::int as count from teams
     `;
-    expect(count).toBe(2);
+    expect(count).toBe(4);
   });
 
   it("stores one provider game and associates it with both tracked teams", async () => {
@@ -85,7 +87,7 @@ describe("Session 02 PostgreSQL migration", () => {
     `;
     await sql`
       insert into team_games (team_id, game_id)
-      select id, ${game!.id} from teams
+      select id, ${game!.id} from teams where sport = 'soccer'
       on conflict do nothing
     `;
     const [{ count }] = await sql<{ count: number }[]>`
@@ -119,6 +121,15 @@ describe("Session 02 PostgreSQL migration", () => {
         insert into ingestion_runs (
           provider, operation, scope, status, request_id
         ) values (
+          'mlb-stats', 'refresh_baseball', 'configured-teams', 'running', 'mlb-one'
+        )
+      `,
+    ).resolves.toBeDefined();
+    await expect(
+      sql`
+        insert into ingestion_runs (
+          provider, operation, scope, status, request_id
+        ) values (
           'football-data', 'refresh_soccer', 'configured-teams', 'running', 'two'
         )
       `,
@@ -137,6 +148,50 @@ describe("Session 02 PostgreSQL migration", () => {
         )
       `,
     ).resolves.toBeDefined();
+  });
+
+  it("stores one MLB game with independent team-perspective snapshots idempotently", async () => {
+    await seedTeams();
+    const [game] = await sql<{ id: string }[]>`
+      insert into games (
+        canonical_id, sport, provider, external_id, summary, scheduled_at,
+        source_observed_at, fetched_at, expires_at, payload_hash
+      ) values (
+        'mlb-900001', 'baseball', 'mlb-stats', '900001',
+        ${JSON.stringify({ id: "mlb-900001-new-york-yankees" })}::jsonb,
+        '2026-08-20T23:05:00Z', now(), now(), now(), 'mlb-game-hash'
+      ) on conflict (canonical_id) do update set payload_hash = excluded.payload_hash
+      returning id
+    `;
+    await sql`
+      insert into team_games (team_id, game_id)
+      select id, ${game!.id} from teams where sport = 'baseball'
+      on conflict do nothing
+    `;
+    for (const slug of ["new-york-yankees", "boston-red-sox"] as const) {
+      await sql`
+        insert into game_snapshots (
+          route_id, game_id, team_id, snapshot, source_observed_at,
+          fetched_at, expires_at, payload_hash
+        ) select
+          ${`mlb-900001-${slug}`}, ${game!.id}, id,
+          ${JSON.stringify({ game: { id: `mlb-900001-${slug}` } })}::jsonb,
+          now(), now(), now(), ${`snapshot-${slug}`}
+        from teams where slug = ${slug}
+        on conflict (route_id) do update set payload_hash = excluded.payload_hash
+      `;
+    }
+    const [{ games: gameCount, snapshots: snapshotCount }] = await sql<
+      { games: number; snapshots: number }[]
+    >`
+      select
+        (select count(*)::int from games where external_id = '900001') as games,
+        (select count(*)::int from game_snapshots where route_id like 'mlb-900001-%') as snapshots
+    `;
+    expect({ gameCount, snapshotCount }).toEqual({
+      gameCount: 1,
+      snapshotCount: 2,
+    });
   });
 
   it("retains the last-known-good snapshot when a refresh transaction fails", async () => {

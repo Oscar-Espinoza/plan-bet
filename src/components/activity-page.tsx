@@ -16,6 +16,7 @@ import { DemoStamp } from "@/components/demo-stamp";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Button } from "@/components/ui/button";
 import { getActivityTotals, type ActivityEvent } from "@/lib/storage";
+import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { getTeam } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 
@@ -95,7 +96,11 @@ export function ActivityPage() {
                     </p>
                   </div>
                   {activity.gameId && (
-                    <Link href={`/games/${activity.gameId}`}>View game</Link>
+                    <Link href={`/games/${activity.gameId}`}>
+                      {isLegacyBaseballGameId(activity.gameId)
+                        ? "View archived demo"
+                        : "View game"}
+                    </Link>
                   )}
                 </li>
               );

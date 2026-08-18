@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
+import { stableHash } from "@/data/stable-hash";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
 import {
   gameSnapshots,
@@ -10,13 +11,17 @@ import {
   teamGames,
   teams,
 } from "@/db/schema";
-import { gameScheduleSchema, gameSnapshotSchema } from "@/lib/contracts";
-import type { NormalizedSoccerTeamData } from "@/providers/football-data/normalize";
-import { stableHash } from "@/providers/football-data/normalize";
+import {
+  gameScheduleSchema,
+  gameSnapshotSchema,
+  type TeamSlug,
+} from "@/lib/contracts";
+import type { CanonicalTeamBundle } from "@/providers/contracts";
 
 const LEASE_TIMEOUT_MS = 2 * 60 * 1000;
+const METADATA_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export async function getStoredTeamMetadata(slug: "real-madrid" | "barcelona") {
+export async function getStoredTeamMetadata(slug: TeamSlug) {
   const [row] = await getDatabase()
     .select()
     .from(teams)
@@ -25,10 +30,7 @@ export async function getStoredTeamMetadata(slug: "real-madrid" | "barcelona") {
   return row;
 }
 
-export async function readStoredSchedule(
-  slug: "real-madrid" | "barcelona",
-  now = new Date(),
-) {
+export async function readStoredSchedule(slug: TeamSlug, now = new Date()) {
   const [row] = await getDatabase()
     .select({ schedule: teams.schedule })
     .from(teams)
@@ -48,7 +50,14 @@ export async function readStoredSnapshot(routeId: string, now = new Date()) {
   return applySnapshotMode(gameSnapshotSchema.parse(row.snapshot), now);
 }
 
-export async function acquireRefreshLease(requestId: string, now = new Date()) {
+export async function acquireRefreshLease(input: {
+  provider: string;
+  operation: string;
+  scope: string;
+  requestId: string;
+  now?: Date;
+}) {
+  const now = input.now ?? new Date();
   const database = getDatabase();
   await database
     .update(ingestionRuns)
@@ -60,9 +69,9 @@ export async function acquireRefreshLease(requestId: string, now = new Date()) {
     })
     .where(
       and(
-        eq(ingestionRuns.provider, "football-data"),
-        eq(ingestionRuns.operation, "refresh_soccer"),
-        eq(ingestionRuns.scope, "configured-teams"),
+        eq(ingestionRuns.provider, input.provider),
+        eq(ingestionRuns.operation, input.operation),
+        eq(ingestionRuns.scope, input.scope),
         eq(ingestionRuns.status, "running"),
         lt(ingestionRuns.startedAt, new Date(now.getTime() - LEASE_TIMEOUT_MS)),
       ),
@@ -71,11 +80,11 @@ export async function acquireRefreshLease(requestId: string, now = new Date()) {
   const [lease] = await database
     .insert(ingestionRuns)
     .values({
-      provider: "football-data",
-      operation: "refresh_soccer",
-      scope: "configured-teams",
+      provider: input.provider,
+      operation: input.operation,
+      scope: input.scope,
       status: "running",
-      requestId,
+      requestId: input.requestId,
       startedAt: now,
     })
     .onConflictDoNothing()
@@ -108,43 +117,71 @@ export async function completeRefreshLease(input: {
     .where(eq(ingestionRuns.id, input.id));
 }
 
-export async function persistSoccerTeamData(input: {
-  data: NormalizedSoccerTeamData;
-  providerExternalId: string;
-  metadataRefreshed: boolean;
-  metadataObservedAt: Date;
+export async function recordProviderDiagnostic(input: {
+  provider: string;
+  operation: string;
+  scope: string;
+  requestId: string;
+  status: "succeeded" | "failed";
+  errorCode?: string;
+  errorMessage?: string;
+  now?: Date;
+}) {
+  const now = input.now ?? new Date();
+  await getDatabase()
+    .insert(ingestionRuns)
+    .values({
+      provider: input.provider,
+      operation: input.operation,
+      scope: input.scope,
+      status: input.status,
+      requestId: input.requestId,
+      startedAt: now,
+      completedAt: now,
+      durationMs: 0,
+      cacheResult: input.status === "succeeded" ? "refreshed" : "stale",
+      errorCode: input.errorCode,
+      errorMessage: input.errorMessage?.slice(0, 240),
+    });
+}
+
+export async function persistSportsTeamData(input: {
+  bundle: CanonicalTeamBundle;
   fetchedAt: Date;
 }) {
   await withDatabaseTransaction(async (transaction) => {
+    const schedule = input.bundle.schedule;
     const existing = await transaction
       .select()
       .from(teams)
-      .where(eq(teams.slug, input.data.schedule.team.slug))
+      .where(eq(teams.slug, schedule.team.slug))
       .limit(1);
     const metadataExpiry = new Date(
-      input.fetchedAt.getTime() + 7 * 24 * 60 * 60 * 1000,
+      input.fetchedAt.getTime() + METADATA_TTL_MS,
     );
-    const schedule = input.data.schedule;
     const scheduleExpiry = new Date(schedule.freshness.expiresAt!);
     const teamValues = {
       slug: schedule.team.slug,
       sport: schedule.team.sport,
-      provider: "football-data",
-      externalId: input.providerExternalId,
+      provider: input.bundle.provider,
+      externalId: input.bundle.providerExternalId,
       canonical: schedule.team,
       schedule,
       scheduleFetchedAt: input.fetchedAt,
       scheduleExpiresAt: scheduleExpiry,
       schedulePayloadHash: stableHash(schedule),
-      sourceObservedAt: input.metadataObservedAt,
+      sourceObservedAt: input.bundle.metadataObservedAt,
       fetchedAt: input.fetchedAt,
       expiresAt: metadataExpiry,
       payloadHash: stableHash(schedule.team),
       updatedAt: input.fetchedAt,
     };
-    const metadataSet = input.metadataRefreshed
+    const metadataSet = input.bundle.metadataRefreshed
       ? teamValues
       : {
+          sport: schedule.team.sport,
+          provider: input.bundle.provider,
+          externalId: input.bundle.providerExternalId,
           canonical: schedule.team,
           schedule,
           scheduleFetchedAt: input.fetchedAt,
@@ -160,18 +197,22 @@ export async function persistSoccerTeamData(input: {
     const teamId = teamRow?.id ?? existing[0]?.id;
     if (!teamId) throw new Error("Unable to resolve persisted team");
 
-    for (const snapshot of input.data.snapshots) {
-      const game = snapshot.game;
-      const externalId = game.id.split("-")[2];
-      if (!externalId) throw new Error(`Invalid provider game ID ${game.id}`);
+    for (const item of input.bundle.snapshots) {
+      if (item.route.id !== item.snapshot.game.id) {
+        throw new Error("Snapshot route ownership does not match its game ID");
+      }
+      if (item.route.teamSlug !== schedule.team.slug) {
+        throw new Error("Snapshot route is owned by a different team");
+      }
+      const game = item.snapshot.game;
       const gameValues = {
-        canonicalId: `football-data-${externalId}`,
+        canonicalId: item.canonicalGameId,
         sport: game.sport,
-        provider: "football-data",
-        externalId,
+        provider: input.bundle.provider,
+        externalId: item.providerGameId,
         summary: game,
         scheduledAt: new Date(game.scheduledAt),
-        sourceObservedAt: new Date(snapshot.freshness.sourceObservedAt),
+        sourceObservedAt: new Date(item.snapshot.freshness.sourceObservedAt),
         fetchedAt: input.fetchedAt,
         expiresAt: scheduleExpiry,
         payloadHash: stableHash(game),
@@ -191,14 +232,14 @@ export async function persistSoccerTeamData(input: {
         .values({ teamId, gameId: gameRow.id })
         .onConflictDoNothing();
       const snapshotValues = {
-        routeId: snapshot.game.id,
+        routeId: item.route.id,
         gameId: gameRow.id,
         teamId,
-        snapshot,
-        sourceObservedAt: new Date(snapshot.freshness.sourceObservedAt),
+        snapshot: item.snapshot,
+        sourceObservedAt: new Date(item.snapshot.freshness.sourceObservedAt),
         fetchedAt: input.fetchedAt,
-        expiresAt: new Date(snapshot.freshness.expiresAt!),
-        payloadHash: stableHash(snapshot),
+        expiresAt: new Date(item.snapshot.freshness.expiresAt!),
+        payloadHash: stableHash(item.snapshot),
         updatedAt: input.fetchedAt,
       };
       await transaction
@@ -212,20 +253,23 @@ export async function persistSoccerTeamData(input: {
   });
 }
 
-export async function getRecentProviderState() {
+export async function getRecentProviderState(provider: string) {
   const [run] = await getDatabase()
     .select()
     .from(ingestionRuns)
-    .where(eq(ingestionRuns.provider, "football-data"))
+    .where(eq(ingestionRuns.provider, provider))
     .orderBy(desc(ingestionRuns.startedAt))
     .limit(1);
   return run;
 }
 
-export async function listStoredSoccerGames() {
-  return getDatabase()
+export async function listStoredGames(sport?: "soccer" | "baseball") {
+  const base = getDatabase()
     .select({ routeId: gameSnapshots.routeId, scheduledAt: games.scheduledAt })
     .from(gameSnapshots)
-    .innerJoin(games, eq(gameSnapshots.gameId, games.id))
-    .orderBy(asc(games.scheduledAt));
+    .innerJoin(games, eq(gameSnapshots.gameId, games.id));
+  if (sport) {
+    return base.where(eq(games.sport, sport)).orderBy(asc(games.scheduledAt));
+  }
+  return base.orderBy(asc(games.scheduledAt));
 }

@@ -7,15 +7,17 @@ import {
   acquireRefreshLease,
   completeRefreshLease,
   getStoredTeamMetadata,
-  persistSoccerTeamData,
+  persistSportsTeamData,
   readStoredSchedule,
   readStoredSnapshot,
-} from "@/data/soccer-repository";
+  recordProviderDiagnostic,
+} from "@/data/sports-repository";
 import { createEvidenceBriefing } from "@/lib/briefing";
 import {
   gameScheduleSchema,
   type GameDetailData,
   type GameSchedule,
+  type Sport,
   type TeamSlug,
 } from "@/lib/contracts";
 import {
@@ -25,23 +27,11 @@ import {
   getTeam,
   teams,
 } from "@/lib/seed";
-import {
-  FootballDataClient,
-  ProviderError,
-} from "@/providers/football-data/client";
-import {
-  normalizeSoccerTeamData,
-  SOCCER_PROVIDER_IDS,
-} from "@/providers/football-data/normalize";
-import type { FootballDataTeam } from "@/providers/football-data/schemas";
-
-type SoccerSlug = keyof typeof SOCCER_PROVIDER_IDS;
+import type { CachedTeamMetadata } from "@/providers/contracts";
+import { providerErrorCode } from "@/providers/provider-error";
+import { getSportsProvider } from "@/providers/registry";
 
 export type DashboardData = Record<TeamSlug, GameSchedule>;
-
-function isSoccerSlug(slug: TeamSlug | string): slug is SoccerSlug {
-  return slug === "real-madrid" || slug === "barcelona";
-}
 
 function demoSchedule(slug: TeamSlug, now = new Date()) {
   const team = getTeam(slug)!;
@@ -55,145 +45,158 @@ function demoSchedule(slug: TeamSlug, now = new Date()) {
   });
 }
 
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function cachedProviderTeam(
-  slug: SoccerSlug,
-  row: Awaited<ReturnType<typeof getStoredTeamMetadata>>,
-): FootballDataTeam | undefined {
-  if (!row || row.expiresAt <= new Date()) return undefined;
-  return {
-    id: SOCCER_PROVIDER_IDS[slug],
-    name: row.canonical.name,
-    shortName: row.canonical.shortName,
-    tla: row.canonical.abbreviation,
-    crest: row.canonical.crestUrl,
-    lastUpdated: row.sourceObservedAt.toISOString(),
-  };
-}
-
 function logIngestion(details: Record<string, unknown>) {
-  console.info(JSON.stringify({ event: "soccer_ingestion", ...details }));
+  console.info(JSON.stringify({ event: "sports_ingestion", ...details }));
 }
 
-let inProcessRefresh: Promise<boolean> | undefined;
+const inProcessRefresh = new Map<Sport, Promise<boolean>>();
 
-async function performSoccerRefresh(requestId: string, now = new Date()) {
-  if (!isDatabaseConfigured() || !process.env.FOOTBALL_DATA_API_TOKEN?.trim()) {
-    return false;
+async function cachedMetadata(
+  sport: Sport,
+  now: Date,
+): Promise<Partial<Record<TeamSlug, CachedTeamMetadata>>> {
+  const provider = getSportsProvider(sport);
+  const cached: Partial<Record<TeamSlug, CachedTeamMetadata>> = {};
+  for (const slug of provider.teamSlugs) {
+    const row = await getStoredTeamMetadata(slug);
+    if (row && row.provider === provider.provider && row.expiresAt > now) {
+      cached[slug] = {
+        team: row.canonical,
+        providerExternalId: row.externalId,
+        sourceObservedAt: row.sourceObservedAt,
+        expiresAt: row.expiresAt,
+      };
+    }
   }
+  return cached;
+}
+
+async function performSportRefresh(
+  sport: Sport,
+  requestId: string,
+  now = new Date(),
+) {
+  const provider = getSportsProvider(sport);
+  if (!isDatabaseConfigured() || !provider.isConfigured()) return false;
 
   await seedConfiguredTeams(getDatabase(), now);
-  const lease = await acquireRefreshLease(requestId, now);
+  const lease = await acquireRefreshLease({
+    provider: provider.provider,
+    operation: provider.refreshOperation,
+    scope: provider.refreshScope,
+    requestId,
+    now,
+  });
   if (!lease) return false;
 
+  const startedAt = Date.now();
   try {
-    const client = new FootballDataClient();
-    const standings = await client.getLaLigaStandings();
+    const result = await provider.refresh({
+      now,
+      cachedTeams: await cachedMetadata(sport, now),
+    });
+    const failures = [...result.failures];
     let refreshed = 0;
-    let firstError: unknown;
-
-    for (const slug of Object.keys(SOCCER_PROVIDER_IDS) as SoccerSlug[]) {
-      const startedAt = Date.now();
+    for (const bundle of result.bundles) {
       try {
-        const providerId = SOCCER_PROVIDER_IDS[slug];
-        const storedTeam = await getStoredTeamMetadata(slug);
-        const cachedTeam = cachedProviderTeam(slug, storedTeam);
-        const team = cachedTeam ?? (await client.getTeam(providerId));
-        const metadataRefreshed = !cachedTeam;
-        const dateTo = new Date(now);
-        dateTo.setUTCFullYear(dateTo.getUTCFullYear() + 1);
-        const [upcoming, recent] = await Promise.all([
-          client.getTeamMatches(providerId, "upcoming_matches", {
-            dateFrom: formatDate(now),
-            dateTo: formatDate(dateTo),
-            limit: "50",
-          }),
-          client.getTeamMatches(providerId, "recent_matches", {
-            status: "FINISHED",
-            limit: "20",
-          }),
-        ]);
-        const data = normalizeSoccerTeamData({
-          slug,
-          team,
-          upcoming: upcoming.matches,
-          recent: recent.matches,
-          standings,
-          fetchedAt: now,
-        });
-        await persistSoccerTeamData({
-          data,
-          providerExternalId: String(providerId),
-          metadataRefreshed,
-          metadataObservedAt: new Date(team.lastUpdated ?? now),
-          fetchedAt: now,
-        });
+        await persistSportsTeamData({ bundle, fetchedAt: now });
         refreshed += 1;
         logIngestion({
           requestId,
-          provider: "football-data",
+          sport,
+          provider: provider.provider,
           operation: "refresh_team",
-          scope: slug,
+          scope: bundle.schedule.team.slug,
           status: "succeeded",
           durationMs: Date.now() - startedAt,
         });
       } catch (error) {
-        firstError ??= error;
-        logIngestion({
-          requestId,
-          provider: "football-data",
-          operation: "refresh_team",
-          scope: slug,
-          status: "failed",
-          errorCode:
-            error instanceof ProviderError ? error.code : "persistence_error",
-          durationMs: Date.now() - startedAt,
+        failures.push({
+          teamSlug: bundle.schedule.team.slug,
+          code: providerErrorCode(error),
         });
       }
     }
-
-    if (firstError) throw firstError;
+    for (const diagnostic of result.diagnostics ?? []) {
+      await recordProviderDiagnostic({
+        ...diagnostic,
+        scope: provider.refreshScope,
+        requestId,
+        errorCode: diagnostic.code,
+        errorMessage: diagnostic.message,
+        now,
+      });
+    }
+    const failure = failures[0];
     await completeRefreshLease({
       ...lease,
-      status: "succeeded",
-      cacheResult: "refreshed",
+      status: failure ? "failed" : "succeeded",
+      cacheResult: refreshed ? "refreshed" : "stale",
+      errorCode: failure?.code,
+      errorMessage: failure ? `${sport} refresh was incomplete` : undefined,
+    });
+    logIngestion({
+      requestId,
+      sport,
+      provider: provider.provider,
+      operation: provider.refreshOperation,
+      scope: provider.refreshScope,
+      status: failure ? "failed" : "succeeded",
+      errorCode: failure?.code,
+      refreshed,
+      durationMs: Date.now() - startedAt,
     });
     return refreshed > 0;
   } catch (error) {
-    const errorCode =
-      error instanceof ProviderError ? error.code : "persistence_error";
+    const errorCode = providerErrorCode(error);
     await completeRefreshLease({
       ...lease,
       status: "failed",
       cacheResult: "stale",
       errorCode,
       errorMessage:
-        error instanceof Error ? error.message : "Soccer refresh failed",
+        error instanceof Error ? error.message : `${sport} refresh failed`,
     });
     logIngestion({
       requestId,
-      provider: "football-data",
-      operation: "refresh_soccer",
-      scope: "configured-teams",
+      sport,
+      provider: provider.provider,
+      operation: provider.refreshOperation,
+      scope: provider.refreshScope,
       status: "failed",
       errorCode,
-      durationMs: Date.now() - lease.startedAt.getTime(),
+      durationMs: Date.now() - startedAt,
     });
     return false;
   }
 }
 
-export function refreshSoccerData(requestId = randomUUID(), now = new Date()) {
-  inProcessRefresh ??= performSoccerRefresh(requestId, now).finally(() => {
-    inProcessRefresh = undefined;
+export function refreshSportData(
+  sport: Sport,
+  requestId = randomUUID(),
+  now = new Date(),
+) {
+  const running = inProcessRefresh.get(sport);
+  if (running) return running;
+  const refresh = performSportRefresh(sport, requestId, now).finally(() => {
+    inProcessRefresh.delete(sport);
   });
-  return inProcessRefresh;
+  inProcessRefresh.set(sport, refresh);
+  return refresh;
 }
 
-async function storedSchedule(slug: SoccerSlug, now: Date) {
+export function refreshSoccerData(requestId = randomUUID(), now = new Date()) {
+  return refreshSportData("soccer", requestId, now);
+}
+
+export function refreshBaseballData(
+  requestId = randomUUID(),
+  now = new Date(),
+) {
+  return refreshSportData("baseball", requestId, now);
+}
+
+async function storedSchedule(slug: TeamSlug, now: Date) {
   try {
     return await readStoredSchedule(slug, now);
   } catch {
@@ -206,10 +209,8 @@ export async function getTeamSchedule(
   options: { now?: Date; forceRefresh?: boolean } = {},
 ) {
   const now = options.now ?? new Date();
-  if (
-    !isSoccerSlug(slug) ||
-    process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo"
-  ) {
+  const team = getTeam(slug)!;
+  if (process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo") {
     return demoSchedule(slug, now);
   }
 
@@ -217,7 +218,7 @@ export async function getTeamSchedule(
   if (cached?.freshness.mode === "live" && !options.forceRefresh) return cached;
 
   try {
-    await refreshSoccerData(randomUUID(), now);
+    await refreshSportData(team.sport, randomUUID(), now);
   } catch {
     // A database/provider failure must not prevent stale or demo fallback.
   }
@@ -231,6 +232,14 @@ export async function getDashboardData(now = new Date()) {
     schedules[team.slug] = await getTeamSchedule(team.slug, { now });
   }
   return schedules;
+}
+
+async function storedSnapshot(gameId: string, now: Date) {
+  try {
+    return await readStoredSnapshot(gameId, now);
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getGameDetail(
@@ -247,18 +256,17 @@ export async function getGameDetail(
   if (process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo")
     return undefined;
 
-  let snapshot;
-  try {
-    snapshot = await readStoredSnapshot(gameId, now);
-  } catch {
-    snapshot = undefined;
-  }
-  if (!snapshot || snapshot.freshness.mode === "stale") {
-    try {
-      await refreshSoccerData(randomUUID(), now);
-      snapshot = (await readStoredSnapshot(gameId, now)) ?? snapshot;
-    } catch {
-      // Preserve a stale snapshot when refresh or persistence fails.
+  let snapshot = await storedSnapshot(gameId, now);
+  if (snapshot?.freshness.mode === "stale") {
+    await refreshSportData(snapshot.game.sport, randomUUID(), now).catch(
+      () => undefined,
+    );
+    snapshot = (await storedSnapshot(gameId, now)) ?? snapshot;
+  } else if (!snapshot) {
+    for (const sport of ["soccer", "baseball"] as const) {
+      await refreshSportData(sport, randomUUID(), now).catch(() => undefined);
+      snapshot = await storedSnapshot(gameId, now);
+      if (snapshot) break;
     }
   }
   if (!snapshot) return undefined;

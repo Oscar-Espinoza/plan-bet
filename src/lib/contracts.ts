@@ -76,19 +76,42 @@ const pitcherSchema = z.object({
   era: z.string().optional(),
 });
 
+export const statcastBattingSchema = z.object({
+  team: z.string().min(1),
+  teamCode: z.string().min(2).max(4),
+  season: z.number().int().positive(),
+  plateAppearances: z.number().int().nonnegative(),
+  ballsInPlay: z.number().int().nonnegative(),
+  battingAverage: z.number().nonnegative(),
+  expectedBattingAverage: z.number().nonnegative(),
+  slugging: z.number().nonnegative(),
+  expectedSlugging: z.number().nonnegative(),
+  woba: z.number().nonnegative(),
+  expectedWoba: z.number().nonnegative(),
+});
+export type StatcastBatting = z.infer<typeof statcastBattingSchema>;
+
 export const baseballContextSchema = z.object({
   kind: z.literal("baseball"),
-  divisionRank: z.number().int().positive(),
-  record: z.string(),
-  lastTen: z.string(),
-  recentForm: z.array(z.enum(["W", "L"])).length(5),
-  probablePitchers: z.array(pitcherSchema).length(2),
-  splits: z.object({
-    vsLeft: z.string().optional(),
-    vsRight: z.string().optional(),
-  }),
+  divisionRank: z.number().int().positive().optional(),
+  record: z.string().optional(),
+  lastTen: z.string().optional(),
+  recentForm: z.array(z.enum(["W", "L"])).max(5),
+  probablePitchers: z.array(pitcherSchema).max(2),
+  splits: z
+    .object({
+      vsLeft: z.string().optional(),
+      vsRight: z.string().optional(),
+    })
+    .optional(),
+  statcast: z
+    .object({
+      trackedTeam: statcastBattingSchema.optional(),
+      opponent: statcastBattingSchema.optional(),
+    })
+    .optional(),
   availability: z.array(availabilitySchema),
-  matchupNotes: z.array(z.string()).min(1),
+  matchupNotes: z.array(z.string()).optional(),
 });
 export type BaseballContext = z.infer<typeof baseballContextSchema>;
 

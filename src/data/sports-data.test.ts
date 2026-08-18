@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getTeamSchedule } from "@/data/sports-data";
+import { getSportsProvider } from "@/providers/registry";
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
 const originalProviderToken = process.env.FOOTBALL_DATA_API_TOKEN;
@@ -40,5 +41,23 @@ describe("sports data fallback", () => {
 
     const schedule = await getTeamSchedule("barcelona");
     expect(schedule.freshness.mode).toBe("demo");
+  });
+
+  it("uses the same canonical fallback and provider contract for baseball", async () => {
+    delete process.env.DATABASE_URL;
+    delete process.env.MATCHDAY_DATA_MODE;
+
+    const schedule = await getTeamSchedule("new-york-yankees", {
+      now: new Date("2032-05-04T12:00:00Z"),
+    });
+    const provider = getSportsProvider("baseball");
+
+    expect(schedule.freshness.mode).toBe("demo");
+    expect(schedule.context.kind).toBe("baseball");
+    expect(provider).toMatchObject({
+      sport: "baseball",
+      refreshOperation: "refresh_baseball",
+    });
+    expect(provider.teamSlugs).toEqual(["new-york-yankees", "boston-red-sox"]);
   });
 });

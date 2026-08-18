@@ -48,7 +48,7 @@ describe("football-data normalization", () => {
     ]);
     expect(data.schedule.context.recentForm).toEqual(["W", "W", "L", "D", "W"]);
     expect(data.schedule.context.availability).toEqual([]);
-    expect(data.snapshots[0]?.evidenceFacts).toHaveLength(5);
+    expect(data.snapshots[0]?.snapshot.evidenceFacts).toHaveLength(5);
     expect(data.briefingByGame[data.schedule.games[0]!.id]?.items).toHaveLength(
       5,
     );
@@ -70,8 +70,10 @@ describe("football-data normalization", () => {
     expect(first.schedule.games.map((game) => game.id)).toEqual(
       reordered.schedule.games.map((game) => game.id),
     );
-    expect(first.snapshots[0]?.evidenceFacts.map((fact) => fact.id)).toEqual(
-      reordered.snapshots[0]?.evidenceFacts.map((fact) => fact.id),
+    expect(
+      first.snapshots[0]?.snapshot.evidenceFacts.map((fact) => fact.id),
+    ).toEqual(
+      reordered.snapshots[0]?.snapshot.evidenceFacts.map((fact) => fact.id),
     );
   });
 

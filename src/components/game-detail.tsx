@@ -22,7 +22,8 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import type { GameDetailData, Team } from "@/lib/contracts";
+import type { GameDetailData, StatcastBatting, Team } from "@/lib/contracts";
+import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { useMatchdayStore } from "@/lib/store";
 
 function Provided({ value }: { value?: string }) {
@@ -34,6 +35,38 @@ function Provided({ value }: { value?: string }) {
         <span className="not-provided">Not provided</span>
       )}
     </>
+  );
+}
+
+function decimal(value: number) {
+  return value.toFixed(3).replace(/^0/, "");
+}
+
+function StatcastLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: StatcastBatting;
+}) {
+  return (
+    <div className="pitcher-card">
+      <span>
+        {label} · {value.season}
+      </span>
+      <strong>{value.team}</strong>
+      <small>
+        {value.plateAppearances} PA · {value.ballsInPlay} BIP
+      </small>
+      <small>
+        BA {decimal(value.battingAverage)} / xBA{" "}
+        {decimal(value.expectedBattingAverage)} · SLG {decimal(value.slugging)}{" "}
+        / xSLG {decimal(value.expectedSlugging)}
+      </small>
+      <small>
+        wOBA {decimal(value.woba)} / xwOBA {decimal(value.expectedWoba)}
+      </small>
+    </div>
   );
 }
 
@@ -64,6 +97,10 @@ export function GameDetail({
   );
   const isHome = game.homeTeamSlug === team.slug;
   const opponent = isHome ? game.awayTeam : game.homeTeam;
+  const archivedDemo =
+    game.sport === "baseball" &&
+    freshness.mode === "demo" &&
+    isLegacyBaseballGameId(game.id);
 
   const submitWatch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -112,6 +149,9 @@ export function GameDetail({
               {game.status[0]!.toUpperCase() + game.status.slice(1)}
             </StatusTag>
             <span className="competition-label">{game.competition}</span>
+            {archivedDemo && (
+              <StatusTag tone="warning">Archived demo item</StatusTag>
+            )}
           </div>
           <DemoStamp compact freshness={freshness} />
         </div>
@@ -227,67 +267,111 @@ export function GameDetail({
                 <div className="context-stats">
                   <div>
                     <span>Division</span>
-                    <strong>#{context.divisionRank}</strong>
+                    <strong>
+                      {context.divisionRank
+                        ? `#${context.divisionRank}`
+                        : "Not provided"}
+                    </strong>
                   </div>
                   <div>
                     <span>Record</span>
-                    <strong>{context.record}</strong>
+                    <strong>{context.record ?? "Not provided"}</strong>
                   </div>
                   <div>
                     <span>Last ten</span>
-                    <strong>{context.lastTen}</strong>
+                    <strong>{context.lastTen ?? "Not provided"}</strong>
                   </div>
                   <div>
                     <span>Last five</span>
-                    <strong>{context.recentForm.join(" · ")}</strong>
+                    <strong>
+                      {context.recentForm.length
+                        ? context.recentForm.join(" · ")
+                        : "Not provided"}
+                    </strong>
                   </div>
                 </div>
-                <div className="pitcher-grid">
-                  {context.probablePitchers.map((pitcher) => (
-                    <div className="pitcher-card" key={pitcher.team}>
-                      <span>{pitcher.team} probable</span>
-                      <strong>
-                        <Provided value={pitcher.name} />
-                      </strong>
-                      <small>
-                        Throws <Provided value={pitcher.throws} /> · ERA{" "}
-                        <Provided value={pitcher.era} />
-                      </small>
-                    </div>
-                  ))}
-                </div>
+                {context.probablePitchers.length ? (
+                  <div className="pitcher-grid">
+                    {context.probablePitchers.map((pitcher) => (
+                      <div className="pitcher-card" key={pitcher.team}>
+                        <span>{pitcher.team} probable</span>
+                        <strong>
+                          <Provided value={pitcher.name} />
+                        </strong>
+                        <small>
+                          Throws <Provided value={pitcher.throws} /> · ERA{" "}
+                          <Provided value={pitcher.era} />
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="not-provided">
+                    Probable pitchers: Not provided
+                  </p>
+                )}
+                {context.statcast?.trackedTeam || context.statcast?.opponent ? (
+                  <div className="pitcher-grid">
+                    {context.statcast.trackedTeam && (
+                      <StatcastLine
+                        label="Tracked team Statcast batting"
+                        value={context.statcast.trackedTeam}
+                      />
+                    )}
+                    {context.statcast.opponent && (
+                      <StatcastLine
+                        label="Opponent Statcast batting"
+                        value={context.statcast.opponent}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <p className="not-provided">
+                    Statcast expected batting: Not provided
+                  </p>
+                )}
                 <div className="context-columns">
                   <div>
                     <h3>Batting splits</h3>
                     <div className="data-pair">
                       <span>vs LHP</span>
                       <b>
-                        <Provided value={context.splits.vsLeft} />
+                        <Provided value={context.splits?.vsLeft} />
                       </b>
                     </div>
                     <div className="data-pair">
                       <span>vs RHP</span>
                       <b>
-                        <Provided value={context.splits.vsRight} />
+                        <Provided value={context.splits?.vsRight} />
                       </b>
                     </div>
                   </div>
                   <div>
                     <h3>Availability & matchup</h3>
-                    {context.availability.map((entry) => (
-                      <div className="availability-row" key={entry.name}>
-                        <span>
-                          <b>{entry.name}</b>
-                          <small>{entry.note ?? "No additional note"}</small>
-                        </span>
-                        <StatusTag tone="warning">{entry.status}</StatusTag>
-                      </div>
-                    ))}
-                    <ul className="context-notes">
-                      {context.matchupNotes.map((note) => (
-                        <li key={note}>{note}</li>
-                      ))}
-                    </ul>
+                    {context.availability.length ? (
+                      context.availability.map((entry) => (
+                        <div className="availability-row" key={entry.name}>
+                          <span>
+                            <b>{entry.name}</b>
+                            <small>{entry.note ?? "No additional note"}</small>
+                          </span>
+                          <StatusTag tone="warning">{entry.status}</StatusTag>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="not-provided">Availability: Not provided</p>
+                    )}
+                    {context.matchupNotes?.length ? (
+                      <ul className="context-notes">
+                        {context.matchupNotes.map((note) => (
+                          <li key={note}>{note}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="not-provided">
+                        Matchup notes: Not provided
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -452,13 +536,18 @@ export function GameDetail({
             </form>
           </section>
           <div className="side-disclaimer">
-            <strong>Session 02 data boundary</strong>
+            <strong>Session 03 data boundary</strong>
             <p>
-              Soccer uses validated football-data.org snapshots when available;
-              baseball remains seeded. The brief is deterministic—live AI is not
-              active yet.
+              Soccer and baseball use validated provider snapshots when
+              available. Baseball Savant enrichment is optional, and the brief
+              remains deterministic—live AI is not active yet.
             </p>
-            {game.sport === "soccer" && freshness.mode !== "live" && (
+            {archivedDemo && (
+              <p>
+                This stable legacy route is preserved as an archived demo item.
+              </p>
+            )}
+            {freshness.mode !== "live" && !archivedDemo && (
               <Button
                 type="button"
                 variant="ghost"

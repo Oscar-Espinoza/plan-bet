@@ -1,0 +1,15 @@
+{
+  "teams": [
+    {
+      "id": 147,
+      "name": "New York Yankees",
+      "teamName": "Yankees",
+      "shortName": "NY Yankees",
+      "abbreviation": "NYY",
+      "fileCode": "nyy",
+      "venue": { "id": 3313, "name": "Yankee Stadium" },
+      "league": { "id": 103, "name": "American League" },
+      "division": { "id": 201, "name": "American League East" }
+    }
+  ]
+}
