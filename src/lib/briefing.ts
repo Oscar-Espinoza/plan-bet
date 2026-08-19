@@ -32,8 +32,10 @@ export function createEvidenceBriefing(
   }
   return briefingSchema.parse({
     gameId: snapshot.game.id,
-    mode: "demo",
-    summary: `A deterministic evidence review for ${team.shortName}'s upcoming fixture. No live AI is active yet.`,
+    // Seeded snapshots stay "demo"; a live or stale snapshot's deterministic
+    // review is the fallback the AI route serves, so it is labelled as one.
+    mode: snapshot.freshness.mode === "demo" ? "demo" : "fallback",
+    summary: `A deterministic evidence review for ${team.shortName}'s upcoming fixture, built only from the stored snapshot below.`,
     items: facts.map((fact, index) =>
       createBriefingItem(fact, `${snapshot.game.id}-brief-${index + 1}`),
     ),

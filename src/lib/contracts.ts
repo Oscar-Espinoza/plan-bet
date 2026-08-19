@@ -145,28 +145,64 @@ export const evidenceFactSchema = z.object({
 export type EvidenceFact = z.infer<typeof evidenceFactSchema>;
 export type EvidenceFactInput = z.input<typeof evidenceFactSchema>;
 
+export const briefingItemSchema = z.object({
+  id: z.string(),
+  category: z.string(),
+  text: z.string(),
+  // Set when the item ends on a timestamp, so the reader can render it in
+  // the browser timezone instead of inlining an ISO string in the prose.
+  timestamp: z.iso.datetime().optional(),
+  evidenceIds: z.array(z.string()).min(1),
+});
+export type BriefingItem = z.infer<typeof briefingItemSchema>;
+
 export const briefingSchema = z.object({
   gameId: z.string(),
-  mode: z.enum(["demo", "ai"]),
+  // "demo" is seeded fixture prose, "ai" is a validated model generation, and
+  // "fallback" is the deterministic evidence briefing served when generation
+  // is unavailable or failed validation.
+  mode: z.enum(["demo", "ai", "fallback"]),
   summary: z.string(),
-  items: z
-    .array(
-      z.object({
-        id: z.string(),
-        category: z.string(),
-        text: z.string(),
-        // Set when the item ends on a timestamp, so the reader can render it in
-        // the browser timezone instead of inlining an ISO string in the prose.
-        timestamp: z.iso.datetime().optional(),
-        evidenceIds: z.array(z.string()).min(1),
-      }),
-    )
-    .min(5)
-    .max(7),
+  items: z.array(briefingItemSchema).min(5).max(7),
   limitations: z.array(z.string()).min(1),
   generatedAt: z.iso.datetime(),
+  generation: z
+    .object({
+      model: z.string(),
+      promptVersion: z.string(),
+      schemaVersion: z.string(),
+      latencyMs: z.number().int().nonnegative(),
+    })
+    .optional(),
 });
 export type Briefing = z.infer<typeof briefingSchema>;
+
+export const briefingResultModeSchema = z.enum(["live", "fallback"]);
+export type BriefingResultMode = z.infer<typeof briefingResultModeSchema>;
+
+/** Why a request did not return a live generation. Absent when it did. */
+export const briefingReasonSchema = z.enum([
+  "ai_unconfigured",
+  "validation_failed",
+  "provider_unavailable",
+  "provider_timeout",
+  "provider_rate_limited",
+]);
+export type BriefingReason = z.infer<typeof briefingReasonSchema>;
+
+export const briefingQuotaSchema = z.object({
+  remaining: z.number().int().nonnegative(),
+  resetAt: z.iso.datetime(),
+});
+export type BriefingQuota = z.infer<typeof briefingQuotaSchema>;
+
+export const briefingResultSchema = z.object({
+  briefing: briefingSchema,
+  mode: briefingResultModeSchema,
+  reason: briefingReasonSchema.optional(),
+  quota: briefingQuotaSchema.optional(),
+});
+export type BriefingResult = z.infer<typeof briefingResultSchema>;
 
 export const attributionSchema = z.object({
   name: z.string().min(1),

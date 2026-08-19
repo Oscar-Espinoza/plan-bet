@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  briefingSchema,
   sportSchema,
   teamSlugSchema,
   type Sport,
@@ -33,6 +34,7 @@ export const activityTypeSchema = z.enum([
   "watchlist_deleted",
   "recap_saved",
   "briefing_viewed",
+  "briefing_generated",
   "briefing_saved",
   "briefing_removed",
 ]);
@@ -55,6 +57,12 @@ export const storedStateSchema = z.object({
   recapNotes: z.record(z.string(), z.string().max(2000)),
   savedBriefings: z.array(z.string()),
   viewedBriefings: z.array(z.string()),
+  // Added after v1 shipped. `.default` keeps older payloads valid and `.catch`
+  // means one corrupt briefing cannot discard a whole workspace.
+  generatedBriefings: z
+    .record(z.string(), briefingSchema)
+    .catch({})
+    .default({}),
   activityEvents: z.array(activityEventSchema),
   anonymousId: z.uuid(),
 });
@@ -77,6 +85,7 @@ export function createDefaultState(
     recapNotes: {},
     savedBriefings: [],
     viewedBriefings: [],
+    generatedBriefings: {},
     activityEvents: [],
     anonymousId,
   };

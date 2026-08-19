@@ -2,7 +2,7 @@
 
 Matchday Plan is a public sports preparation workspace for scanning upcoming games, reviewing source-backed context, keeping a browser-local watchlist, and saving recaps without an account.
 
-The current checkpoint is **Session 02: database and live soccer**. Real Madrid and FC Barcelona use validated football-data.org data backed by PostgreSQL; expired provider data falls back to the last-known-good snapshot and then to an explicitly labelled demo. Yankees and Red Sox remain date-relative demo data until Session 03.
+The current checkpoint is **Session 03: live baseball and shared adapters**. All four teams use validated provider data backed by PostgreSQL; expired provider data falls back to the last-known-good snapshot and then to an explicitly labelled demo.
 
 **Live demo:** [plan-bet.vercel.app](https://plan-bet.vercel.app)
 
@@ -77,13 +77,15 @@ pnpm test:e2e
 
 ## Current limitations
 
-- Baseball remains explicitly seeded until Session 03.
 - Injury and player-availability information is shown as “Not provided” because this integration does not source it.
 - Briefings are deterministic evidence templates, not live AI; grounded AI generation arrives in Session 04.
-- No betting, predictions, odds, notifications, live play-by-play, social features, or cross-device synchronization.
+- No real-money betting, predictions, tipping, notifications, live play-by-play, social features, or cross-device synchronization. A free-to-play wager simulator with fictional, non-withdrawable credits is planned for Sessions 06–09.
 
 ## Roadmap
 
-1. **Session 03:** MLB Stats API baseball adapter through the shared canonical contracts
-2. **Session 04:** quota-limited structured AI briefings grounded in saved evidence
-3. **Session 05:** scheduled refresh, system view, CI, accessibility hardening, and portfolio handoff
+1. **Session 04:** quota-limited structured AI briefings grounded in saved evidence
+2. **Session 05:** scheduled refresh, system view, CI, accessibility hardening, and portfolio handoff
+3. **Session 06:** accounts and an append-only credit ledger, with anonymous use unchanged
+4. **Session 07:** bookmaker prices and final results in the canonical model
+5. **Session 08:** placing a wager at a frozen price as an immutable record
+6. **Session 09:** automatic settlement, history, and a reconciled profit and loss record

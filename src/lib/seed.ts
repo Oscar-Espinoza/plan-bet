@@ -487,6 +487,16 @@ function makeSnapshot(game: GameSummary): GameSnapshot {
         : "Not provided";
   const evidenceFacts = [
     {
+      // Mirrors the live adapters, which both emit a datetime schedule fact.
+      // Without it, demo mode has nothing for a briefing to anchor a time to.
+      id: `${sourcePrefix}-fact-schedule`,
+      label: "Scheduled time",
+      value: game.scheduledAt,
+      valueType: "datetime" as const,
+      sourceId: `${sourcePrefix}-schedule`,
+      observedAt: demoGeneratedAt,
+    },
+    {
       id: `${sourcePrefix}-fact-form`,
       label: context.kind === "soccer" ? "Last five" : "Recent form",
       value: formValue,
@@ -604,6 +614,15 @@ export function getDemoBriefing(id: string, now = new Date()) {
     mode: "demo",
     summary: `${team.shortName} enter this scheduled matchup with a clear set of form, availability, and venue cues to review.`,
     items: [
+      {
+        id: `${game.id}-brief-0`,
+        category: "Schedule",
+        // The timestamp is handed over rather than written into the prose, so
+        // it renders in the reader's timezone like every other date.
+        text: `${team.shortName} play this fixture on`,
+        timestamp: game.scheduledAt,
+        evidenceIds: [`${game.id}-fact-schedule`],
+      },
       {
         id: `${game.id}-brief-1`,
         category: "Form",

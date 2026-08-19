@@ -11,6 +11,8 @@ import {
   normalizeFootballStatus,
   normalizeSoccerTeamData,
 } from "@/providers/football-data/normalize";
+import { createEvidenceBriefing } from "@/lib/briefing";
+import { getTeam } from "@/lib/seed";
 import {
   footballDataMatchesSchema,
   footballDataStandingsSchema,
@@ -48,10 +50,42 @@ describe("football-data normalization", () => {
     ]);
     expect(data.schedule.context.recentForm).toEqual(["W", "W", "L", "D", "W"]);
     expect(data.schedule.context.availability).toEqual([]);
-    expect(data.snapshots[0]?.snapshot.evidenceFacts).toHaveLength(5);
-    expect(data.briefingByGame[data.schedule.games[0]!.id]?.items).toHaveLength(
-      5,
+    expect(
+      data.snapshots[0]?.snapshot.evidenceFacts.map((fact) =>
+        fact.id.replace(`${data.schedule.games[0]!.id}-fact-`, ""),
+      ),
+    ).toEqual([
+      "schedule",
+      "matchup",
+      "competition",
+      "stage",
+      "status",
+      "venue",
+      "standing",
+      "opponent-standing",
+      "form",
+    ]);
+  });
+
+  it("sources the opponent standing from the table it already fetched", () => {
+    const data = normalizeSoccerTeamData({
+      slug: "real-madrid",
+      team,
+      upcoming,
+      recent,
+      standings,
+      fetchedAt: new Date("2026-08-17T10:00:00Z"),
+    });
+    const facts = data.snapshots[0]!.snapshot.evidenceFacts;
+    const matchup = facts.find((fact) => fact.id.endsWith("-fact-matchup"));
+    const opponent = facts.find((fact) =>
+      fact.id.endsWith("-fact-opponent-standing"),
     );
+
+    expect(matchup?.value).toContain("(home)");
+    expect(matchup?.value).toContain("(away)");
+    // Either a real table row or an honest absence, never an invented one.
+    expect(opponent?.value).toMatch(/^(#\d+ · |Not provided$)/);
   });
 
   it("marks the scheduled time as a datetime instead of prose", () => {
@@ -70,7 +104,11 @@ describe("football-data normalization", () => {
       value: game.scheduledAt,
       valueType: "datetime",
     });
-    expect(data.briefingByGame[game.id]?.items[0]).toMatchObject({
+    const briefing = createEvidenceBriefing(
+      data.snapshots[0]!.snapshot,
+      getTeam("real-madrid")!,
+    );
+    expect(briefing.items[0]).toMatchObject({
       text: "Scheduled time:",
       timestamp: game.scheduledAt,
     });

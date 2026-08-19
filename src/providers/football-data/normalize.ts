@@ -1,16 +1,13 @@
 import {
-  briefingSchema,
   gameScheduleSchema,
   gameSnapshotSchema,
   gameStatusSchema,
   teamSchema,
-  type Briefing,
   type Freshness,
   type GameStatus,
   type Team,
   type TeamSlug,
 } from "@/lib/contracts";
-import { createBriefingItem } from "@/lib/briefing";
 import { getTeam } from "@/lib/seed";
 import type {
   FootballDataMatch,
@@ -83,7 +80,6 @@ function resultFor(match: FootballDataMatch, teamId: number) {
 export type NormalizedSoccerTeamData = {
   schedule: ReturnType<typeof gameScheduleSchema.parse>;
   snapshots: ProviderSnapshot[];
-  briefingByGame: Record<string, Briefing>;
 };
 
 export function normalizeSoccerTeamData(input: {
@@ -153,7 +149,6 @@ export function normalizeSoccerTeamData(input: {
     }));
 
   const snapshots: ProviderSnapshot[] = [];
-  const briefingByGame: Record<string, Briefing> = {};
   for (const game of games) {
     const raw = input.upcoming.find(
       (match) => canonicalGameId(match.id, slug) === game.id,
@@ -195,6 +190,13 @@ export function normalizeSoccerTeamData(input: {
       },
     ];
     const factPrefix = `${game.id}-fact`;
+    const trackedIsHome = raw.homeTeam.id === teamId;
+    const opponentSide = trackedIsHome ? raw.awayTeam : raw.homeTeam;
+    // The standings payload already holds the whole table, so the opponent's row
+    // is a sourced fact rather than a second request.
+    const opponentStanding = standingsTable.find(
+      (row) => row.team.id === opponentSide.id,
+    );
     const facts = [
       {
         id: `${factPrefix}-schedule`,
@@ -205,9 +207,32 @@ export function normalizeSoccerTeamData(input: {
         observedAt,
       },
       {
+        id: `${factPrefix}-matchup`,
+        label: "Matchup",
+        value: `${game.homeTeam} (home) vs ${game.awayTeam} (away); ${team.shortName} is ${trackedIsHome ? "at home" : "away"}`,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
         id: `${factPrefix}-competition`,
         label: "Competition",
         value: game.competition,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-stage`,
+        label: "Competition stage",
+        value: raw.stage
+          ? raw.stage.replaceAll("_", " ").toLowerCase()
+          : "Not provided",
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-status`,
+        label: "Fixture status",
+        value: game.status,
         sourceId: sourceIds.schedule,
         observedAt,
       },
@@ -222,7 +247,16 @@ export function normalizeSoccerTeamData(input: {
         id: `${factPrefix}-standing`,
         label: "La Liga standing",
         value: standing
-          ? `#${standing.position} · ${standing.points} pts · ${context.record}`
+          ? `#${standing.position} · ${standing.points} pts · ${context.record} · ${standing.playedGames} played`
+          : "Not provided",
+        sourceId: sourceIds.standings,
+        observedAt: fetchedAt.toISOString(),
+      },
+      {
+        id: `${factPrefix}-opponent-standing`,
+        label: `${opponentSide.shortName ?? opponentSide.name} La Liga standing`,
+        value: opponentStanding
+          ? `#${opponentStanding.position} · ${opponentStanding.points} pts · ${opponentStanding.won}W · ${opponentStanding.draw}D · ${opponentStanding.lost}L · ${opponentStanding.playedGames} played`
           : "Not provided",
         sourceId: sourceIds.standings,
         observedAt: fetchedAt.toISOString(),
@@ -248,19 +282,6 @@ export function normalizeSoccerTeamData(input: {
       route: { id: game.id, teamSlug: slug },
       snapshot,
     });
-    briefingByGame[game.id] = briefingSchema.parse({
-      gameId: game.id,
-      mode: "demo",
-      summary: `A deterministic evidence review for ${team.shortName}'s upcoming fixture. No live AI is active yet.`,
-      items: facts.map((fact, index) =>
-        createBriefingItem(fact, `${game.id}-brief-${index + 1}`),
-      ),
-      limitations: [
-        "This briefing is a deterministic template, not live AI generation.",
-        "football-data.org does not provide injury availability in this integration.",
-      ],
-      generatedAt: fetchedAt.toISOString(),
-    });
   }
 
   return {
@@ -271,6 +292,5 @@ export function normalizeSoccerTeamData(input: {
       freshness: { ...freshness, expiresAt: scheduleExpiry.toISOString() },
     }),
     snapshots,
-    briefingByGame,
   };
 }

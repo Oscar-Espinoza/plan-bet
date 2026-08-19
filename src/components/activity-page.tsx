@@ -6,6 +6,7 @@ import {
   Bookmark,
   CheckCheck,
   ClipboardCheck,
+  Cpu,
   Eye,
   FileText,
   History,
@@ -29,6 +30,7 @@ const eventIcons: Record<ActivityEvent["type"], typeof Activity> = {
   watchlist_deleted: ListChecks,
   recap_saved: FileText,
   briefing_viewed: Eye,
+  briefing_generated: Cpu,
   briefing_saved: Bookmark,
   briefing_removed: Bookmark,
 };

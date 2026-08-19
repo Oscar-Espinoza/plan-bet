@@ -4,6 +4,7 @@ import type { Sport } from "@/lib/contracts";
 import type { SportsProvider } from "@/providers/contracts";
 import { FootballDataProvider } from "@/providers/football-data/provider";
 import { MlbSportsProvider } from "@/providers/mlb-stats/provider";
+import { isOpenAiConfigured } from "@/providers/openai/client";
 
 const providers = {
   soccer: new FootballDataProvider(),
@@ -31,6 +32,11 @@ export function getProviderHealthDefinitions() {
     baseballSavant: {
       provider: "baseball-savant",
       configured: true,
+    },
+    // A pure environment check. Health must never spend OpenAI tokens.
+    openai: {
+      provider: "openai",
+      configured: isOpenAiConfigured(),
     },
   } as const;
 }

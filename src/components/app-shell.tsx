@@ -167,10 +167,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-foot">
-          <span className="eyebrow">Session 03</span>
+          <span className="eyebrow">Session 04</span>
           <p>
             Validated soccer and baseball with last-known-good and demo
-            fallback, plus optional Statcast context.
+            fallback, plus cited AI briefings that degrade to a deterministic
+            evidence brief.
           </p>
         </div>
       </aside>

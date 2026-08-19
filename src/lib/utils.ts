@@ -5,13 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * A match time the reader can act on: full date, time, and an explicit zone
+ * label, all in their own timezone. No venue zone is shown because neither
+ * provider supplies one, and inferring it from a country would be fabrication.
+ */
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
-    month: "short",
     day: "numeric",
+    month: "short",
+    year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   }).format(new Date(value));
 }
 

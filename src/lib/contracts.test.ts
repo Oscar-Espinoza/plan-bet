@@ -13,18 +13,11 @@ function asStoredBeforeValueType(fact: EvidenceFact) {
 
 describe("gameSnapshotSchema", () => {
   it("reads a cached scheduled-time fact as a datetime even without valueType", () => {
+    // The seeded snapshot already leads with a schedule fact; stripping every
+    // valueType reproduces a row cached before the field existed.
     const legacy = {
       ...base,
-      evidenceFacts: [
-        {
-          id: `${base.game.id}-fact-schedule`,
-          label: "Scheduled time",
-          value: base.game.scheduledAt,
-          sourceId: base.sources[0]!.id,
-          observedAt: base.freshness.fetchedAt,
-        },
-        ...base.evidenceFacts.map(asStoredBeforeValueType),
-      ],
+      evidenceFacts: base.evidenceFacts.map(asStoredBeforeValueType),
     };
 
     const parsed = gameSnapshotSchema.parse(legacy);

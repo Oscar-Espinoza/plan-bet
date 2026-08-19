@@ -4,6 +4,7 @@ import { cache } from "react";
 import { GameDetail } from "@/components/game-detail";
 import { getGameDetail } from "@/data/sports-data";
 import { getTeam } from "@/lib/seed";
+import { isOpenAiConfigured } from "@/providers/openai/client";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -25,5 +26,7 @@ export default async function GamePage({ params }: Props) {
   if (!detail) notFound();
   const team = getTeam(detail.snapshot.game.teamSlug);
   if (!team) notFound();
-  return <GameDetail data={detail} team={team} />;
+  return (
+    <GameDetail data={detail} team={team} aiEnabled={isOpenAiConfigured()} />
+  );
 }

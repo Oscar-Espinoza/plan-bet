@@ -11,7 +11,7 @@ import {
   type StoredState,
   type WatchlistItem,
 } from "@/lib/storage";
-import type { Sport, TeamSlug } from "@/lib/contracts";
+import type { Briefing, Sport, TeamSlug } from "@/lib/contracts";
 import { normalizeText } from "@/lib/utils";
 
 type WatchlistInput = Pick<WatchlistItem, "sport" | "teamSlug" | "text"> &
@@ -28,6 +28,11 @@ type MatchdayActions = {
   deleteWatchlistItem: (id: string) => boolean;
   saveRecap: (gameId: string, text: string, teamSlug: TeamSlug) => boolean;
   viewBriefing: (gameId: string, teamSlug: TeamSlug) => void;
+  saveGeneratedBriefing: (
+    gameId: string,
+    teamSlug: TeamSlug,
+    briefing: Briefing,
+  ) => void;
   toggleSavedBriefing: (gameId: string, teamSlug: TeamSlug) => void;
   resetDemo: () => void;
 };
@@ -50,6 +55,7 @@ function dataFromStore(state: MatchdayStore): StoredState {
     recapNotes: state.recapNotes,
     savedBriefings: state.savedBriefings,
     viewedBriefings: state.viewedBriefings,
+    generatedBriefings: state.generatedBriefings,
     activityEvents: state.activityEvents,
     anonymousId: state.anonymousId,
   };
@@ -231,6 +237,23 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
         viewedBriefings: [...get().viewedBriefings, gameId],
         activityEvents: addEvent(
           event("briefing_viewed", "Viewed a demo brief", { gameId, teamSlug }),
+        ),
+      });
+    },
+    saveGeneratedBriefing: (gameId, teamSlug, briefing) => {
+      commit({
+        generatedBriefings: { ...get().generatedBriefings, [gameId]: briefing },
+        viewedBriefings: get().viewedBriefings.includes(gameId)
+          ? get().viewedBriefings
+          : [...get().viewedBriefings, gameId],
+        activityEvents: addEvent(
+          event(
+            "briefing_generated",
+            briefing.mode === "ai"
+              ? "Generated an AI briefing"
+              : "Received a fallback briefing",
+            { gameId, teamSlug },
+          ),
         ),
       });
     },

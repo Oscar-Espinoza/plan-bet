@@ -1,0 +1,20 @@
+{
+  "id": "resp_fixture",
+  "object": "response",
+  "model": "gpt-5.6-luna",
+  "status": "completed",
+  "output": [
+    {
+      "id": "msg_fixture",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"summary\":\"fixture\",\"items\":[],\"limitations\":[]}"
+        }
+      ]
+    }
+  ],
+  "usage": { "input_tokens": 812, "output_tokens": 344, "total_tokens": 1156 }
+}

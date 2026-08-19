@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CircleAlert,
   Clock3,
+  Cpu,
   MapPin,
   Plus,
   RefreshCw,
@@ -22,7 +23,16 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import type { GameDetailData, StatcastBatting, Team } from "@/lib/contracts";
+import type {
+  Briefing,
+  BriefingQuota,
+  BriefingReason,
+  GameDetailData,
+  StatcastBatting,
+  Team,
+} from "@/lib/contracts";
+import { briefingResultSchema } from "@/lib/contracts";
+import { TIME_TOKEN } from "@/lib/briefing-prompt";
 import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { useMatchdayStore } from "@/lib/store";
 
@@ -37,6 +47,15 @@ function Provided({ value }: { value?: string }) {
     </>
   );
 }
+
+/** Short, sighted-reader version of the reason the API returns. */
+const REASON_LABELS: Record<BriefingReason, string> = {
+  ai_unconfigured: "AI not configured",
+  validation_failed: "Output failed validation",
+  provider_timeout: "Model timed out",
+  provider_unavailable: "Model unreachable",
+  provider_rate_limited: "Model rate limited",
+};
 
 function decimal(value: number) {
   return value.toFixed(3).replace(/^0/, "");
@@ -73,15 +92,22 @@ function StatcastLine({
 export function GameDetail({
   data,
   team,
+  aiEnabled = false,
 }: {
   data: GameDetailData;
   team: Team;
+  aiEnabled?: boolean;
 }) {
   const router = useRouter();
   const { snapshot, briefing } = data;
   const { game, context, evidenceFacts, sources, freshness } = snapshot;
   const [watchText, setWatchText] = useState("");
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState(false);
+  const [quota, setQuota] = useState<BriefingQuota>();
+  const [reason, setReason] = useState<BriefingReason>();
+  const [failure, setFailure] = useState("");
+  const inFlight = useRef(false);
   const recapNote = useMatchdayStore((state) => state.recapNotes[game.id]);
   const viewed = useMatchdayStore((state) =>
     state.viewedBriefings.includes(game.id),
@@ -89,12 +115,65 @@ export function GameDetail({
   const saved = useMatchdayStore((state) =>
     state.savedBriefings.includes(game.id),
   );
+  const generated = useMatchdayStore(
+    (state) => state.generatedBriefings[game.id],
+  );
+  const anonymousId = useMatchdayStore((state) => state.anonymousId);
+  const hydrated = useMatchdayStore((state) => state.hydrated);
+  // Selected as the stored reference and derived below: returning a fresh array
+  // from the selector would re-render on every store read.
+  const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
+  const saveGeneratedBriefing = useMatchdayStore(
+    (state) => state.saveGeneratedBriefing,
+  );
   const addWatchlistItem = useMatchdayStore((state) => state.addWatchlistItem);
   const saveRecap = useMatchdayStore((state) => state.saveRecap);
   const viewBriefing = useMatchdayStore((state) => state.viewBriefing);
   const toggleSavedBriefing = useMatchdayStore(
     (state) => state.toggleSavedBriefing,
   );
+  // The generated briefing replaces the server one only once it has arrived, so
+  // a pending or failed regeneration never blanks what the reader is looking at.
+  const shown: Briefing = generated ?? briefing;
+  const briefMode = shown.mode;
+  // "Fallback" only means something once a generation was actually attempted.
+  // Before that, the deterministic brief is simply the brief on offer.
+  const briefLabel =
+    briefMode === "ai"
+      ? "Live AI"
+      : briefMode === "demo"
+        ? "Demo"
+        : generated
+          ? "Fallback"
+          : "Evidence brief";
+  const briefOpen = viewed || Boolean(generated);
+  const openWatchlist = watchlistItems
+    .filter((item) => item.gameId === game.id && item.status === "open")
+    .map((item) => item.text);
+  // Reference numbers key off the snapshot's own fact order, so a fact keeps the
+  // same number whether or not this briefing happens to cite it.
+  const citedRefs = (ids: string[]) =>
+    evidenceFacts
+      .map((fact, index) => (ids.includes(fact.id) ? index + 1 : 0))
+      .filter(Boolean);
+  const renderItemText = (item: Briefing["items"][number]) => {
+    const [before, after] = item.text.split(TIME_TOKEN);
+    if (!item.timestamp) return item.text;
+    if (after === undefined) {
+      return (
+        <>
+          {item.text} <LocalDateTime value={item.timestamp} />
+        </>
+      );
+    }
+    return (
+      <>
+        {before}
+        <LocalDateTime value={item.timestamp} />
+        {after}
+      </>
+    );
+  };
   const isHome = game.homeTeamSlug === team.slug;
   const opponent = isHome ? game.awayTeam : game.homeTeam;
   const archivedDemo =
@@ -127,6 +206,65 @@ export function GameDetail({
   const openBrief = () => {
     viewBriefing(game.id, team.slug);
     setMessage("Evidence brief opened.");
+  };
+
+  const generateBrief = async () => {
+    // A ref, not state: it is set before React can re-render, so a double click
+    // cannot slip a second request through.
+    if (inFlight.current || !hydrated) return;
+    inFlight.current = true;
+    setPending(true);
+    setFailure("");
+    setMessage("Generating briefing…");
+    try {
+      const response = await fetch(`/api/games/${game.id}/briefings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: anonymousId,
+          watchlist: openWatchlist
+            .slice(0, 10)
+            .map((text) => text.slice(0, 280)),
+          note: recapNote,
+        }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const code =
+          typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof (payload as { error?: { code?: unknown } }).error?.code ===
+            "string"
+            ? (payload as { error: { code: string } }).error.code
+            : "unavailable";
+        const text =
+          code === "quota_exceeded"
+            ? "The daily briefing limit has been reached. The previous briefing is unchanged."
+            : "Generation failed. The previous briefing is unchanged.";
+        setFailure(text);
+        setMessage(text);
+        return;
+      }
+      const result = briefingResultSchema.parse(
+        (payload as { data: unknown }).data,
+      );
+      saveGeneratedBriefing(game.id, team.slug, result.briefing);
+      setQuota(result.quota);
+      setReason(result.reason);
+      setMessage(
+        result.mode === "live"
+          ? "Briefing generated."
+          : "Generation unavailable. Showing the deterministic fallback briefing.",
+      );
+    } catch {
+      const text = "Generation failed. The previous briefing is unchanged.";
+      setFailure(text);
+      setMessage(text);
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
   };
 
   return (
@@ -384,13 +522,54 @@ export function GameDetail({
           >
             <div className="brief-intro">
               <div>
-                <p className="eyebrow">Prepared example</p>
+                <p className="eyebrow">
+                  {aiEnabled ? "Grounded briefing" : "Prepared example"}
+                </p>
                 <h2 className="panel-title" id="brief-heading">
                   Game brief
                 </h2>
-                <p>{briefing.summary}</p>
+                <p>{shown.summary}</p>
+                <div className="brief-meta">
+                  <StatusTag tone={briefMode === "ai" ? "positive" : "warning"}>
+                    {briefLabel}
+                  </StatusTag>
+                  {briefMode === "fallback" && reason && (
+                    <span className="brief-reason">
+                      {REASON_LABELS[reason]}
+                    </span>
+                  )}
+                  <span>
+                    Model: <Provided value={shown.generation?.model} />
+                  </span>
+                  <span>
+                    Generated <LocalDateTime value={shown.generatedAt} short />
+                  </span>
+                  {shown.generation && (
+                    <span>{shown.generation.latencyMs} ms</span>
+                  )}
+                  <span>Data: {freshness.mode}</span>
+                  {quota && (
+                    <span>
+                      {quota.remaining} generation
+                      {quota.remaining === 1 ? "" : "s"} left today
+                    </span>
+                  )}
+                </div>
               </div>
-              {!viewed ? (
+              {aiEnabled ? (
+                <Button
+                  onClick={generateBrief}
+                  disabled={pending || !hydrated}
+                  aria-busy={pending}
+                >
+                  <Cpu aria-hidden="true" size={16} />
+                  {pending
+                    ? "Generating…"
+                    : generated
+                      ? "Regenerate briefing"
+                      : "Generate briefing"}
+                </Button>
+              ) : !viewed ? (
                 <Button onClick={openBrief}>View demo brief</Button>
               ) : (
                 <StatusTag tone="positive">
@@ -398,28 +577,25 @@ export function GameDetail({
                 </StatusTag>
               )}
             </div>
-            {viewed && (
+            {failure && (
+              <p className="brief-failure" role="status">
+                <CircleAlert aria-hidden="true" size={15} /> {failure}
+              </p>
+            )}
+            {briefOpen && (
               <div id="demo-brief" className="brief-content">
-                <ol className="brief-list">
-                  {briefing.items.map((item) => (
-                    <li key={item.id}>
-                      <span>{item.category}</span>
-                      <p>
-                        {item.text}
-                        {item.timestamp && (
-                          <>
-                            {" "}
-                            <LocalDateTime value={item.timestamp} />.
-                          </>
-                        )}
-                      </p>
-                      <small>
-                        {item.evidenceIds.length} cited{" "}
-                        {item.evidenceIds.length === 1 ? "fact" : "facts"}
-                      </small>
-                    </li>
+                <div className="brief-list">
+                  {shown.items.map((item) => (
+                    <p key={item.id}>
+                      {renderItemText(item)}
+                      {citedRefs(item.evidenceIds).map((reference) => (
+                        <sup key={reference} className="brief-ref">
+                          [{reference}]
+                        </sup>
+                      ))}
+                    </p>
                   ))}
-                </ol>
+                </div>
                 <div className="brief-actions">
                   <Button
                     variant="secondary"
@@ -436,14 +612,18 @@ export function GameDetail({
                 <details className="evidence-disclosure">
                   <summary>
                     <span>
-                      <ShieldCheck aria-hidden="true" size={17} /> Data used
+                      <ShieldCheck aria-hidden="true" size={17} /> Data used ·{" "}
+                      {evidenceFacts.length} facts · {sources.length} sources
                     </span>
                     <ChevronDown aria-hidden="true" size={17} />
                   </summary>
                   <div className="evidence-list">
-                    {evidenceFacts.map((fact) => (
+                    {evidenceFacts.map((fact, index) => (
                       <div key={fact.id}>
-                        <span>{fact.label}</span>
+                        <span>
+                          <b className="brief-ref">[{index + 1}]</b>{" "}
+                          {fact.label}
+                        </span>
                         <strong>
                           {fact.valueType === "datetime" ? (
                             <LocalDateTime value={fact.value} />
@@ -460,7 +640,7 @@ export function GameDetail({
                   <CircleAlert aria-hidden="true" size={17} />
                   <div>
                     <strong>Limitations</strong>
-                    {briefing.limitations.map((limitation) => (
+                    {shown.limitations.map((limitation) => (
                       <p key={limitation}>{limitation}</p>
                     ))}
                   </div>
@@ -550,11 +730,14 @@ export function GameDetail({
             </form>
           </section>
           <div className="side-disclaimer">
-            <strong>Session 03 data boundary</strong>
+            <strong>How this brief is made</strong>
             <p>
-              Soccer and baseball use validated provider snapshots when
-              available. Baseball Savant enrichment is optional, and the brief
-              remains deterministic—live AI is not active yet.
+              Every bullet is written from the validated provider snapshot above
+              and must cite evidence from it.{" "}
+              {aiEnabled
+                ? "When generation fails validation or the model is unreachable, the deterministic evidence brief is served instead and labelled as a fallback."
+                : "AI generation is not configured here, so the deterministic evidence brief is shown."}{" "}
+              No predictions, odds, or betting advice are produced.
             </p>
             {archivedDemo && (
               <p>

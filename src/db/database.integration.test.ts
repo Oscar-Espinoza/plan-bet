@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import {
   PostgreSqlContainer,
@@ -236,5 +237,127 @@ describe("Session 03 shared sports persistence", () => {
       payload_hash: "known-good",
       snapshot: { version: "known-good" },
     });
+  });
+});
+
+/**
+ * The quota is enforced by counting briefing_runs rows for a hash over the
+ * current UTC day inside one advisory-locked transaction, then inserting the
+ * claimed row. These tests exercise that sequence directly, the same way the
+ * refresh-lease tests exercise the partial unique index rather than its
+ * TypeScript wrapper.
+ */
+const SESSION_LIMIT = 5;
+const IP_LIMIT = 20;
+
+/** The same UTC day boundary the repository computes in JavaScript. */
+function utcDayStart(now = new Date()) {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  ).toISOString();
+}
+
+async function claimSlot(
+  sessionHash: string,
+  ipHash: string,
+  startedAt = new Date(),
+) {
+  const dayStart = utcDayStart();
+  return sql.begin(async (transaction) => {
+    await transaction`select pg_advisory_xact_lock(1, hashtext(${sessionHash}))`;
+    await transaction`select pg_advisory_xact_lock(2, hashtext(${ipHash}))`;
+    const [session] = await transaction<{ used: number }[]>`
+      select count(*)::int as used from briefing_runs
+      where session_hash = ${sessionHash} and started_at >= ${dayStart}
+    `;
+    const [ip] = await transaction<{ used: number }[]>`
+      select count(*)::int as used from briefing_runs
+      where ip_hash = ${ipHash} and started_at >= ${dayStart}
+    `;
+    if (session!.used >= SESSION_LIMIT || ip!.used >= IP_LIMIT) return false;
+    await transaction`
+      insert into briefing_runs (
+        route_id, sport, session_hash, ip_hash, model, prompt_version,
+        schema_version, input_hash, status, request_id, started_at
+      ) values (
+        'football-data-600002-real-madrid', 'soccer', ${sessionHash}, ${ipHash},
+        'test-model', 'v1', '1', 'input-hash', 'running', 'req-1',
+        ${startedAt.toISOString()}
+      )
+    `;
+    return true;
+  });
+}
+
+describe("Session 04 briefing runs and quotas", () => {
+  it("applies the briefing_runs migration", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    expect(rows.map((row) => row.table_name)).toContain("briefing_runs");
+  });
+
+  it("cannot exceed the session quota under concurrent claims", async () => {
+    const sessionHash = `session-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => claimSlot(sessionHash, ipHash)),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(SESSION_LIMIT);
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from briefing_runs
+      where session_hash = ${sessionHash}
+    `;
+    expect(count).toBe(SESSION_LIMIT);
+  });
+
+  it("cannot exceed the IP quota across distinct sessions", async () => {
+    const ipHash = `ip-${randomUUID()}`;
+    const claims: Promise<boolean>[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      const sessionHash = `session-${randomUUID()}`;
+      for (let n = 0; n < SESSION_LIMIT; n += 1) {
+        claims.push(claimSlot(sessionHash, ipHash));
+      }
+    }
+
+    const results = await Promise.all(claims);
+    expect(results.filter(Boolean)).toHaveLength(IP_LIMIT);
+  });
+
+  it("does not count rows from a previous UTC day", async () => {
+    const sessionHash = `session-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+    const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000);
+
+    for (let n = 0; n < SESSION_LIMIT; n += 1) {
+      await claimSlot(sessionHash, ipHash, yesterday);
+    }
+
+    await expect(claimSlot(sessionHash, ipHash)).resolves.toBe(true);
+  });
+
+  it("stores no raw address, watchlist text, or note", async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'briefing_runs'
+    `;
+    const names = columns.map((column) => column.column_name);
+
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "session_hash",
+        "ip_hash",
+        "input_hash",
+        "validation_status",
+        "error_code",
+      ]),
+    );
+    for (const forbidden of ["ip_address", "note", "watchlist", "user_text"]) {
+      expect(names).not.toContain(forbidden);
+    }
   });
 });
