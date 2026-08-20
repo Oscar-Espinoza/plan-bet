@@ -119,7 +119,13 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   });
   expect(["0.00001s", "1e-05s", "0.01ms"]).toContain(animationDuration);
 
-  for (const route of ["/", "/games/soc-rma-01", "/watchlist", "/rules"]) {
+  for (const route of [
+    "/",
+    "/games/soc-rma-01",
+    "/games/mlb-nyy-01",
+    "/watchlist",
+    "/rules",
+  ]) {
     for (const viewport of [
       { width: 360, height: 800 },
       { width: 768, height: 900 },

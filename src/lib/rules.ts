@@ -1,1 +1,1 @@
-export const RULES_VERSION = "2026-08-20";
+export const RULES_VERSION = "2026-08-21";

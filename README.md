@@ -127,7 +127,7 @@ Every one of these runs in CI on pull requests and on `main`, with no sports, Op
 - The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
 - Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
 - Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
-- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits; accounts, the credit ledger, and final results are live, and bookmaker prices, placing, locking, and settling a wager (Sessions 07b–09) are still in progress.
+- No real-money betting, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits priced with a small fixed house table this app publishes itself, not bookmaker odds; accounts, the credit ledger, and final results are live, and the market catalogue, placing, locking, and settling a wager (Sessions 07b–09) are still in progress.
 
 ## Attribution
 

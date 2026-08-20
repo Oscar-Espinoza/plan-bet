@@ -35,6 +35,7 @@ import type {
 import { briefingResultSchema } from "@/lib/contracts";
 import { TIME_TOKEN } from "@/lib/briefing-prompt";
 import { isLegacyBaseballGameId } from "@/lib/game-ids";
+import { gradeSelection, marketsFor } from "@/lib/markets";
 import { useMatchdayStore } from "@/lib/store";
 
 function Provided({ value }: { value?: string }) {
@@ -48,6 +49,12 @@ function Provided({ value }: { value?: string }) {
     </>
   );
 }
+
+const GRADE_TONE = {
+  won: { tone: "positive", label: "Won" },
+  lost: { tone: "neutral", label: "Lost" },
+  void: { tone: "warning", label: "Void" },
+} as const;
 
 /** Short, sighted-reader version of the reason the API returns. */
 const REASON_LABELS: Record<BriefingReason, string> = {
@@ -715,6 +722,44 @@ export function GameDetail({
               ))}
             </div>
           </section>
+
+          <section className="panel" aria-labelledby="markets-heading">
+            <div className="panel-header">
+              <h2 className="panel-title" id="markets-heading">
+                Markets
+              </h2>
+              <StatusTag>House prices</StatusTag>
+            </div>
+            <div className="panel-body">
+              {marketsFor(game.sport).map((market) => (
+                <div className="mt-4 first:mt-0" key={market.id}>
+                  {/* Tailwind's preflight flattens a bare h3 to body text, and
+                      `.field-label` is the house small-uppercase label. */}
+                  <h3 className="field-label">{market.label}</h3>
+                  {market.selections.map((selection) => {
+                    // Only a finished game has a result to grade against; an
+                    // upcoming or in-progress game shows prices with no outcome.
+                    const grade = game.result
+                      ? gradeSelection(market, selection.id, game)
+                      : undefined;
+                    return (
+                      <div className="data-pair" key={selection.id}>
+                        <span>{selection.label}</span>
+                        <span className="inline-flex items-center gap-2">
+                          {selection.price.toFixed(2)}
+                          {grade && (
+                            <StatusTag tone={GRADE_TONE[grade].tone}>
+                              {GRADE_TONE[grade].label}
+                            </StatusTag>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
         <aside className="detail-side" aria-label="Preparation tools">
@@ -772,7 +817,11 @@ export function GameDetail({
               {aiEnabled
                 ? "When generation fails validation or the model is unreachable, the deterministic evidence brief is served instead and labelled as a fallback."
                 : "AI generation is not configured here, so the deterministic evidence brief is shown."}{" "}
-              No predictions, odds, or betting advice are produced.
+              Market prices shown on this page are fictional house prices
+              published by this app for a free-to-play simulator — not bookmaker
+              odds, not a prediction, and not betting advice. No real money is
+              involved and nothing is withdrawable; see the{" "}
+              <Link href="/rules">rules</Link> for how markets settle.
             </p>
             {archivedDemo && (
               <p>
