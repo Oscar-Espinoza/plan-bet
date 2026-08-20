@@ -36,8 +36,17 @@ const eventIcons: Record<ActivityEvent["type"], typeof Activity> = {
 };
 
 export function ActivityPage() {
-  const store = useMatchdayStore();
-  const totals = getActivityTotals(store);
+  const viewedBriefings = useMatchdayStore((state) => state.viewedBriefings);
+  const savedBriefings = useMatchdayStore((state) => state.savedBriefings);
+  const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
+  const recapNotes = useMatchdayStore((state) => state.recapNotes);
+  const activityEvents = useMatchdayStore((state) => state.activityEvents);
+  const totals = getActivityTotals({
+    viewedBriefings,
+    savedBriefings,
+    watchlistItems,
+    recapNotes,
+  });
   const metrics = [
     { label: "Briefs viewed", value: totals.briefingsViewed, icon: Eye },
     { label: "Briefs saved", value: totals.briefingsSaved, icon: Bookmark },
@@ -78,9 +87,9 @@ export function ActivityPage() {
           </div>
           <span className="fine-print">Up to 100 events</span>
         </div>
-        {store.activityEvents.length ? (
+        {activityEvents.length ? (
           <ol className="activity-list">
-            {store.activityEvents.map((activity) => {
+            {activityEvents.map((activity) => {
               const Icon = eventIcons[activity.type];
               const team = activity.teamSlug
                 ? getTeam(activity.teamSlug)

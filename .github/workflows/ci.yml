@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Deliberately keyless: no DATABASE_URL, FOOTBALL_DATA_API_TOKEN, or
+    # OPENAI_API_KEY is set anywhere in this job. Unit tests use recorded
+    # fixtures, integration tests spin up their own PostgreSQL container, and
+    # the Playwright webServer command sets its own demo-mode environment.
+    # Leaving them genuinely unset (rather than set to "") also lets
+    # drizzle-kit fall back to the local URL in drizzle.config.ts.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      # Fails when src/db/schema.ts was edited without running pnpm db:generate.
+      # git diff alone is not enough: drift produces an *untracked* .sql file,
+      # so the porcelain check is the one that actually catches it.
+      - name: Migration drift
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::src/db/schema.ts has drifted from drizzle/. Run pnpm db:generate and commit the result."
+            git status --porcelain drizzle
+            git --no-pager diff -- drizzle
+            exit 1
+          fi
+
+      - name: Integration tests
+        run: pnpm test:integration
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

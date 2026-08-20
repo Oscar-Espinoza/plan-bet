@@ -6,6 +6,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "default" | "sm" | "icon";
+  ref?: React.Ref<HTMLButtonElement>;
 };
 
 export function Button({
@@ -13,11 +14,15 @@ export function Button({
   asChild,
   variant = "primary",
   size = "default",
+  type = "button",
+  ref,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   return (
     <Comp
+      ref={ref}
+      type={asChild ? undefined : type}
       className={cn(
         "button",
         variant === "secondary" && "button-secondary",

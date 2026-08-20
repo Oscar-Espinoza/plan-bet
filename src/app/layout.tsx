@@ -15,14 +15,21 @@ export const metadata: Metadata = {
     template: "%s · Matchday Plan",
   },
   description:
-    "A polished local-first sports preparation workspace for upcoming soccer and baseball matchups.",
+    "A no-login planning workspace for upcoming Real Madrid, Barcelona, Yankees, and Red Sox games: source-backed context, cited briefings, and a browser-local watchlist. Not a sportsbook.",
   applicationName: "Matchday Plan",
   authors: [{ name: "Matchday Plan" }],
   keywords: ["sports", "matchday", "soccer", "baseball", "portfolio"],
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
   openGraph: {
     title: "Matchday Plan",
     description:
       "Turn the next fixture into a clear, evidence-linked preparation plan.",
+    siteName: "Matchday Plan",
     type: "website",
     images: [
       {
@@ -36,8 +43,13 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Matchday Plan",
-    description: "A local-first sports preparation workspace.",
-    images: ["/opengraph-image"],
+    description: "A no-login sports preparation workspace. Not a sportsbook.",
+    images: [
+      {
+        url: "/opengraph-image",
+        alt: "Matchday Plan sports preparation workspace",
+      },
+    ],
   },
 };
 

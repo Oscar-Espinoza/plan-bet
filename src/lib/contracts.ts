@@ -163,7 +163,7 @@ export const briefingSchema = z.object({
   // is unavailable or failed validation.
   mode: z.enum(["demo", "ai", "fallback"]),
   summary: z.string(),
-  items: z.array(briefingItemSchema).min(5).max(7),
+  items: z.array(briefingItemSchema).min(1).max(7),
   limitations: z.array(z.string()).min(1),
   generatedAt: z.iso.datetime(),
   generation: z

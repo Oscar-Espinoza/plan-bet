@@ -69,7 +69,7 @@ export default function OpenGraphImage() {
         </div>
       </div>
       <div style={{ display: "flex", color: "#98a4b2", fontSize: 22 }}>
-        Soccer · Baseball · Evidence-linked demo briefings
+        Soccer · Baseball · Cited briefings from saved evidence
       </div>
     </div>,
     size,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -46,6 +46,32 @@ export function WatchlistPage() {
   const filtersActive =
     sport !== "all" || teamSlug !== "all" || status !== "all";
 
+  // Edit/delete buttons stay mounted across the inline edit UI, so restoring
+  // focus after save or cancel just means re-focusing the button that opened
+  // it. Delete removes the whole row, so focus instead moves to a surviving
+  // neighbor (or the list heading once the list is empty), decided before
+  // the item is removed and applied once the row is actually gone.
+  const editButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const pendingDeleteFocus = useRef<
+    { kind: "item"; id: string } | { kind: "heading" } | null
+  >(null);
+
+  useEffect(() => {
+    const pending = pendingDeleteFocus.current;
+    if (!pending) return;
+    pendingDeleteFocus.current = null;
+    if (pending.kind === "heading") {
+      headingRef.current?.focus();
+      return;
+    }
+    (
+      deleteButtonRefs.current.get(pending.id) ??
+      editButtonRefs.current.get(pending.id)
+    )?.focus();
+  }, [filtered]);
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     const id = addItem({
@@ -66,6 +92,22 @@ export function WatchlistPage() {
   const saveEdit = (id: string) => {
     if (updateItem(id, editText)) setMessage("Watchlist item updated.");
     setEditingId(null);
+    editButtonRefs.current.get(id)?.focus();
+  };
+
+  const cancelEdit = (id: string) => {
+    setEditingId(null);
+    editButtonRefs.current.get(id)?.focus();
+  };
+
+  const handleDelete = (id: string) => {
+    const index = filtered.findIndex((item) => item.id === id);
+    const neighborId = filtered[index + 1]?.id ?? filtered[index - 1]?.id;
+    pendingDeleteFocus.current = neighborId
+      ? { kind: "item", id: neighborId }
+      : { kind: "heading" };
+    deleteItem(id);
+    setMessage("Watchlist item deleted.");
   };
 
   const clearFilters = () => {
@@ -129,7 +171,12 @@ export function WatchlistPage() {
             <p className="eyebrow">
               {filtered.length} shown · {items.length} total
             </p>
-            <h2 className="panel-title" id="watchlist-heading">
+            <h2
+              className="panel-title"
+              id="watchlist-heading"
+              ref={headingRef}
+              tabIndex={-1}
+            >
               Preparation items
             </h2>
           </div>
@@ -255,7 +302,7 @@ export function WatchlistPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => setEditingId(null)}
+                          onClick={() => cancelEdit(item.id)}
                         >
                           Cancel
                         </Button>
@@ -285,6 +332,10 @@ export function WatchlistPage() {
                   </div>
                   <div className="watch-actions">
                     <Button
+                      ref={(el) => {
+                        if (el) editButtonRefs.current.set(item.id, el);
+                        else editButtonRefs.current.delete(item.id);
+                      }}
                       variant="ghost"
                       size="icon"
                       aria-label={`Edit ${item.text}`}
@@ -293,13 +344,14 @@ export function WatchlistPage() {
                       <Pencil aria-hidden="true" size={15} />
                     </Button>
                     <Button
+                      ref={(el) => {
+                        if (el) deleteButtonRefs.current.set(item.id, el);
+                        else deleteButtonRefs.current.delete(item.id);
+                      }}
                       variant="ghost"
                       size="icon"
                       aria-label={`Delete ${item.text}`}
-                      onClick={() => {
-                        deleteItem(item.id);
-                        setMessage("Watchlist item deleted.");
-                      }}
+                      onClick={() => handleDelete(item.id)}
                     >
                       <Trash2 aria-hidden="true" size={15} />
                     </Button>

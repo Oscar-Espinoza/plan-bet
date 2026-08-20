@@ -12,7 +12,7 @@
   --line-strong: #374554;
   --text: #f0f2ee;
   --muted: #98a4b2;
-  --faint: #687584;
+  --faint: #8b97a5;
   --green: #61d095;
   --green-dark: #132c22;
   --amber: #e4ae55;
@@ -278,7 +278,7 @@ a {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid var(--line);
   background: #0b1016;
   padding: 0.35rem max(0.35rem, env(safe-area-inset-right))
@@ -301,6 +301,28 @@ a {
 .mobile-nav-link-active {
   background: var(--surface-raised);
   color: var(--green);
+}
+
+.app-footer {
+  border-top: 1px solid var(--line);
+  /* Extra bottom clearance keeps this from sitting under the fixed mobile
+     nav bar; .main-content reserves the same space above 1024px removes it. */
+  padding: 1rem 1rem calc(1rem + 4.5rem);
+}
+
+.app-footer p {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.app-footer a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.app-footer a:hover {
+  color: var(--text);
 }
 
 .page-heading {
@@ -506,6 +528,18 @@ a {
   border-color: #6f552a;
   background: #281f11;
   color: #f0c476;
+}
+
+.status-negative {
+  border-color: #6f3035;
+  background: #2b1519;
+  color: #ffb8bc;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .team-mark {
@@ -1746,6 +1780,10 @@ sup.brief-reason {
 
   .topbar-inner {
     padding-inline: 2rem;
+  }
+
+  .app-footer {
+    padding: 1rem 2rem;
   }
 }
 

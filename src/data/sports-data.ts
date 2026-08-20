@@ -20,6 +20,7 @@ import {
   type Sport,
   type TeamSlug,
 } from "@/lib/contracts";
+import { logEvent } from "@/lib/logger";
 import {
   generateGames,
   getDemoBriefing,
@@ -33,6 +34,16 @@ import { getSportsProvider } from "@/providers/registry";
 
 export type DashboardData = Record<TeamSlug, GameSchedule>;
 
+export type RefreshOutcome = {
+  sport: Sport;
+  provider: string;
+  status: "succeeded" | "failed" | "skipped";
+  reason?: "unconfigured" | "locked";
+  errorCode?: string;
+  refreshed: number;
+  durationMs: number;
+};
+
 function demoSchedule(slug: TeamSlug, now = new Date()) {
   const team = getTeam(slug)!;
   const games = generateGames(slug, now);
@@ -45,11 +56,14 @@ function demoSchedule(slug: TeamSlug, now = new Date()) {
   });
 }
 
-function logIngestion(details: Record<string, unknown>) {
-  console.info(JSON.stringify({ event: "sports_ingestion", ...details }));
+function logIngestion(
+  level: "info" | "warn",
+  details: Record<string, unknown>,
+) {
+  logEvent(level, "sports_ingestion", details);
 }
 
-const inProcessRefresh = new Map<Sport, Promise<boolean>>();
+const inProcessRefresh = new Map<Sport, Promise<RefreshOutcome>>();
 
 async function cachedMetadata(
   sport: Sport,
@@ -75,9 +89,19 @@ async function performSportRefresh(
   sport: Sport,
   requestId: string,
   now = new Date(),
-) {
+): Promise<RefreshOutcome> {
+  const refreshStartedAt = Date.now();
   const provider = getSportsProvider(sport);
-  if (!isDatabaseConfigured() || !provider.isConfigured()) return false;
+  if (!isDatabaseConfigured() || !provider.isConfigured()) {
+    return {
+      sport,
+      provider: provider.provider,
+      status: "skipped",
+      reason: "unconfigured",
+      refreshed: 0,
+      durationMs: Date.now() - refreshStartedAt,
+    };
+  }
 
   await seedConfiguredTeams(getDatabase(), now);
   const lease = await acquireRefreshLease({
@@ -87,7 +111,16 @@ async function performSportRefresh(
     requestId,
     now,
   });
-  if (!lease) return false;
+  if (!lease) {
+    return {
+      sport,
+      provider: provider.provider,
+      status: "skipped",
+      reason: "locked",
+      refreshed: 0,
+      durationMs: Date.now() - refreshStartedAt,
+    };
+  }
 
   const startedAt = Date.now();
   try {
@@ -101,7 +134,7 @@ async function performSportRefresh(
       try {
         await persistSportsTeamData({ bundle, fetchedAt: now });
         refreshed += 1;
-        logIngestion({
+        logIngestion("info", {
           requestId,
           sport,
           provider: provider.provider,
@@ -111,9 +144,20 @@ async function performSportRefresh(
           durationMs: Date.now() - startedAt,
         });
       } catch (error) {
+        const errorCode = providerErrorCode(error);
         failures.push({
           teamSlug: bundle.schedule.team.slug,
-          code: providerErrorCode(error),
+          code: errorCode,
+        });
+        logIngestion("warn", {
+          requestId,
+          sport,
+          provider: provider.provider,
+          operation: "refresh_team",
+          scope: bundle.schedule.team.slug,
+          status: "failed",
+          errorCode,
+          durationMs: Date.now() - startedAt,
         });
       }
     }
@@ -135,7 +179,7 @@ async function performSportRefresh(
       errorCode: failure?.code,
       errorMessage: failure ? `${sport} refresh was incomplete` : undefined,
     });
-    logIngestion({
+    logIngestion(failure ? "warn" : "info", {
       requestId,
       sport,
       provider: provider.provider,
@@ -146,7 +190,14 @@ async function performSportRefresh(
       refreshed,
       durationMs: Date.now() - startedAt,
     });
-    return refreshed > 0;
+    return {
+      sport,
+      provider: provider.provider,
+      status: failure ? "failed" : "succeeded",
+      errorCode: failure?.code,
+      refreshed,
+      durationMs: Date.now() - refreshStartedAt,
+    };
   } catch (error) {
     const errorCode = providerErrorCode(error);
     await completeRefreshLease({
@@ -157,7 +208,7 @@ async function performSportRefresh(
       errorMessage:
         error instanceof Error ? error.message : `${sport} refresh failed`,
     });
-    logIngestion({
+    logIngestion("warn", {
       requestId,
       sport,
       provider: provider.provider,
@@ -167,13 +218,20 @@ async function performSportRefresh(
       errorCode,
       durationMs: Date.now() - startedAt,
     });
-    return false;
+    return {
+      sport,
+      provider: provider.provider,
+      status: "failed",
+      errorCode,
+      refreshed: 0,
+      durationMs: Date.now() - refreshStartedAt,
+    };
   }
 }
 
 export function refreshSportData(
   sport: Sport,
-  requestId = randomUUID(),
+  requestId: string = randomUUID(),
   now = new Date(),
 ) {
   const running = inProcessRefresh.get(sport);
@@ -206,9 +264,10 @@ async function storedSchedule(slug: TeamSlug, now: Date) {
 
 export async function getTeamSchedule(
   slug: TeamSlug,
-  options: { now?: Date; forceRefresh?: boolean } = {},
+  options: { now?: Date; forceRefresh?: boolean; requestId?: string } = {},
 ) {
   const now = options.now ?? new Date();
+  const requestId = options.requestId ?? randomUUID();
   const team = getTeam(slug)!;
   if (process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo") {
     return demoSchedule(slug, now);
@@ -218,7 +277,7 @@ export async function getTeamSchedule(
   if (cached?.freshness.mode === "live" && !options.forceRefresh) return cached;
 
   try {
-    await refreshSportData(team.sport, randomUUID(), now);
+    await refreshSportData(team.sport, requestId, now);
   } catch {
     // A database/provider failure must not prevent stale or demo fallback.
   }
@@ -226,10 +285,17 @@ export async function getTeamSchedule(
   return refreshed ?? cached ?? demoSchedule(slug, now);
 }
 
-export async function getDashboardData(now = new Date()) {
+export async function getDashboardData(
+  options: { now?: Date; requestId?: string } = {},
+) {
+  const now = options.now ?? new Date();
+  const requestId = options.requestId ?? randomUUID();
   const schedules = {} as DashboardData;
   for (const team of teams) {
-    schedules[team.slug] = await getTeamSchedule(team.slug, { now });
+    schedules[team.slug] = await getTeamSchedule(team.slug, {
+      now,
+      requestId,
+    });
   }
   return schedules;
 }
@@ -244,8 +310,10 @@ async function storedSnapshot(gameId: string, now: Date) {
 
 export async function getGameDetail(
   gameId: string,
-  now = new Date(),
+  options: { now?: Date; requestId?: string } = {},
 ): Promise<GameDetailData | undefined> {
+  const now = options.now ?? new Date();
+  const requestId = options.requestId ?? randomUUID();
   const demoSnapshot = getSnapshot(gameId, now);
   if (demoSnapshot) {
     return {
@@ -258,13 +326,13 @@ export async function getGameDetail(
 
   let snapshot = await storedSnapshot(gameId, now);
   if (snapshot?.freshness.mode === "stale") {
-    await refreshSportData(snapshot.game.sport, randomUUID(), now).catch(
+    await refreshSportData(snapshot.game.sport, requestId, now).catch(
       () => undefined,
     );
     snapshot = (await storedSnapshot(gameId, now)) ?? snapshot;
   } else if (!snapshot) {
     for (const sport of ["soccer", "baseball"] as const) {
-      await refreshSportData(sport, randomUUID(), now).catch(() => undefined);
+      await refreshSportData(sport, requestId, now).catch(() => undefined);
       snapshot = await storedSnapshot(gameId, now);
       if (snapshot) break;
     }

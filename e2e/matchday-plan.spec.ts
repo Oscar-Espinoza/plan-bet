@@ -93,28 +93,52 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
 
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  const duration = await page
-    .locator(".game-row")
-    .first()
-    .evaluate((element) => getComputedStyle(element).transitionDuration);
-  expect(["0s", "0.00001s", "1e-05s"]).toContain(duration);
+  const resetTrigger = page.getByRole("button", { name: "Reset demo" });
+  await resetTrigger.click();
+  const cancelDialog = page.getByRole("alertdialog");
+  await expect(
+    cancelDialog.getByRole("heading", { name: "Reset this demo?" }),
+  ).toBeVisible();
+  await cancelDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(resetTrigger).toBeFocused();
 
-  for (const viewport of [
-    { width: 360, height: 800 },
-    { width: 768, height: 900 },
-    { width: 1280, height: 900 },
-    { width: 1536, height: 960 },
-  ]) {
-    await page.setViewportSize(viewport);
-    await page.goto("/");
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(
-      overflow,
-      `horizontal overflow at ${viewport.width}px`,
-    ).toBeLessThanOrEqual(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // The stylesheet declares no `transition` anywhere, so a transitionDuration
+  // assertion tests nothing. .loading-panel carries the app's one real
+  // @keyframes animation, but it is only mounted for the instant Next.js
+  // shows a route's loading.tsx — too transient to depend on in a fast demo
+  // server. Injecting a probe element with the same class exercises the real
+  // stylesheet rule (including the reduced-motion override) deterministically.
+  const animationDuration = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.className = "panel loading-panel";
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).animationDuration;
+    probe.remove();
+    return value;
+  });
+  expect(["0.00001s", "1e-05s", "0.01ms"]).toContain(animationDuration);
+
+  for (const route of ["/", "/games/soc-rma-01", "/watchlist"]) {
+    for (const viewport of [
+      { width: 360, height: 800 },
+      { width: 768, height: 900 },
+      { width: 1280, height: 900 },
+      { width: 1536, height: 960 },
+      // 200%-zoom equivalents of 1280x1080 and 720x800 viewports.
+      { width: 640, height: 540 },
+      { width: 360, height: 400 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto(route);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(
+        overflow,
+        `horizontal overflow at ${viewport.width}x${viewport.height} on ${route}`,
+      ).toBeLessThanOrEqual(0);
+    }
   }
 
   await page.goto("/games/not-a-demo-game");
@@ -163,11 +187,11 @@ test("Yankees detail, watchlist, Activity, sport switching, and archived routes 
 
   await page.goto("/games/mlb-nyy-01");
   await expect(
-    page.getByText("Archived demo item", { exact: true }),
+    page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText("Archived demo item", { exact: true }),
+    page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
   ).toBeVisible();
 
   await page.getByRole("link", { name: "Dashboard" }).click();

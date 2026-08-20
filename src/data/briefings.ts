@@ -24,6 +24,7 @@ import {
   type BriefingReason,
   type BriefingResult,
 } from "@/lib/contracts";
+import { logEvent } from "@/lib/logger";
 import { getTeam } from "@/lib/seed";
 import { isDatabaseConfigured } from "@/db/client";
 import {
@@ -46,8 +47,14 @@ function estimateCostMicros(inputTokens = 0, outputTokens = 0) {
   );
 }
 
-function log(details: Record<string, unknown>) {
-  console.info(JSON.stringify({ event: "briefing_generation", ...details }));
+function logBriefing(
+  mode: "live" | "fallback",
+  details: Record<string, unknown>,
+) {
+  logEvent(mode === "live" ? "info" : "warn", "briefing_generation", {
+    mode,
+    ...details,
+  });
 }
 
 function providerReason(error: unknown): BriefingReason {
@@ -95,17 +102,14 @@ function auditFailed(
 ) {
   // Never silent: a missing table or a dead database has to be visible in the
   // log for the request it happened on, not discovered a session later.
-  console.warn(
-    JSON.stringify({
-      event: "briefing_audit_failed",
-      requestId,
-      operation,
-      errorCode:
-        error instanceof Error && "code" in error
-          ? String((error as { code: unknown }).code)
-          : "persistence_error",
-    }),
-  );
+  logEvent("warn", "briefing_audit_failed", {
+    requestId,
+    operation,
+    errorCode:
+      error instanceof Error && "code" in error
+        ? String((error as { code: unknown }).code)
+        : "persistence_error",
+  });
 }
 
 export type GenerateBriefingInput = {
@@ -129,16 +133,18 @@ export async function generateBriefing(
   input: GenerateBriefingInput,
 ): Promise<GenerateBriefingOutcome> {
   const now = input.now ?? new Date();
-  const detail = await getGameDetail(input.gameId, now);
+  const detail = await getGameDetail(input.gameId, {
+    now,
+    requestId: input.requestId,
+  });
   if (!detail) return { status: "not_found" };
 
   const { snapshot } = detail;
   const team = getTeam(snapshot.game.teamSlug)!;
 
   if (!isOpenAiConfigured()) {
-    log({
+    logBriefing("fallback", {
       requestId: input.requestId,
-      mode: "fallback",
       reason: "ai_unconfigured",
     });
     return {
@@ -259,9 +265,8 @@ export async function generateBriefing(
         errorCode,
         ...usage,
       });
-      log({
+      logBriefing("fallback", {
         requestId: input.requestId,
-        mode: "fallback",
         reason,
         errorCode,
         attemptCount,
@@ -331,9 +336,8 @@ export async function generateBriefing(
         output: briefing,
         ...usage,
       });
-      log({
+      logBriefing("live", {
         requestId: input.requestId,
-        mode: "live",
         attemptCount,
         latencyMs,
         inputTokens: usage.inputTokens,
@@ -353,9 +357,8 @@ export async function generateBriefing(
     errorCode: lastReason,
     ...usage,
   });
-  log({
+  logBriefing("fallback", {
     requestId: input.requestId,
-    mode: "fallback",
     reason: "validation_failed",
     validationStatus: lastReason,
     attemptCount,

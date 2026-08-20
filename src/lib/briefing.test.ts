@@ -34,4 +34,15 @@ describe("createEvidenceBriefing", () => {
       ).mode,
     ).toBe("fallback");
   });
+
+  it("builds a valid two-item fallback briefing from a thin snapshot instead of throwing", () => {
+    const thin = {
+      ...snapshot,
+      evidenceFacts: snapshot.evidenceFacts.slice(0, 2),
+    };
+
+    const briefing = createEvidenceBriefing(thin, team);
+
+    expect(briefing.items).toHaveLength(2);
+  });
 });

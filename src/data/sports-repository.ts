@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
 import { stableHash } from "@/data/stable-hash";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
 import {
+  briefingRuns,
   gameSnapshots,
   games,
   ingestionRuns,
@@ -253,14 +254,56 @@ export async function persistSportsTeamData(input: {
   });
 }
 
-export async function getRecentProviderState(provider: string) {
-  const [run] = await getDatabase()
-    .select()
+/**
+ * The latest ingestion run for a provider, plus its latest *succeeded* run,
+ * in two cheap indexed lookups (`ingestion_runs_recent_idx` on
+ * provider+started_at) rather than one query per health field.
+ */
+export async function getProviderHealthState(provider: string) {
+  const database = getDatabase();
+  const [latest] = await database
+    .select({
+      status: ingestionRuns.status,
+      startedAt: ingestionRuns.startedAt,
+      durationMs: ingestionRuns.durationMs,
+      errorCode: ingestionRuns.errorCode,
+    })
     .from(ingestionRuns)
     .where(eq(ingestionRuns.provider, provider))
     .orderBy(desc(ingestionRuns.startedAt))
     .limit(1);
-  return run;
+  const [succeeded] = await database
+    .select({ startedAt: ingestionRuns.startedAt })
+    .from(ingestionRuns)
+    .where(
+      and(
+        eq(ingestionRuns.provider, provider),
+        eq(ingestionRuns.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(ingestionRuns.startedAt))
+    .limit(1);
+  return {
+    lastRunAt: latest?.startedAt,
+    lastStatus: latest?.status,
+    lastErrorCode: latest?.errorCode ?? undefined,
+    lastDurationMs: latest?.durationMs ?? undefined,
+    lastSuccessAt: succeeded?.startedAt,
+  };
+}
+
+/**
+ * Nothing ever writes an `ingestion_runs` row with provider "openai" — its
+ * recency signal is the most recent briefing generation attempt instead.
+ * Aggregate-only, no session/ip/input/output columns touched.
+ */
+export async function getLastBriefingGenerationAt() {
+  const [row] = await getDatabase()
+    .select({
+      lastGenerationAt: sql<string | null>`max(${briefingRuns.startedAt})`,
+    })
+    .from(briefingRuns);
+  return row?.lastGenerationAt ? new Date(row.lastGenerationAt) : undefined;
 }
 
 export async function listStoredGames(sport?: "soccer" | "baseball") {

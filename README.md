@@ -1,25 +1,36 @@
 # Matchday Plan
 
-Matchday Plan is a public sports preparation workspace for scanning upcoming games, reviewing source-backed context, keeping a browser-local watchlist, and saving recaps without an account.
-
-The current checkpoint is **Session 03: live baseball and shared adapters**. All four teams use validated provider data backed by PostgreSQL; expired provider data falls back to the last-known-good snapshot and then to an explicitly labelled demo.
+Matchday Plan is a public sports preparation workspace for scanning upcoming games, reviewing source-backed context, generating cited AI briefings, keeping a browser-local watchlist, and saving recaps — without an account.
 
 **Live demo:** [plan-bet.vercel.app](https://plan-bet.vercel.app)
 
+Four tracked teams: Real Madrid, FC Barcelona, New York Yankees, and Boston Red Sox. Provider data is Zod-validated and normalized before it is stored or rendered, and every screen states whether what you are looking at is live, stale, or demo data.
+
+| Dashboard                                      | Game detail                                        | Mobile                                             |
+| ---------------------------------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| ![Dashboard](./docs/screenshots/dashboard.png) | ![Game detail](./docs/screenshots/game-detail.png) | ![Mobile dashboard](./docs/screenshots/mobile.png) |
+
+_Captured from the production build in deterministic demo mode._
+
 ## Product surface
 
-- Real Madrid and Barcelona schedules, La Liga standings, and last-five form through football-data.org
-- PostgreSQL-backed cache with live, stale, and demo freshness labels
-- Date-relative seeded Yankees and Red Sox fallback data
-- Sport-specific game pages with source timestamps and evidence-linked deterministic briefs
-- Browser-local watchlist CRUD, filters, recap notes, saved briefs, and activity totals
-- Responsive, keyboard-accessible desktop and mobile workspace
+- Real Madrid and Barcelona schedules, La Liga standings, and recent form through football-data.org
+- Yankees and Red Sox schedules, probable pitchers, standings, and Statcast expected batting through the MLB Stats API and Baseball Savant
+- PostgreSQL-backed cache with explicit live / stale / demo freshness labels and a last-known-good fallback
+- Grounded AI briefings: 5–7 items, each citing evidence facts from the game's own saved snapshot, degrading to a deterministic evidence brief when generation is unavailable or fails validation
+- Browser-local watchlist CRUD, filters, recap notes, saved briefings, and activity totals
+- `/system` operational view: provider freshness, ingestion history, briefing latency, fallback and retry rates
+- Responsive, keyboard-accessible, screen-reader-tested desktop and mobile workspace
 
-There is no login. Personal state never leaves the browser and uses only `matchday-plan:v1`.
+There is no login. Personal state never leaves the browser and lives in a single validated key, `matchday-plan:v1`.
+
+## Architecture
+
+See [docs/architecture.md](./docs/architecture.md) for the data-flow diagram, the layering rule, the caching and fallback chain, evidence validation, quotas, observability, and the deliberate trade-offs.
 
 ## Stack
 
-Next.js 16.2, React 19.2, TypeScript 6, Tailwind CSS 4, Zod 4, Zustand 5, PostgreSQL 18 on Neon, Drizzle ORM, the Neon serverless driver, Vitest, Testcontainers, and Playwright. Exact versions are pinned in `package.json` and `pnpm-lock.yaml`; the project targets Node 24.18.1 and pnpm 11.
+Next.js 16.2, React 19.2, TypeScript 6, Tailwind CSS 4, Zod 4, Zustand 5, PostgreSQL 18 on Neon, Drizzle ORM, the Neon serverless driver, the OpenAI Responses API with strict Structured Outputs, Vitest, Testcontainers, and Playwright. Exact versions are pinned in `package.json` and `pnpm-lock.yaml`; the project targets Node 24.18.1 and pnpm 11.
 
 ## Local setup
 
@@ -28,40 +39,64 @@ nvm use
 corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env.local
-```
-
-Set these server-only variables in `.env.local`:
-
-```dotenv
-DATABASE_URL=postgresql://...
-FOOTBALL_DATA_API_TOKEN=...
-```
-
-Apply the generated migration and idempotent team seed before starting the app:
-
-```bash
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
 ```
 
-Missing secrets do not break builds or navigation: soccer returns the Session 01 demo fallback and `/api/health` reports the unavailable dependency without exposing configuration values.
+Missing secrets do not break builds or navigation. Soccer falls back to demo data, briefings fall back to the deterministic evidence brief, and `/api/health` reports the unavailable dependency without exposing any configuration value.
 
-## APIs and data policy
+### Environment variables
 
-| Route                                         | Purpose                                               |
-| --------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/teams`                              | Four configured canonical teams                       |
-| `GET /api/teams/:slug/games?limit=5`          | Validated canonical schedule and team context         |
-| `GET /api/games/:gameId`                      | Canonical game snapshot, evidence, and source records |
-| `GET /api/health`                             | App, database, and provider configuration status      |
-| `/`, `/games/[id]`, `/watchlist`, `/activity` | Public product workflow                               |
+All are server-only except `NEXT_PUBLIC_SITE_URL`.
 
-Provider payloads are validated before normalization or persistence. Team metadata is cached for seven days, schedules and standings for six hours, and near-game snapshots for one hour. Reads use fresh live data first, expired last-known-good data second, and demo data only when no valid database snapshot exists. Partial live schedules are never padded with fictional games.
+| Variable                  | Required         | Purpose                                                                                                        |
+| ------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | for live data    | PostgreSQL connection string (single Neon branch)                                                              |
+| `FOOTBALL_DATA_API_TOKEN` | for live soccer  | football-data.org token                                                                                        |
+| `OPENAI_API_KEY`          | for AI briefings | absent means briefings serve the deterministic fallback                                                        |
+| `OPENAI_MODEL`            | no               | defaults to `gpt-5.6-luna`                                                                                     |
+| `BRIEFING_PROMPT_VERSION` | no               | traceability stamp on every briefing run                                                                       |
+| `BRIEFING_SCHEMA_VERSION` | no               | traceability stamp on every briefing run                                                                       |
+| `RATE_LIMIT_HASH_SECRET`  | in production    | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
+| `CRON_SECRET`             | in production    | bearer secret for `/api/cron/refresh`; absent means the endpoint refuses to run                                |
+| `MATCHDAY_DATA_MODE`      | no               | set to `demo` for deterministic local and E2E runs                                                             |
+| `NEXT_PUBLIC_SITE_URL`    | no               | canonical origin for metadata; falls back to the Vercel production URL                                         |
 
-Provider game identities are stored once and associated with both tracked teams when necessary. Team-perspective route IDs remain stable, and all Session 01 demo game routes remain readable for existing browser-local items.
+## Scripts
 
-## Quality commands
+```bash
+pnpm dev                      # development server
+pnpm build && pnpm start      # production build
+pnpm db:generate              # after editing src/db/schema.ts
+pnpm db:migrate               # apply migrations
+pnpm db:seed                  # idempotent team seed
+pnpm data:refresh:soccer      # manual provider refresh (needs DATABASE_URL + real tokens)
+pnpm data:refresh:baseball
+pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it is live
+```
+
+## API
+
+| Route                                | Purpose                                                         |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `GET /api/teams`                     | The four configured canonical teams                             |
+| `GET /api/teams/:slug/games?limit=5` | Validated canonical schedule and team context                   |
+| `GET /api/games/:gameId`             | Canonical game snapshot, evidence facts, and source records     |
+| `POST /api/games/:gameId/briefings`  | Quota-limited grounded AI briefing, cited to the saved snapshot |
+| `GET /api/health`                    | App, database, schema currency, and provider status             |
+| `GET /api/system/recent?limit=10`    | Bounded recent ingestion and aggregate briefing metrics         |
+| `GET`/`POST /api/cron/refresh`       | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`         |
+
+Responses are `{ data }` or `{ error: { code, message, requestId } }`, always `Cache-Control: no-store`. Error messages never echo configuration.
+
+## Data policy
+
+Provider payloads are validated before normalization or persistence and are never rendered raw. Team metadata is cached for seven days, schedules and standings for six hours, and game snapshots for one hour. Reads prefer fresh live data, then expired last-known-good data labelled `stale`, then explicitly labelled demo data. Partial live schedules are never padded with fictional games, and missing data renders "Not provided" rather than being inferred.
+
+Every AI briefing item cites evidence IDs present in that game's own stored snapshot. An item citing anything else is rejected before it reaches the reader.
+
+## Quality gate
 
 ```bash
 pnpm format:check
@@ -73,19 +108,16 @@ pnpm build
 pnpm test:e2e
 ```
 
-`pnpm test:integration` starts and removes an isolated PostgreSQL 18 Docker container; it never uses `DATABASE_URL`. Playwright starts the production build in deterministic demo mode so the browser suite runs without provider or database network access.
+Every one of these runs in CI on pull requests and on `main`, with no sports, OpenAI, or database credentials. `pnpm test:integration` starts and removes an isolated PostgreSQL 18 Docker container and never uses `DATABASE_URL`. Playwright starts the production build in deterministic demo mode on port 3100. CI additionally fails if `src/db/schema.ts` has drifted from the committed migrations.
 
 ## Current limitations
 
-- Injury and player-availability information is shown as “Not provided” because this integration does not source it.
-- Briefings are deterministic evidence templates, not live AI; grounded AI generation arrives in Session 04.
-- No real-money betting, predictions, tipping, notifications, live play-by-play, social features, or cross-device synchronization. A free-to-play wager simulator with fictional, non-withdrawable credits is planned for Sessions 06–09.
+- Injury and player-availability information renders "Not provided" — no configured provider supplies it on a free tier.
+- The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
+- Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
+- Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
+- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. A free-to-play wager simulator using fictional, non-withdrawable credits and licensed bookmaker prices is planned as a separate milestone.
 
-## Roadmap
+## Attribution
 
-1. **Session 04:** quota-limited structured AI briefings grounded in saved evidence
-2. **Session 05:** scheduled refresh, system view, CI, accessibility hardening, and portfolio handoff
-3. **Session 06:** accounts and an append-only credit ledger, with anonymous use unchanged
-4. **Session 07:** bookmaker prices and final results in the canonical model
-5. **Session 08:** placing a wager at a frozen price as an immutable record
-6. **Session 09:** automatic settlement, history, and a reconciled profit and loss record
+Match data from [football-data.org](https://www.football-data.org/), the [MLB Stats API](https://statsapi.mlb.com/), and [Baseball Savant](https://baseballsavant.mlb.com/). Club crests and marks belong to their respective clubs.

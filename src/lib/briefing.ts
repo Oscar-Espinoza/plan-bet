@@ -26,10 +26,10 @@ export function createEvidenceBriefing(
   snapshot: GameSnapshot,
   team: Team,
 ): Briefing {
+  // The fallback path (unlike the AI path, which independently enforces 5-7
+  // via aiBriefingOutputSchema and the strict OpenAI JSON Schema) must degrade
+  // gracefully even for a thin snapshot rather than turning into a 500.
   const facts = snapshot.evidenceFacts.slice(0, 7);
-  if (facts.length < 5) {
-    throw new Error(`Snapshot ${snapshot.game.id} has fewer than five facts`);
-  }
   return briefingSchema.parse({
     gameId: snapshot.game.id,
     // Seeded snapshots stay "demo"; a live or stale snapshot's deterministic

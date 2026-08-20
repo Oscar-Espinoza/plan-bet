@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 import { generateBriefing } from "@/data/briefings";
 import { hashClientAddress } from "@/data/briefings-repository";
+import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
+import type { RouteContext } from "@/lib/api-response";
 import {
   MAX_NOTE_CHARS,
   MAX_WATCHLIST_CHARS,
@@ -26,17 +27,11 @@ const bodySchema = z.object({
 
 type Props = { params: Promise<{ gameId: string }> };
 
-function invalid(requestId: string) {
-  return NextResponse.json(
-    {
-      error: {
-        code: "invalid_request",
-        message:
-          "Send an anonymous session ID, at most 10 watchlist entries of 280 characters, and a note of 2000 characters.",
-        requestId,
-      },
-    },
-    { status: 400 },
+function invalid(context: RouteContext) {
+  return apiFailure(
+    "invalid_request",
+    "Send an anonymous session ID, at most 10 watchlist entries of 280 characters, and a note of 2000 characters.",
+    context,
   );
 }
 
@@ -48,30 +43,30 @@ function clientAddress(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest, { params }: Props) {
-  const requestId = randomUUID();
+  const context = createRouteContext("POST /api/games/[gameId]/briefings");
   const gameId = (await params).gameId.trim();
-  if (!gameId || gameId.length > 160) return invalid(requestId);
+  if (!gameId || gameId.length > 160) return invalid(context);
 
   // Bound the payload before parsing, so an oversized body never reaches Zod.
   let text: string;
   try {
     text = await request.text();
   } catch {
-    return invalid(requestId);
+    return invalid(context);
   }
   if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    return invalid(requestId);
+    return invalid(context);
   }
 
   let payload: unknown;
   try {
     payload = JSON.parse(text || "{}");
   } catch {
-    return invalid(requestId);
+    return invalid(context);
   }
 
   const body = bodySchema.safeParse(payload);
-  if (!body.success) return invalid(requestId);
+  if (!body.success) return invalid(context);
 
   const outcome = await generateBriefing({
     gameId,
@@ -79,37 +74,24 @@ export async function POST(request: NextRequest, { params }: Props) {
     clientAddressHash: hashClientAddress(clientAddress(request)),
     watchlist: body.data.watchlist,
     note: body.data.note,
-    requestId,
+    requestId: context.requestId,
   });
 
   if (outcome.status === "not_found") {
-    return NextResponse.json(
-      {
-        error: {
-          code: "not_found",
-          message: "The requested game was not found.",
-          requestId,
-        },
-      },
-      { status: 404 },
+    return apiFailure(
+      "not_found",
+      "The requested game was not found.",
+      context,
     );
   }
 
   if (outcome.status === "quota_exceeded") {
-    return NextResponse.json(
-      {
-        error: {
-          code: "quota_exceeded",
-          message: `The daily briefing limit has been reached. It resets at ${outcome.resetAt}.`,
-          requestId,
-        },
-      },
-      { status: 429 },
+    return apiFailure(
+      "quota_exceeded",
+      `The daily briefing limit has been reached. It resets at ${outcome.resetAt}.`,
+      context,
     );
   }
 
-  return NextResponse.json(
-    { data: outcome.result },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  return apiSuccess(outcome.result, context);
 }

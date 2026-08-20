@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getTeamSchedule } from "@/data/sports-data";
+import { getTeamSchedule, refreshSportData } from "@/data/sports-data";
 import { getSportsProvider } from "@/providers/registry";
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -60,4 +60,29 @@ describe("sports data fallback", () => {
     });
     expect(provider.teamSlugs).toEqual(["new-york-yankees", "boston-red-sox"]);
   });
+});
+
+describe("refreshSportData outcome", () => {
+  it("reports skipped/unconfigured when the database and provider are absent", async () => {
+    delete process.env.DATABASE_URL;
+    delete process.env.FOOTBALL_DATA_API_TOKEN;
+    delete process.env.MATCHDAY_DATA_MODE;
+
+    const outcome = await refreshSportData("soccer", "test-request-id");
+
+    expect(outcome).toMatchObject({
+      sport: "soccer",
+      status: "skipped",
+      reason: "unconfigured",
+      refreshed: 0,
+    });
+    expect(typeof outcome.provider).toBe("string");
+    expect(typeof outcome.durationMs).toBe("number");
+  });
+
+  // A "locked" outcome comes from acquireRefreshLease returning undefined,
+  // which only happens once past the DATABASE_URL/provider guard above and
+  // requires a real (or fully mocked) lease table — not exercised here since
+  // this file runs against no database by design; see the cron route test
+  // for allSettled/rejection behaviour around performSportRefresh instead.
 });

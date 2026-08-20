@@ -23,7 +23,11 @@ import { cn } from "@/lib/utils";
 
 function FormStrip({ form }: { form: ("W" | "D" | "L")[] }) {
   return (
-    <div className="form-strip" aria-label={`Recent form: ${form.join(", ")}`}>
+    <div
+      className="form-strip"
+      role="group"
+      aria-label={`Recent form: ${form.join(", ")}`}
+    >
       {form.map((result, index) => (
         <span
           className={cn("form-result", `form-${result.toLowerCase()}`)}
@@ -75,6 +79,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           <span className="field-label">Sport</span>
           <div
             className="dashboard-sport-toggle"
+            role="group"
             aria-label="Select dashboard sport"
           >
             {(["soccer", "baseball"] as Sport[]).map((sport) => (
@@ -179,7 +184,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           </div>
         </section>
 
-        <aside className="dashboard-side">
+        <aside className="dashboard-side" aria-label="Team overview">
           <section className="panel">
             <div className="panel-header">
               <h2 className="panel-title">Current read</h2>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -108,6 +109,14 @@ export function GameDetail({
   const [reason, setReason] = useState<BriefingReason>();
   const [failure, setFailure] = useState("");
   const inFlight = useRef(false);
+  // The sr-only live region below is the single place any status message is
+  // announced. Clearing it first (via a synchronous commit) before writing
+  // the next message forces a fresh DOM mutation even when the new text is
+  // identical to the last one, so a repeated message is still announced.
+  const announce = (text: string) => {
+    flushSync(() => setMessage(""));
+    setMessage(text);
+  };
   const recapNote = useMatchdayStore((state) => state.recapNotes[game.id]);
   const viewed = useMatchdayStore((state) =>
     state.viewedBriefings.includes(game.id),
@@ -120,6 +129,19 @@ export function GameDetail({
   );
   const anonymousId = useMatchdayStore((state) => state.anonymousId);
   const hydrated = useMatchdayStore((state) => state.hydrated);
+  const recapRef = useRef<HTMLTextAreaElement>(null);
+  // Tracks which game's stored note the textarea last picked up. The field is
+  // uncontrolled (no onChange) so typing never touches this component's
+  // state; only hydration finishing or navigating to a different game should
+  // overwrite the DOM value, never a re-render triggered by something else
+  // (which is what remounting the element via a `key` used to do, wiping
+  // whatever the reader had just typed).
+  const recapSyncedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hydrated || recapSyncedFor.current === game.id) return;
+    recapSyncedFor.current = game.id;
+    if (recapRef.current) recapRef.current.value = recapNote ?? "";
+  }, [hydrated, game.id, recapNote]);
   // Selected as the stored reference and derived below: returning a fresh array
   // from the selector would re-render on every store read.
   const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
@@ -192,20 +214,19 @@ export function GameDetail({
     });
     if (!id) return;
     setWatchText("");
-    setMessage("Watchlist item added.");
+    announce("Watchlist item added.");
   };
 
   const submitRecap = (event: React.FormEvent) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget as HTMLFormElement);
     const recap = String(form.get("recap") ?? "");
-    if (saveRecap(game.id, recap, team.slug))
-      setMessage("Recap saved locally.");
+    if (saveRecap(game.id, recap, team.slug)) announce("Recap saved locally.");
   };
 
   const openBrief = () => {
     viewBriefing(game.id, team.slug);
-    setMessage("Evidence brief opened.");
+    announce("Evidence brief opened.");
   };
 
   const generateBrief = async () => {
@@ -215,7 +236,7 @@ export function GameDetail({
     inFlight.current = true;
     setPending(true);
     setFailure("");
-    setMessage("Generating briefing…");
+    announce("Generating briefing…");
     try {
       const response = await fetch(`/api/games/${game.id}/briefings`, {
         method: "POST",
@@ -243,7 +264,7 @@ export function GameDetail({
             ? "The daily briefing limit has been reached. The previous briefing is unchanged."
             : "Generation failed. The previous briefing is unchanged.";
         setFailure(text);
-        setMessage(text);
+        announce(text);
         return;
       }
       const result = briefingResultSchema.parse(
@@ -252,7 +273,7 @@ export function GameDetail({
       saveGeneratedBriefing(game.id, team.slug, result.briefing);
       setQuota(result.quota);
       setReason(result.reason);
-      setMessage(
+      announce(
         result.mode === "live"
           ? "Briefing generated."
           : "Generation unavailable. Showing the deterministic fallback briefing.",
@@ -260,7 +281,7 @@ export function GameDetail({
     } catch {
       const text = "Generation failed. The previous briefing is unchanged.";
       setFailure(text);
-      setMessage(text);
+      announce(text);
     } finally {
       inFlight.current = false;
       setPending(false);
@@ -269,6 +290,9 @@ export function GameDetail({
 
   return (
     <>
+      <h1 className="sr-only">
+        {game.homeTeam} vs {game.awayTeam}
+      </h1>
       <Link href="/" className="back-link">
         <ArrowLeft aria-hidden="true" size={15} /> Back to next five
       </Link>
@@ -578,7 +602,7 @@ export function GameDetail({
               )}
             </div>
             {failure && (
-              <p className="brief-failure" role="status">
+              <p className="brief-failure">
                 <CircleAlert aria-hidden="true" size={15} /> {failure}
               </p>
             )}
@@ -682,7 +706,7 @@ export function GameDetail({
           </section>
         </div>
 
-        <aside className="detail-side">
+        <aside className="detail-side" aria-label="Preparation tools">
           <section className="panel">
             <div className="panel-header">
               <h2 className="panel-title">Watch this game</h2>
@@ -715,7 +739,7 @@ export function GameDetail({
               </label>
               <textarea
                 id="game-recap"
-                key={recapNote ?? "empty-recap"}
+                ref={recapRef}
                 name="recap"
                 className="textarea recap-field"
                 defaultValue={recapNote ?? ""}

@@ -30,18 +30,48 @@ export function getDatabase() {
   return database;
 }
 
+// Session 04 shipped a migration that was never applied to production, so
+// `briefing_runs` silently didn't exist for a day. `select 1 from teams`
+// can't see that drift — it only proves the connection and one table work.
+const EXPECTED_TABLES = [
+  "teams",
+  "games",
+  "team_games",
+  "game_snapshots",
+  "ingestion_runs",
+  "briefing_runs",
+] as const;
+
 export async function checkDatabaseConnection() {
   const startedAt = Date.now();
   if (!isDatabaseConfigured()) {
-    return { status: "unconfigured" as const, durationMs: 0 };
+    return {
+      status: "unconfigured" as const,
+      durationMs: 0,
+      missingTables: [] as string[],
+    };
   }
   try {
-    await getDatabase().execute(sql`select 1 from teams limit 1`);
-    return { status: "healthy" as const, durationMs: Date.now() - startedAt };
+    const tableNames = sql.join(
+      EXPECTED_TABLES.map((name) => sql`${name}`),
+      sql`, `,
+    );
+    const result = await getDatabase().execute<{ table_name: string }>(sql`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name in (${tableNames})
+    `);
+    const found = new Set(result.rows.map((row) => row.table_name));
+    const missingTables = EXPECTED_TABLES.filter((name) => !found.has(name));
+    return {
+      status: "healthy" as const,
+      durationMs: Date.now() - startedAt,
+      missingTables,
+    };
   } catch {
     return {
       status: "unavailable" as const,
       durationMs: Date.now() - startedAt,
+      missingTables: [] as string[],
     };
   }
 }

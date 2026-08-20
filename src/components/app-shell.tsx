@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
-import { Activity, Gauge, ListChecks, RotateCcw } from "lucide-react";
+import {
+  Activity,
+  Gauge,
+  ListChecks,
+  RotateCcw,
+  ServerCog,
+} from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
 import { Button } from "@/components/ui/button";
 import { getTeamsBySport, teams } from "@/lib/seed";
@@ -15,6 +21,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: Gauge },
   { href: "/watchlist", label: "Watchlist", icon: ListChecks },
   { href: "/activity", label: "Activity", icon: Activity },
+  { href: "/system", label: "System", icon: ServerCog },
 ];
 
 function isCurrent(pathname: string, href: string) {
@@ -55,7 +62,7 @@ function WorkspaceControls() {
 
   return (
     <div className="topbar-controls">
-      <div className="sport-toggle" aria-label="Select sport">
+      <div className="sport-toggle" role="group" aria-label="Select sport">
         {(["soccer", "baseball"] as Sport[]).map((sport) => (
           <button
             className={cn(
@@ -142,7 +149,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      <aside className="sidebar" aria-label="Primary navigation">
+      <aside className="sidebar" aria-label="Site sidebar">
         <Link href="/" className="brand" aria-label="Matchday Plan home">
           <span className="brand-mark">MP</span>
           <span>
@@ -150,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="brand-subtitle">Game prep desk</span>
           </span>
         </Link>
-        <nav className="nav-list">
+        <nav className="nav-list" aria-label="Primary navigation">
           {navItems.map((item) => {
             const active = isCurrent(pathname, item.href);
             return (
@@ -167,11 +174,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-foot">
-          <span className="eyebrow">Session 04</span>
+          <span className="eyebrow">Session 05</span>
           <p>
             Validated soccer and baseball with last-known-good and demo
-            fallback, plus cited AI briefings that degrade to a deterministic
-            evidence brief.
+            fallback, cited AI briefings that degrade to a deterministic
+            evidence brief, and a scheduled refresh you can inspect on System.
           </p>
         </div>
       </aside>
@@ -192,6 +199,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main id="main-content" className="main-content" tabIndex={-1}>
           {children}
         </main>
+        <footer className="app-footer">
+          <p className="fine-print">
+            Source data:{" "}
+            <a
+              href="https://www.football-data.org/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              football-data.org
+            </a>
+            ,{" "}
+            <a
+              href="https://statsapi.mlb.com/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              MLB Stats API
+            </a>
+            , and{" "}
+            <a
+              href="https://baseballsavant.mlb.com/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Baseball Savant
+            </a>
+            .
+          </p>
+        </footer>
       </div>
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {navItems.map((item) => {

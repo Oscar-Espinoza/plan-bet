@@ -1,12 +1,10 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, createRouteContext } from "@/lib/api-response";
 import { getConfiguredTeams } from "@/data/sports-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export function GET() {
-  return NextResponse.json(
-    { data: getConfiguredTeams() },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  const context = createRouteContext("GET /api/teams");
+  return apiSuccess(getConfiguredTeams(), context);
 }

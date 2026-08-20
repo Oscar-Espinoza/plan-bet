@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { getGameDetail } from "@/data/sports-data";
+import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,35 +7,18 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ gameId: string }> };
 
 export async function GET(_: Request, { params }: Props) {
-  const requestId = randomUUID();
+  const context = createRouteContext("GET /api/games/[gameId]");
   const gameId = (await params).gameId.trim();
   if (!gameId || gameId.length > 160) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "invalid_request",
-          message: "The game ID is invalid.",
-          requestId,
-        },
-      },
-      { status: 400 },
-    );
+    return apiFailure("invalid_request", "The game ID is invalid.", context);
   }
-  const detail = await getGameDetail(gameId);
+  const detail = await getGameDetail(gameId, { requestId: context.requestId });
   if (!detail) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "not_found",
-          message: "The requested game was not found.",
-          requestId,
-        },
-      },
-      { status: 404 },
+    return apiFailure(
+      "not_found",
+      "The requested game was not found.",
+      context,
     );
   }
-  return NextResponse.json(
-    { data: detail.snapshot },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  return apiSuccess(detail.snapshot, context);
 }
