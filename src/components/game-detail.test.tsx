@@ -76,4 +76,58 @@ describe("GameDetail evidence rendering", () => {
 
     expect(container.textContent).not.toContain(scheduledAt);
   });
+
+  const renderGame = (game: GameSnapshot["game"]) =>
+    render(
+      <GameDetail
+        data={{
+          snapshot: { ...snapshot, game },
+          briefing: createEvidenceBriefing({ ...snapshot, game }, team),
+        }}
+        team={team}
+      />,
+    ).container;
+
+  it("shows the final score only once a result is reported", () => {
+    // No result: the matchup reads as an upcoming fixture.
+    const upcoming = renderGame(snapshot.game);
+    expect(upcoming.querySelector(".matchup-vs")?.textContent).toContain("vs");
+    expect(upcoming.querySelector(".matchup-vs")?.textContent).not.toMatch(
+      /\d+\s–\s\d+/,
+    );
+    cleanup();
+
+    // A goalless finished draw is a reported score, not a missing one.
+    const finished = renderGame({
+      ...snapshot.game,
+      status: "finished",
+      result: {
+        homeScore: 0,
+        awayScore: 0,
+        source: "football-data",
+        observedAt: snapshot.freshness.fetchedAt,
+      },
+    });
+    expect(finished.querySelector(".matchup-vs")?.textContent).toContain(
+      "0 – 0",
+    );
+    expect(finished.querySelector("h1")?.textContent).toContain("final");
+  });
+
+  it("names extra time so a 90-minute reading is never implied", () => {
+    const container = renderGame({
+      ...snapshot.game,
+      status: "finished",
+      result: {
+        homeScore: 2,
+        awayScore: 1,
+        completion: "shootout",
+        source: "football-data",
+        observedAt: snapshot.freshness.fetchedAt,
+      },
+    });
+    expect(container.querySelector(".matchup-vs")?.textContent).toContain(
+      "After penalties",
+    );
+  });
 });

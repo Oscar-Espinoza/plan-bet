@@ -291,7 +291,9 @@ export function GameDetail({
   return (
     <>
       <h1 className="sr-only">
-        {game.homeTeam} vs {game.awayTeam}
+        {game.result
+          ? `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}, final`
+          : `${game.homeTeam} vs ${game.awayTeam}`}
       </h1>
       <Link href="/" className="back-link">
         <ArrowLeft aria-hidden="true" size={15} /> Back to next five
@@ -324,7 +326,16 @@ export function GameDetail({
             <span className="matchup-side">Home</span>
           </div>
           <div className="matchup-vs">
-            <span>vs</span>
+            {/* The score takes the "vs" slot on a finished game, so a played
+                fixture reads as played instead of showing only a kickoff time
+                that has passed. `.matchup-vs > span` already styles it. */}
+            <span>
+              {game.result
+                ? `${game.result.homeScore} – ${game.result.awayScore}`
+                : "vs"}
+            </span>
+            {game.result?.completion === "extra" && "After extra time"}
+            {game.result?.completion === "shootout" && "After penalties"}
             <LocalDateTime value={game.scheduledAt} />
           </div>
           <div className="matchup-team matchup-team-away">

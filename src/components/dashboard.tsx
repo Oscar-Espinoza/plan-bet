@@ -162,7 +162,15 @@ export function Dashboard({ data }: { data: DashboardData }) {
                         </span>{" "}
                         {opponent}
                       </div>
-                      <div className="game-meta">{game.competition}</div>
+                      <div className="game-meta">
+                        {game.competition}
+                        {/* Normally inert — the schedule holds upcoming games
+                            only — but a game that finishes while still in the
+                            window reads honestly instead of as a stale
+                            kickoff. */}
+                        {game.result &&
+                          ` · Final ${game.result.homeScore}–${game.result.awayScore}`}
+                      </div>
                     </div>
                     <div className="game-venue">
                       <MapPin aria-hidden="true" size={14} />{" "}

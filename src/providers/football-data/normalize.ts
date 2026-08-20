@@ -4,6 +4,7 @@ import {
   gameStatusSchema,
   teamSchema,
   type Freshness,
+  type GameResult,
   type GameStatus,
   type Team,
   type TeamSlug,
@@ -14,7 +15,10 @@ import type {
   FootballDataStandings,
   FootballDataTeam,
 } from "@/providers/football-data/schemas";
-import type { ProviderSnapshot } from "@/providers/contracts";
+import {
+  RESULT_RETENTION_DAYS,
+  type ProviderSnapshot,
+} from "@/providers/contracts";
 
 export const FOOTBALL_DATA_PROVIDER = "football-data";
 export const FOOTBALL_DATA_ATTRIBUTION = {
@@ -77,6 +81,31 @@ function resultFor(match: FootballDataMatch, teamId: number) {
   return own === opponent ? "D" : own > opponent ? "W" : "L";
 }
 
+// football-data reports how a match reached its full-time score. Anything it
+// does not report stays absent rather than being assumed to be regulation.
+const SOCCER_COMPLETION: Record<string, GameResult["completion"]> = {
+  REGULAR: "regulation",
+  EXTRA_TIME: "extra",
+  PENALTY_SHOOTOUT: "shootout",
+};
+
+function toGameResult(
+  match: FootballDataMatch,
+  fetchedAt: Date,
+): GameResult | undefined {
+  const score = match.score?.fullTime;
+  if (score?.home == null || score.away == null) return undefined;
+  return {
+    homeScore: score.home,
+    awayScore: score.away,
+    completion: match.score?.duration
+      ? SOCCER_COMPLETION[match.score.duration.toUpperCase()]
+      : undefined,
+    source: FOOTBALL_DATA_PROVIDER,
+    observedAt: match.lastUpdated ?? fetchedAt.toISOString(),
+  };
+}
+
 export type NormalizedSoccerTeamData = {
   schedule: ReturnType<typeof gameScheduleSchema.parse>;
   snapshots: ProviderSnapshot[];
@@ -126,6 +155,21 @@ export function normalizeSoccerTeamData(input: {
     expiresAt: expiresAt.toISOString(),
     attribution: FOOTBALL_DATA_ATTRIBUTION,
   };
+  const toGameSummary = (match: FootballDataMatch) => ({
+    id: canonicalGameId(match.id, slug),
+    sport: "soccer" as const,
+    teamSlug: slug,
+    competition: match.competition.name,
+    homeTeam: match.homeTeam.name,
+    awayTeam: match.awayTeam.name,
+    homeTeamSlug: TRACKED_SLUGS_BY_ID.get(match.homeTeam.id),
+    awayTeamSlug: TRACKED_SLUGS_BY_ID.get(match.awayTeam.id),
+    scheduledAt: match.utcDate,
+    venue: match.venue ?? undefined,
+    status: normalizeFootballStatus(match.status),
+    result: toGameResult(match, fetchedAt),
+  });
+
   const games = [...input.upcoming]
     .filter((match) =>
       ["scheduled", "live", "postponed"].includes(
@@ -134,25 +178,36 @@ export function normalizeSoccerTeamData(input: {
     )
     .sort((a, b) => a.utcDate.localeCompare(b.utcDate))
     .slice(0, 5)
-    .map((match) => ({
-      id: canonicalGameId(match.id, slug),
-      sport: "soccer" as const,
-      teamSlug: slug,
-      competition: match.competition.name,
-      homeTeam: match.homeTeam.name,
-      awayTeam: match.awayTeam.name,
-      homeTeamSlug: TRACKED_SLUGS_BY_ID.get(match.homeTeam.id),
-      awayTeamSlug: TRACKED_SLUGS_BY_ID.get(match.awayTeam.id),
-      scheduledAt: match.utcDate,
-      venue: match.venue ?? undefined,
-      status: normalizeFootballStatus(match.status),
-    }));
+    .map(toGameSummary);
+
+  // Finished matches are re-snapshotted so a fixture that kicks off keeps its
+  // route readable with its final score instead of freezing at the pre-match
+  // snapshot it had when it left the upcoming window. They are deliberately
+  // NOT added to `schedule.games`, which stays the five upcoming fixtures.
+  const retainedFrom = new Date(
+    fetchedAt.getTime() - RESULT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const upcomingIds = new Set(games.map((game) => game.id));
+  const finishedGames = [...input.recent]
+    .filter(
+      (match) =>
+        normalizeFootballStatus(match.status) === "finished" &&
+        new Date(match.utcDate) >= retainedFrom,
+    )
+    .sort((a, b) => b.utcDate.localeCompare(a.utcDate))
+    .map(toGameSummary)
+    .filter((game) => !upcomingIds.has(game.id));
+
+  const rawByRouteId = new Map(
+    [...input.upcoming, ...input.recent].map((match) => [
+      canonicalGameId(match.id, slug),
+      match,
+    ]),
+  );
 
   const snapshots: ProviderSnapshot[] = [];
-  for (const game of games) {
-    const raw = input.upcoming.find(
-      (match) => canonicalGameId(match.id, slug) === game.id,
-    )!;
+  for (const game of [...games, ...finishedGames]) {
+    const raw = rawByRouteId.get(game.id)!;
     const observedAt = raw.lastUpdated ?? fetchedAt.toISOString();
     const sourceIds = {
       schedule: `${game.id}-source-schedule`,
@@ -165,7 +220,9 @@ export function normalizeSoccerTeamData(input: {
         name: "football-data.org team matches",
         description: "Fixture time, competition, teams, status, and venue.",
         provider: FOOTBALL_DATA_PROVIDER,
-        operation: "upcoming_matches",
+        // A retained finished fixture came from the other request, and the
+        // source it cites has to say so.
+        operation: game.result ? "recent_matches" : "upcoming_matches",
         url: `https://api.football-data.org/v4/teams/${teamId}/matches`,
         observedAt,
       },
@@ -261,6 +318,19 @@ export function normalizeSoccerTeamData(input: {
         sourceId: sourceIds.standings,
         observedAt: fetchedAt.toISOString(),
       },
+      // Only on a finished fixture, so a briefing about a played match is
+      // grounded on its score instead of previewing a game already over.
+      ...(game.result
+        ? [
+            {
+              id: `${factPrefix}-final-score`,
+              label: "Final score",
+              value: `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}${game.result.completion && game.result.completion !== "regulation" ? ` (after ${game.result.completion === "shootout" ? "penalties" : "extra time"})` : ""}`,
+              sourceId: sourceIds.schedule,
+              observedAt: game.result.observedAt,
+            },
+          ]
+        : []),
       {
         id: `${factPrefix}-form`,
         label: "Last five completed matches",

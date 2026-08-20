@@ -66,3 +66,12 @@ export type SportsProvider = {
     cachedTeams: Partial<Record<TeamSlug, CachedTeamMetadata>>;
   }): Promise<ProviderRefreshResult>;
 };
+
+/**
+ * How far back a finished game is retained and re-snapshotted on every refresh.
+ * ponytail: bounded because football-data returns the last 20 finished matches
+ * and MLB's recent_results spans 60 days — uncapped, each refresh would rebuild
+ * and persist ~50 extra snapshots per team. Widen it only if a settlement
+ * window ever exceeds a week.
+ */
+export const RESULT_RETENTION_DAYS = 7;

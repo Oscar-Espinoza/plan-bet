@@ -103,6 +103,8 @@ Responses are `{ data }` or `{ error: { code, message, requestId } }`, always `C
 
 Provider payloads are validated before normalization or persistence and are never rendered raw. Team metadata is cached for seven days, schedules and standings for six hours, and game snapshots for one hour. Reads prefer fresh live data, then expired last-known-good data labelled `stale`, then explicitly labelled demo data. Partial live schedules are never padded with fictional games, and missing data renders "Not provided" rather than being inferred.
 
+A game that finishes keeps its page, and gains its final score, for seven days after kickoff. Scores are only ever written from a payload that actually reported them: a finished game with no reported score carries no score at all rather than a fabricated `0 – 0`. A team's schedule still lists only its next five upcoming games.
+
 Every AI briefing item cites evidence IDs present in that game's own stored snapshot. An item citing anything else is rejected before it reaches the reader.
 
 ## Quality gate
@@ -125,7 +127,7 @@ Every one of these runs in CI on pull requests and on `main`, with no sports, Op
 - The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
 - Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
 - Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
-- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits; accounts and the credit ledger are live, and placing, locking, and settling a wager (Sessions 07–09) is still in progress.
+- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits; accounts, the credit ledger, and final results are live, and bookmaker prices, placing, locking, and settling a wager (Sessions 07b–09) are still in progress.
 
 ## Attribution
 

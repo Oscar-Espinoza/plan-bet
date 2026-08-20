@@ -158,6 +158,92 @@ describe("football-data normalization", () => {
     expect(data.schedule.games[0]?.id).toBe("football-data-600002-barcelona");
   });
 
+  it("retains recently finished matches with their score, without touching the schedule", () => {
+    const data = normalizeSoccerTeamData({
+      slug: "real-madrid",
+      team,
+      upcoming,
+      recent,
+      standings,
+      fetchedAt: new Date("2026-08-17T10:00:00Z"),
+    });
+
+    // The schedule stays the upcoming fixtures only.
+    expect(data.schedule.games.map((game) => game.id)).toEqual([
+      "football-data-600001-real-madrid",
+      "football-data-600002-real-madrid",
+    ]);
+    expect(data.schedule.games.every((game) => !game.result)).toBe(true);
+
+    // Snapshots carry the upcoming fixtures plus finished ones inside the
+    // seven-day retention window: 08-12 and 08-16 in, 08-09 and older out.
+    const retained = data.snapshots.filter((item) => item.snapshot.game.result);
+    expect(retained.map((item) => item.providerGameId)).toEqual([
+      "500005",
+      "500004",
+    ]);
+    expect(retained[0]?.snapshot.game.result).toEqual({
+      homeScore: 4,
+      awayScore: 1,
+      completion: undefined,
+      source: "football-data",
+      observedAt: "2026-08-16T22:00:00Z",
+    });
+    expect(retained[0]?.snapshot.game.status).toBe("finished");
+    expect(
+      retained[0]?.snapshot.evidenceFacts.find((fact) =>
+        fact.id.endsWith("-fact-final-score"),
+      )?.value,
+    ).toContain("4 – 1");
+    // The retained fixture cites the request it actually came from.
+    expect(
+      retained[0]?.snapshot.sources.find((source) =>
+        source.id.endsWith("-source-schedule"),
+      )?.operation,
+    ).toBe("recent_matches");
+  });
+
+  it("keeps a goalless draw distinct from an unreported score, and reads extra time", () => {
+    const base = recent.find((match) => match.id === 500005)!;
+    const data = normalizeSoccerTeamData({
+      slug: "real-madrid",
+      team,
+      upcoming: [],
+      recent: [
+        { ...base, id: 500101, score: { fullTime: { home: 0, away: 0 } } },
+        {
+          ...base,
+          id: 500102,
+          score: { fullTime: { home: null, away: null } },
+        },
+        { ...base, id: 500103, score: undefined },
+        {
+          ...base,
+          id: 500104,
+          score: {
+            duration: "PENALTY_SHOOTOUT",
+            fullTime: { home: 2, away: 1 },
+          },
+        },
+      ],
+      standings,
+      fetchedAt: new Date("2026-08-17T10:00:00Z"),
+    });
+
+    const resultFor = (providerGameId: string) =>
+      data.snapshots.find((item) => item.providerGameId === providerGameId)
+        ?.snapshot.game.result;
+
+    // A finished 0–0 is a reported score, not a missing one.
+    expect(resultFor("500101")).toMatchObject({ homeScore: 0, awayScore: 0 });
+    // An unreported score yields no result at all rather than zeros.
+    expect(resultFor("500102")).toBeUndefined();
+    expect(resultFor("500103")).toBeUndefined();
+    // Retained regardless, so the route stays readable.
+    expect(data.snapshots).toHaveLength(4);
+    expect(resultFor("500104")?.completion).toBe("shootout");
+  });
+
   it("rejects malformed provider fixtures", () => {
     expect(() =>
       footballDataMatchesSchema.parse({ matches: [{ id: "wrong" }] }),

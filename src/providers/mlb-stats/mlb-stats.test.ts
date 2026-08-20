@@ -159,6 +159,86 @@ describe("MLB and Savant normalization", () => {
     });
   });
 
+  it("retains recently finished games with their run totals, without touching the schedule", async () => {
+    const data = normalizeBaseballTeamData({
+      slug: "new-york-yankees",
+      team,
+      upcoming,
+      recent,
+      standings,
+      pitchers,
+      statcastRows: await statcastRows(),
+      fetchedAt: new Date("2026-08-18T12:00:00Z"),
+    });
+
+    // The schedule stays the upcoming games only.
+    expect(data.schedule.games.map((game) => game.id)).toEqual([
+      "mlb-900001-new-york-yankees",
+      "mlb-900002-new-york-yankees",
+    ]);
+    expect(data.schedule.games.every((game) => !game.result)).toBe(true);
+
+    const retained = data.snapshots.find(
+      (item) => item.providerGameId === "899999",
+    );
+    expect(retained?.snapshot.game.result).toEqual({
+      homeScore: 5,
+      awayScore: 2,
+      // The schedule payload reports no innings, so completion stays absent
+      // rather than claiming the game ended in regulation.
+      completion: undefined,
+      source: "mlb-stats",
+      observedAt: "2026-08-18T12:00:00.000Z",
+    });
+    expect(retained?.snapshot.game.status).toBe("finished");
+    expect(
+      retained?.snapshot.evidenceFacts.find((fact) =>
+        fact.id.endsWith("-fact-final-score"),
+      )?.value,
+    ).toContain("5 – 2");
+    expect(
+      retained?.snapshot.sources.find((source) =>
+        source.id.endsWith("-source-schedule"),
+      )?.operation,
+    ).toBe("recent_results");
+  });
+
+  it("drops a finished game outside the retention window and reports no result without run totals", async () => {
+    const base = recent[0]!;
+    const data = normalizeBaseballTeamData({
+      slug: "new-york-yankees",
+      team,
+      upcoming: [],
+      recent: [
+        base,
+        // Eight days back — outside the seven-day retention window.
+        { ...base, gamePk: 899001, gameDate: "2026-08-10T17:05:00Z" },
+        {
+          ...base,
+          gamePk: 899002,
+          teams: {
+            home: { ...base.teams.home, score: undefined },
+            away: { ...base.teams.away, score: undefined },
+          },
+        },
+      ],
+      standings,
+      pitchers,
+      statcastRows: await statcastRows(),
+      fetchedAt: new Date("2026-08-18T12:00:00Z"),
+    });
+
+    expect(data.snapshots.map((item) => item.providerGameId)).toEqual([
+      "899999",
+      "899002",
+    ]);
+    // Retained and readable, but with no result rather than a fabricated 0–0.
+    expect(
+      data.snapshots.find((item) => item.providerGameId === "899002")?.snapshot
+        .game.result,
+    ).toBeUndefined();
+  });
+
   it("accepts a truthful partial offseason schedule and rejects malformed MLB payloads", () => {
     expect(
       mlbScheduleResponseSchema.parse(partialOffseasonFixture).dates,

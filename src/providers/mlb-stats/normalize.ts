@@ -5,12 +5,16 @@ import {
   teamSchema,
   type BaseballContext,
   type Freshness,
+  type GameResult,
   type GameStatus,
   type StatcastBatting,
   type TeamSlug,
 } from "@/lib/contracts";
 import { getTeam } from "@/lib/seed";
-import type { ProviderSnapshot } from "@/providers/contracts";
+import {
+  RESULT_RETENTION_DAYS,
+  type ProviderSnapshot,
+} from "@/providers/contracts";
 import type {
   MlbPerson,
   MlbScheduleGame,
@@ -86,6 +90,26 @@ function resultFor(game: MlbScheduleGame, teamId: number) {
   )
     return undefined;
   return own.score > opponent.score ? ("W" as const) : ("L" as const);
+}
+
+/**
+ * The schedule payload carries run totals but nothing about innings, so
+ * `completion` stays absent — MLB grades on the official final either way, and
+ * inventing "regulation" for a game that went to extras would be a claim the
+ * feed never made. Hydrate `linescore` if a market ever needs the distinction.
+ */
+function toGameResult(
+  game: MlbScheduleGame,
+  fetchedAt: Date,
+): GameResult | undefined {
+  const { home, away } = game.teams;
+  if (home.score == null || away.score == null) return undefined;
+  return {
+    homeScore: home.score,
+    awayScore: away.score,
+    source: MLB_STATS_PROVIDER,
+    observedAt: fetchedAt.toISOString(),
+  };
 }
 
 function decimal(value: number) {
@@ -216,27 +240,54 @@ export function normalizeBaseballTeamData(input: {
     .sort((a, b) => a.gameDate.localeCompare(b.gameDate))
     .slice(0, 5);
   const snapshots: ProviderSnapshot[] = [];
-  const games = rawGames.map((raw) => {
-    const routeId = `mlb-${raw.gamePk}-${input.slug}`;
-    return {
-      id: routeId,
-      sport: "baseball" as const,
-      teamSlug: input.slug,
-      competition: `MLB · ${raw.seriesDescription ?? raw.description ?? "Regular or postseason"}`,
-      homeTeam: raw.teams.home.team.name,
-      awayTeam: raw.teams.away.team.name,
-      homeTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.home.team.id),
-      awayTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.away.team.id),
-      scheduledAt: raw.gameDate,
-      venue: raw.venue?.name,
-      status: normalizeMlbStatus(raw.status),
-    };
+  const toGameSummary = (raw: MlbScheduleGame) => ({
+    id: `mlb-${raw.gamePk}-${input.slug}`,
+    sport: "baseball" as const,
+    teamSlug: input.slug,
+    competition: `MLB · ${raw.seriesDescription ?? raw.description ?? "Regular or postseason"}`,
+    homeTeam: raw.teams.home.team.name,
+    awayTeam: raw.teams.away.team.name,
+    homeTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.home.team.id),
+    awayTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.away.team.id),
+    scheduledAt: raw.gameDate,
+    venue: raw.venue?.name,
+    status: normalizeMlbStatus(raw.status),
+    result: toGameResult(raw, input.fetchedAt),
   });
+  const games = rawGames.map(toGameSummary);
 
-  for (const game of games) {
-    const raw = rawGames.find((candidate) =>
-      game.id.startsWith(`mlb-${candidate.gamePk}-`),
-    )!;
+  // Finished games are re-snapshotted so a game that starts keeps its route
+  // readable with its final score instead of freezing at the pre-game snapshot
+  // it had when it left the upcoming window. They are deliberately NOT added to
+  // `schedule.games`, which stays the five upcoming games.
+  const retainedFrom = new Date(
+    input.fetchedAt.getTime() - RESULT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const upcomingIds = new Set(games.map((game) => game.id));
+  const rawFinished = [
+    ...new Map(input.recent.map((game) => [game.gamePk, game])).values(),
+  ]
+    .filter(
+      (game) =>
+        (game.teams.home.team.id === teamId ||
+          game.teams.away.team.id === teamId) &&
+        normalizeMlbStatus(game.status) === "finished" &&
+        new Date(game.gameDate) >= retainedFrom,
+    )
+    .sort((a, b) => b.gameDate.localeCompare(a.gameDate));
+  const finishedGames = rawFinished
+    .map(toGameSummary)
+    .filter((game) => !upcomingIds.has(game.id));
+
+  const rawByRouteId = new Map(
+    [...rawGames, ...rawFinished].map((raw) => [
+      `mlb-${raw.gamePk}-${input.slug}`,
+      raw,
+    ]),
+  );
+
+  for (const game of [...games, ...finishedGames]) {
+    const raw = rawByRouteId.get(game.id)!;
     const trackedIsHome = raw.teams.home.team.id === teamId;
     const opponentSide = trackedIsHome ? raw.teams.away : raw.teams.home;
     const opponentStatcast = toStatcast(
@@ -272,7 +323,9 @@ export function normalizeBaseballTeamData(input: {
         name: "MLB Stats schedule",
         description: "Official game time, teams, series, and status.",
         provider: MLB_STATS_PROVIDER,
-        operation: "upcoming_schedule",
+        // A retained finished game came from the other request, and the
+        // source it cites has to say so.
+        operation: game.result ? "recent_results" : "upcoming_schedule",
         url: "https://statsapi.mlb.com/api/v1/schedule",
         observedAt,
       },
@@ -281,7 +334,9 @@ export function normalizeBaseballTeamData(input: {
         name: "MLB Stats venue",
         description: "Venue attached to the official schedule record.",
         provider: MLB_STATS_PROVIDER,
-        operation: "upcoming_schedule",
+        // A retained finished game came from the other request, and the
+        // source it cites has to say so.
+        operation: game.result ? "recent_results" : "upcoming_schedule",
         url: "https://statsapi.mlb.com/api/v1/schedule",
         observedAt,
       },
@@ -371,6 +426,19 @@ export function normalizeBaseballTeamData(input: {
         sourceId: sourceIds.standings,
         observedAt: standingsObservedAt,
       },
+      // Only on a finished game, so a briefing about a played game is grounded
+      // on its score instead of previewing a game already over.
+      ...(game.result
+        ? [
+            {
+              id: `${factPrefix}-final-score`,
+              label: "Final score",
+              value: `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}`,
+              sourceId: sourceIds.schedule,
+              observedAt: game.result.observedAt,
+            },
+          ]
+        : []),
       {
         id: `${factPrefix}-form`,
         label: "Recent completed games",

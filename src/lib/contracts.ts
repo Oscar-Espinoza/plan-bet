@@ -37,6 +37,25 @@ export const gameStatusSchema = z.enum([
 ]);
 export type GameStatus = z.infer<typeof gameStatusSchema>;
 
+/**
+ * A final score as the provider reported it. Absent, never zeroed: a game that
+ * has not finished carries no `result` at all, which is what keeps a goalless
+ * finished draw distinguishable from a game that has not kicked off.
+ */
+export const gameResultSchema = z.object({
+  homeScore: z.number().int().nonnegative(),
+  awayScore: z.number().int().nonnegative(),
+  // How the game reached its final score, and optional because only
+  // football-data reports it today. /rules settles soccer on 90 minutes plus
+  // stoppage, so a match marked `extra` or `shootout` carries a score that is
+  // NOT the 90-minute result and must not grade a 90-minute market. Absent
+  // means the feed did not say — never assume `regulation`.
+  completion: z.enum(["regulation", "extra", "shootout"]).optional(),
+  source: z.string().min(1),
+  observedAt: z.iso.datetime(),
+});
+export type GameResult = z.infer<typeof gameResultSchema>;
+
 export const gameSummarySchema = z.object({
   id: z.string().min(1),
   sport: sportSchema,
@@ -49,6 +68,7 @@ export const gameSummarySchema = z.object({
   scheduledAt: z.iso.datetime(),
   venue: z.string().optional(),
   status: gameStatusSchema,
+  result: gameResultSchema.optional(),
 });
 export type GameSummary = z.infer<typeof gameSummarySchema>;
 

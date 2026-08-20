@@ -29,6 +29,7 @@ export const footballDataMatchSchema = z.object({
   awayTeam: providerTeamSummarySchema,
   score: z
     .object({
+      duration: z.string().nullable().optional(),
       fullTime: z
         .object({
           home: z.number().int().nullable().optional(),

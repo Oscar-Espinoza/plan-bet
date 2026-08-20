@@ -503,3 +503,47 @@ describe("Session 04 briefing runs and quotas", () => {
     }
   });
 });
+
+describe("Phase 07 final results", () => {
+  it("round-trips a result through games.summary with no schema change", async () => {
+    await seedTeams();
+    const summary = {
+      id: "football-data-700001-real-madrid",
+      sport: "soccer",
+      status: "finished",
+      result: {
+        homeScore: 0,
+        awayScore: 0,
+        completion: "regulation",
+        source: "football-data",
+        observedAt: "2026-08-16T22:00:00Z",
+      },
+    };
+    // The upsert a refresh performs when a game moves from upcoming to
+    // finished: same canonical ID, summary replaced in place.
+    for (const value of [
+      { ...summary, status: "scheduled", result: undefined },
+      summary,
+    ]) {
+      await sql`
+        insert into games (
+          canonical_id, sport, provider, external_id, summary, scheduled_at,
+          source_observed_at, fetched_at, expires_at, payload_hash
+        ) values (
+          'football-data-700001', 'soccer', 'football-data', '700001',
+          ${JSON.stringify(value)}::jsonb,
+          '2026-08-16T19:00:00Z', now(), now(), now(), 'result-hash'
+        )
+        on conflict (canonical_id) do update set summary = excluded.summary
+      `;
+    }
+
+    // Session 09 grades from the canonical ID, not a team-perspective route ID.
+    const [row] = await sql<{ summary: typeof summary }[]>`
+      select summary from games where canonical_id = 'football-data-700001'
+    `;
+    expect(row!.summary.result).toEqual(summary.result);
+    // A goalless draw survives the round trip as reported zeros, not as null.
+    expect(row!.summary.result.homeScore).toBe(0);
+  });
+});

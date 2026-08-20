@@ -8,6 +8,8 @@ One direction only: **provider adapter → service → route/page**. UI and rout
 
 `src/lib/contracts.ts` is the boundary. Everything crossing a layer is parsed through its Zod schemas. Sport context is a discriminated union on `kind`, so adding a sport forces exhaustive handling at every branch.
 
+A finished game carries `GameSummary.result` — home and away scores, the reporting source, and an observation time. It is optional and absent rather than zeroed, so a goalless finished draw (`0 – 0`) stays distinguishable from a game that has not been played. `result.completion` is set only when the feed reports it: football-data does, MLB's schedule payload does not, and a match marked `extra` or `shootout` carries a score that is _not_ the 90-minute result. Finished games are re-snapshotted for `RESULT_RETENTION_DAYS` (7) after kickoff so a played fixture keeps its route readable with its score instead of freezing at the pre-match snapshot it had when it left the upcoming window. They are never added to a team's schedule, which stays the next five upcoming games.
+
 ## Data flow
 
 ```mermaid
