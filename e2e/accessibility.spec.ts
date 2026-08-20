@@ -9,6 +9,8 @@ const ROUTES = [
   "/activity",
   "/system",
   "/games/not-a-demo-game",
+  "/sign-in",
+  "/rules",
 ];
 
 const SEVERE_IMPACTS = new Set(["serious", "critical"]);

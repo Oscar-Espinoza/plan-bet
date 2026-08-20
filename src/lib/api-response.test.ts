@@ -9,6 +9,8 @@ import {
 const STATUS_BY_CODE: Record<(typeof apiErrorCodes)[number], number> = {
   invalid_request: 400,
   unauthorized: 401,
+  unauthenticated: 401,
+  forbidden: 403,
   not_found: 404,
   quota_exceeded: 429,
   internal_error: 500,

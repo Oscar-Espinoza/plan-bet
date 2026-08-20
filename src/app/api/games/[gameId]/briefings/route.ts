@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { generateBriefing } from "@/data/briefings";
 import { hashClientAddress } from "@/data/briefings-repository";
+import { readJsonBody } from "@/lib/api-request";
 import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/api-response";
 import {
@@ -13,7 +14,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 64 * 1024;
 const SSR_PLACEHOLDER_ID = "00000000-0000-4000-8000-000000000000";
 
 const bodySchema = z.object({
@@ -47,26 +47,8 @@ export async function POST(request: NextRequest, { params }: Props) {
   const gameId = (await params).gameId.trim();
   if (!gameId || gameId.length > 160) return invalid(context);
 
-  // Bound the payload before parsing, so an oversized body never reaches Zod.
-  let text: string;
-  try {
-    text = await request.text();
-  } catch {
-    return invalid(context);
-  }
-  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    return invalid(context);
-  }
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(text || "{}");
-  } catch {
-    return invalid(context);
-  }
-
-  const body = bodySchema.safeParse(payload);
-  if (!body.success) return invalid(context);
+  const body = await readJsonBody(request, bodySchema);
+  if (!body.ok) return invalid(context);
 
   const outcome = await generateBriefing({
     gameId,

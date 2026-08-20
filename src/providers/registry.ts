@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isAuthConfigured } from "@/lib/auth-config";
 import type { Sport } from "@/lib/contracts";
 import type { SportsProvider } from "@/providers/contracts";
 import { FootballDataProvider } from "@/providers/football-data/provider";
@@ -37,6 +38,12 @@ export function getProviderHealthDefinitions() {
     openai: {
       provider: "openai",
       configured: isOpenAiConfigured(),
+    },
+    // A pure environment check. Health must never start a session or hit an
+    // OAuth provider.
+    auth: {
+      provider: "auth",
+      configured: isAuthConfigured(),
     },
   } as const;
 }

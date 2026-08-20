@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   Briefing,
   GameSchedule,
@@ -233,5 +234,97 @@ export const briefingRuns = pgTable(
     ),
     index("briefing_runs_ip_day_idx").on(table.ipHash, table.startedAt),
     index("briefing_runs_recent_idx").on(table.startedAt),
+  ],
+);
+
+// Auth.js tables. Column TS keys below are read by @auth/drizzle-adapter and
+// must not be renamed (emailVerified, providerAccountId, refresh_token,
+// sessionToken, ...); only the SQL names are ours.
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: timestamp("email_verified", { withTimezone: true }),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const accounts = pgTable(
+  "accounts",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").$type<AdapterAccountType>().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.provider, table.providerAccountId] }),
+  ],
+);
+
+export const sessions = pgTable("sessions", {
+  sessionToken: text("session_token").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { withTimezone: true }).notNull(),
+});
+
+export const verificationTokens = pgTable(
+  "verification_tokens",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.identifier, table.token] })],
+);
+
+export const creditEntryKindEnum = pgEnum("credit_entry_kind", [
+  "grant",
+  "stake",
+  "return",
+  "reset",
+]);
+
+/**
+ * Append-only. There is no update or delete path anywhere in application code:
+ * balance is `sum(amount)`, and a reset is a new row, not an edit.
+ */
+export const creditEntries = pgTable(
+  "credit_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: creditEntryKindEnum("kind").notNull(),
+    amount: integer("amount").notNull(), // signed, whole credits
+    reason: text("reason").notNull(), // why this row exists
+    // ponytail: no FK — `wagers` arrives in Session 08. Add the constraint in
+    // that session's migration rather than shipping a dangling reference now.
+    wagerId: uuid("wager_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("credit_entries_user_created_idx").on(table.userId, table.createdAt),
+    // The real guarantee behind "concurrent account creation cannot produce two
+    // grants" — same technique as ingestion_runs_active_lease_uidx.
+    uniqueIndex("credit_entries_user_grant_uidx")
+      .on(table.userId)
+      .where(sql`${table.kind} = 'grant'`),
   ],
 );

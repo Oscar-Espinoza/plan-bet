@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AccountControl } from "@/components/account-control";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
     template: "%s · Matchday Plan",
   },
   description:
-    "A no-login planning workspace for upcoming Real Madrid, Barcelona, Yankees, and Red Sox games: source-backed context, cited briefings, and a browser-local watchlist. Not a sportsbook.",
+    "A planning workspace for upcoming Real Madrid, Barcelona, Yankees, and Red Sox games: source-backed context, cited briefings, and a browser-local watchlist. Browsing needs no account. Not a sportsbook.",
   applicationName: "Matchday Plan",
   authors: [{ name: "Matchday Plan" }],
   keywords: ["sports", "matchday", "soccer", "baseball", "portfolio"],
@@ -43,7 +44,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Matchday Plan",
-    description: "A no-login sports preparation workspace. Not a sportsbook.",
+    description:
+      "A sports preparation workspace. Browsing needs no account. Not a sportsbook.",
     images: [
       {
         url: "/opengraph-image",
@@ -64,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppShell>{children}</AppShell>
+        <AppShell accountControl={<AccountControl />}>{children}</AppShell>
       </body>
     </html>
   );

@@ -257,3 +257,12 @@ export type ApiSuccess<T> = { data: T };
 export type ApiFailure = {
   error: { code: string; message: string; requestId: string };
 };
+
+export const creditSummarySchema = z.object({
+  balance: z.number().int(),
+  lifetimeStaked: z.number().int().nonnegative(),
+  lifetimeReturned: z.number().int().nonnegative(),
+  net: z.number().int(),
+  resetCount: z.number().int().nonnegative(),
+});
+export type CreditSummary = z.infer<typeof creditSummarySchema>;

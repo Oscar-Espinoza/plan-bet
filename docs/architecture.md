@@ -90,6 +90,16 @@ Expected degradation logs at `warn`. An uncaught exception is a bug, not a fallb
 
 The schema-currency check in `/api/health` exists because a generated migration once went unapplied in production: `briefing_runs` did not exist, every audit write failed silently, and nothing surfaced it. CI catches the mirror-image problem — a schema edited without a generated migration — by running `pnpm db:generate` and failing if `drizzle/` becomes dirty.
 
+## Accounts and the credit ledger
+
+Auth.js 5 (`@auth/drizzle-adapter`) sits over the same Drizzle/Neon stack, entirely additive to the anonymous workspace: `isAuthConfigured()` (`src/lib/auth-config.ts`) is a pure `AUTH_SECRET` + database-configured predicate that health, the UI, and every gated route check _before_ calling `auth()`. Absent `AUTH_SECRET`, sign-in is unavailable and every other page renders exactly as it did before Session 06 — including staying statically rendered.
+
+The credit balance is never a stored column. `credit_entries` is an append-only ledger (`grant` / `stake` / `return` / `reset`); `getCreditSummary` derives balance, lifetime staked/returned, net, and reset count as `SUM`/`COUNT` aggregates over a user's rows, the same way freshness is derived from stored expiry rather than a status flag. There is no update or delete path anywhere in application code — a bankroll reset inserts a new `reset` row (even at a zero delta) instead of editing anything.
+
+The starting grant happens inside the same transaction as account creation (`withStartingGrant` wraps the adapter's `createUser`), so a user row can never exist without a grant row. The actual guarantee against a double grant under concurrency is a partial unique index, `credit_entries_user_grant_uidx` on `(user_id) where kind = 'grant'` — the same technique as `ingestion_runs_active_lease_uidx`. `resetBankroll` takes `pg_advisory_xact_lock(3, hashtext(user_id))` before counting recent resets against an hourly cap; advisory-lock classids 1 and 2 are already spoken for by the briefing session/IP quotas.
+
+`requireAccount()` (`src/lib/auth.ts`) is the auth boundary every gated route and page goes through, returning `{ ok: false, reason: "unconfigured" | "unauthenticated" }` without ever calling `auth()` when Auth.js isn't configured. `POST /api/bets/reset` composes `isSameOrigin` → `requireAccount` → `readJsonBody` (`src/lib/api-request.ts`) before touching the database — the reference order for every mutating route Sessions 07–09 add.
+
 ## Scheduled refresh
 
 `/api/cron/refresh` accepts `GET` (Vercel Cron issues GET) and `POST` (GitHub Actions), both requiring `Authorization: Bearer $CRON_SECRET` compared with `timingSafeEqual`. It refreshes both sports through `Promise.allSettled`, so one provider's failure cannot take down the other, and always answers 200 when authorized with a `succeeded / failed / skipped` summary — a scheduler should read the body, not retry-storm on a 5xx.
@@ -109,7 +119,7 @@ Vercel Hobby caps cron jobs at one invocation per day, so `vercel.json` schedule
 
 ## Deliberate trade-offs
 
-- **No authentication in the preparation workspace.** Watchlists, recaps, saved briefings, and activity live in one validated `localStorage` key, `matchday-plan:v1`. Invalid or future-version data falls back to defaults instead of crashing. Nothing syncs across devices; that is the cost of requiring no account.
+- **No authentication in the preparation workspace — only half true now.** Watchlists, recaps, saved briefings, and activity still live in one validated `localStorage` key, `matchday-plan:v1`, and require no account. Invalid or future-version data falls back to defaults instead of crashing, and nothing syncs across devices. Session 06 added an optional account, but only to back the credit ledger the wager simulator needs — no page in the preparation workspace itself is gated.
 - **The dashboard ships all four teams' schedules.** Switching team is then instant with no server round-trip, at the cost of roughly four times the payload for one team displayed. The trade favours the interaction the page exists for.
 - **First paint shows the default team.** The stored selection is only readable after hydration, so a returning visitor briefly sees Real Madrid before their team appears. Fixing it would require a cookie or a server read of browser-local state, which contradicts the browser-local-only rule.
 - **Fixed teams.** Team slugs are a Zod enum and provider IDs are hard-coded per adapter. Arbitrary team selection would mean a team-search surface and unbounded provider quota use.

@@ -15,6 +15,13 @@
       "when": 1787150765753,
       "tag": "0001_mushy_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787196674775,
+      "tag": "0002_greedy_marvel_boy",
+      "breakpoints": true
     }
   ]
 }

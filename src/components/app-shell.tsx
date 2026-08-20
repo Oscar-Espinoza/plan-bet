@@ -29,7 +29,11 @@ function isCurrent(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
-function WorkspaceControls() {
+function WorkspaceControls({
+  accountControl,
+}: {
+  accountControl?: React.ReactNode;
+}) {
   const selectedSport = useMatchdayStore((state) => state.selectedSport);
   const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
   const selectSport = useMatchdayStore((state) => state.selectSport);
@@ -137,11 +141,18 @@ function WorkspaceControls() {
           </AlertDialog.Content>
         </AlertDialog.Portal>
       </AlertDialog.Root>
+      {accountControl}
     </div>
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  accountControl,
+}: {
+  children: React.ReactNode;
+  accountControl?: React.ReactNode;
+}) {
   const pathname = usePathname();
   return (
     <div className="app-shell">
@@ -193,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="brand-mark">MP</span>
               <span>Matchday Plan</span>
             </Link>
-            <WorkspaceControls />
+            <WorkspaceControls accountControl={accountControl} />
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
@@ -225,7 +236,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               Baseball Savant
             </a>
-            .
+            . <Link href="/rules">Rules</Link>
+          </p>
+          <p className="fine-print">
+            Credits are fictional and non-withdrawable. Not a sportsbook.
           </p>
         </footer>
       </div>

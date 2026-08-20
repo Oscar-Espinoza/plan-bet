@@ -27,6 +27,7 @@
     "data:refresh:soccer": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/refresh-soccer.ts"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "1.11.3",
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
     "@neondatabase/serverless": "1.1.0",
@@ -37,6 +38,7 @@
     "drizzle-orm": "0.45.2",
     "lucide-react": "0.545.0",
     "next": "16.2.11",
+    "next-auth": "5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",

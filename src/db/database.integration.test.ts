@@ -289,6 +289,148 @@ async function claimSlot(
   });
 }
 
+/**
+ * Drives raw `postgres` tagged SQL against the ledger, the same way the
+ * refresh-lease and quota tests above exercise the partial unique indexes
+ * directly rather than their TypeScript wrappers.
+ */
+async function createUser(email: string) {
+  const [user] = await sql<{ id: string }[]>`
+    insert into users (email) values (${email}) returning id
+  `;
+  return user!.id;
+}
+
+describe("Session 06 accounts and the credit ledger", () => {
+  it("applies the accounts and credit ledger migration", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    const names = rows.map((row) => row.table_name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "users",
+        "accounts",
+        "sessions",
+        "verification_tokens",
+        "credit_entries",
+      ]),
+    );
+  });
+
+  it("rejects a second grant for the same user", async () => {
+    const userId = await createUser(`grant-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    await expect(
+      sql`
+        insert into credit_entries (user_id, kind, amount, reason)
+        values (${userId}, 'grant', 1000, 'signup')
+      `,
+    ).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("leaves exactly one grant row under concurrent inserts", async () => {
+    const userId = await createUser(`concurrent-${randomUUID()}@example.com`);
+
+    const results = await Promise.allSettled(
+      Array.from(
+        { length: 12 },
+        () => sql`
+          insert into credit_entries (user_id, kind, amount, reason)
+          values (${userId}, 'grant', 1000, 'signup')
+        `,
+      ),
+    );
+
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries
+      where user_id = ${userId} and kind = 'grant'
+    `;
+    expect(count).toBe(1);
+  });
+
+  it("computes balance as the sum of grant, stake, return, and reset entries", async () => {
+    const userId = await createUser(`balance-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason) values
+        (${userId}, 'grant', 1000, 'signup'),
+        (${userId}, 'stake', -150, 'wager placed'),
+        (${userId}, 'return', 300, 'wager won'),
+        (${userId}, 'reset', -1150, 'manual_reset')
+    `;
+    const [{ balance }] = await sql<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    expect(balance).toBe(1000 - 150 + 300 - 1150);
+  });
+
+  it("cascades from users to credit_entries on delete, never updating or deleting a row directly", async () => {
+    const userId = await createUser(`cascade-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    await sql`delete from users where id = ${userId}`;
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries where user_id = ${userId}
+    `;
+    expect(count).toBe(0);
+  });
+
+  it("leaves the ledger untouched when a transaction throws after inserting a stake", async () => {
+    const userId = await createUser(`rollback-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+
+    await expect(
+      sql.begin(async (transaction) => {
+        await transaction`
+          insert into credit_entries (user_id, kind, amount, reason)
+          values (${userId}, 'stake', -150, 'wager placed')
+        `;
+        throw new Error("simulated failure after stake insert");
+      }),
+    ).rejects.toThrow("simulated failure after stake insert");
+
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries where user_id = ${userId}
+    `;
+    expect(count).toBe(1);
+  });
+
+  it("stores no free-text or PII column on credit_entries beyond reason", async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'credit_entries'
+    `;
+    const names = columns.map((column) => column.column_name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "id",
+        "user_id",
+        "kind",
+        "amount",
+        "reason",
+        "wager_id",
+        "created_at",
+      ]),
+    );
+    for (const forbidden of ["email", "name", "ip_address", "note"]) {
+      expect(names).not.toContain(forbidden);
+    }
+  });
+});
+
 describe("Session 04 briefing runs and quotas", () => {
   it("applies the briefing_runs migration", async () => {
     const rows = await sql<{ table_name: string }[]>`

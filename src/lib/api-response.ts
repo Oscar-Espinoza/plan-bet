@@ -8,6 +8,8 @@ export const apiErrorCodes = [
   "not_found",
   "quota_exceeded",
   "unauthorized",
+  "unauthenticated",
+  "forbidden",
   "service_unavailable",
   "internal_error",
 ] as const;
@@ -16,6 +18,8 @@ export type ApiErrorCode = (typeof apiErrorCodes)[number];
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   invalid_request: 400,
   unauthorized: 401,
+  unauthenticated: 401,
+  forbidden: 403,
   not_found: 404,
   quota_exceeded: 429,
   internal_error: 500,

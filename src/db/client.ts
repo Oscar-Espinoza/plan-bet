@@ -40,6 +40,11 @@ const EXPECTED_TABLES = [
   "game_snapshots",
   "ingestion_runs",
   "briefing_runs",
+  "users",
+  "accounts",
+  "sessions",
+  "verification_tokens",
+  "credit_entries",
 ] as const;
 
 export async function checkDatabaseConnection() {

@@ -22,7 +22,7 @@ _Captured from the production build in deterministic demo mode._
 - `/system` operational view: provider freshness, ingestion history, briefing latency, fallback and retry rates
 - Responsive, keyboard-accessible, screen-reader-tested desktop and mobile workspace
 
-There is no login. Personal state never leaves the browser and lives in a single validated key, `matchday-plan:v1`.
+The preparation workspace needs no account; personal state never leaves the browser and lives in a single validated key, `matchday-plan:v1`. Signing in only unlocks the free-to-play credit ledger for the wager simulator — the rest of the workspace works signed out.
 
 ## Architecture
 
@@ -50,18 +50,24 @@ Missing secrets do not break builds or navigation. Soccer falls back to demo dat
 
 All are server-only except `NEXT_PUBLIC_SITE_URL`.
 
-| Variable                  | Required         | Purpose                                                                                                        |
-| ------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`            | for live data    | PostgreSQL connection string (single Neon branch)                                                              |
-| `FOOTBALL_DATA_API_TOKEN` | for live soccer  | football-data.org token                                                                                        |
-| `OPENAI_API_KEY`          | for AI briefings | absent means briefings serve the deterministic fallback                                                        |
-| `OPENAI_MODEL`            | no               | defaults to `gpt-5.6-luna`                                                                                     |
-| `BRIEFING_PROMPT_VERSION` | no               | traceability stamp on every briefing run                                                                       |
-| `BRIEFING_SCHEMA_VERSION` | no               | traceability stamp on every briefing run                                                                       |
-| `RATE_LIMIT_HASH_SECRET`  | in production    | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
-| `CRON_SECRET`             | in production    | bearer secret for `/api/cron/refresh`; absent means the endpoint refuses to run                                |
-| `MATCHDAY_DATA_MODE`      | no               | set to `demo` for deterministic local and E2E runs                                                             |
-| `NEXT_PUBLIC_SITE_URL`    | no               | canonical origin for metadata; falls back to the Vercel production URL                                         |
+| Variable                  | Required           | Purpose                                                                                                        |
+| ------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | for live data      | PostgreSQL connection string (single Neon branch)                                                              |
+| `FOOTBALL_DATA_API_TOKEN` | for live soccer    | football-data.org token                                                                                        |
+| `OPENAI_API_KEY`          | for AI briefings   | absent means briefings serve the deterministic fallback                                                        |
+| `OPENAI_MODEL`            | no                 | defaults to `gpt-5.6-luna`                                                                                     |
+| `BRIEFING_PROMPT_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
+| `BRIEFING_SCHEMA_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
+| `RATE_LIMIT_HASH_SECRET`  | in production      | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
+| `CRON_SECRET`             | in production      | bearer secret for `/api/cron/refresh`; absent means the endpoint refuses to run                                |
+| `MATCHDAY_DATA_MODE`      | no                 | set to `demo` for deterministic local and E2E runs                                                             |
+| `NEXT_PUBLIC_SITE_URL`    | no                 | canonical origin for metadata; falls back to the Vercel production URL                                         |
+| `AUTH_SECRET`             | for sign-in        | Auth.js signing secret; absent means sign-in is unavailable and the workspace runs anonymous exactly as before |
+| `AUTH_URL`                | no                 | canonical origin Auth.js builds callback URLs from; unset is fine on Vercel                                    |
+| `AUTH_GITHUB_ID`          | for GitHub sign-in | GitHub OAuth app client ID                                                                                     |
+| `AUTH_GITHUB_SECRET`      | for GitHub sign-in | GitHub OAuth app client secret                                                                                 |
+| `AUTH_GOOGLE_ID`          | for Google sign-in | Google OAuth client ID                                                                                         |
+| `AUTH_GOOGLE_SECRET`      | for Google sign-in | Google OAuth client secret                                                                                     |
 
 ## Scripts
 
@@ -78,15 +84,18 @@ pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it
 
 ## API
 
-| Route                                | Purpose                                                         |
-| ------------------------------------ | --------------------------------------------------------------- |
-| `GET /api/teams`                     | The four configured canonical teams                             |
-| `GET /api/teams/:slug/games?limit=5` | Validated canonical schedule and team context                   |
-| `GET /api/games/:gameId`             | Canonical game snapshot, evidence facts, and source records     |
-| `POST /api/games/:gameId/briefings`  | Quota-limited grounded AI briefing, cited to the saved snapshot |
-| `GET /api/health`                    | App, database, schema currency, and provider status             |
-| `GET /api/system/recent?limit=10`    | Bounded recent ingestion and aggregate briefing metrics         |
-| `GET`/`POST /api/cron/refresh`       | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`         |
+| Route                                | Purpose                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| `GET /api/teams`                     | The four configured canonical teams                                           |
+| `GET /api/teams/:slug/games?limit=5` | Validated canonical schedule and team context                                 |
+| `GET /api/games/:gameId`             | Canonical game snapshot, evidence facts, and source records                   |
+| `POST /api/games/:gameId/briefings`  | Quota-limited grounded AI briefing, cited to the saved snapshot               |
+| `GET /api/health`                    | App, database, schema currency, and provider status                           |
+| `GET /api/system/recent?limit=10`    | Bounded recent ingestion and aggregate briefing metrics                       |
+| `GET`/`POST /api/cron/refresh`       | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`                       |
+| `GET`/`POST /api/auth/*`             | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
+| `GET /api/bets/summary`              | The signed-in account's credit ledger summary; `401`/`503` signed out         |
+| `POST /api/bets/reset`               | Resets the signed-in account's bankroll to the starting balance, rate-limited |
 
 Responses are `{ data }` or `{ error: { code, message, requestId } }`, always `Cache-Control: no-store`. Error messages never echo configuration.
 
@@ -116,7 +125,7 @@ Every one of these runs in CI on pull requests and on `main`, with no sports, Op
 - The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
 - Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
 - Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
-- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. A free-to-play wager simulator using fictional, non-withdrawable credits and licensed bookmaker prices is planned as a separate milestone.
+- No real-money betting, odds we compile ourselves, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits; accounts and the credit ledger are live, and placing, locking, and settling a wager (Sessions 07–09) is still in progress.
 
 ## Attribution
 

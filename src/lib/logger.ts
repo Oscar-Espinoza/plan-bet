@@ -25,6 +25,14 @@ const DENYLIST = new Set([
   "iphash",
   "inputhash",
   "clientaddresshash",
+  // Auth.js session/OAuth fields, denylisted by normalized key so
+  // session_token, sessionToken, access-token, etc. are all covered.
+  "sessiontoken",
+  "accesstoken",
+  "refreshtoken",
+  "idtoken",
+  "state",
+  "codeverifier",
 ]);
 
 const SECRET_ENV_VARS = [
@@ -33,6 +41,9 @@ const SECRET_ENV_VARS = [
   "OPENAI_API_KEY",
   "RATE_LIMIT_HASH_SECRET",
   "CRON_SECRET",
+  "AUTH_SECRET",
+  "AUTH_GITHUB_SECRET",
+  "AUTH_GOOGLE_SECRET",
 ] as const;
 
 const MAX_DEPTH = 6;

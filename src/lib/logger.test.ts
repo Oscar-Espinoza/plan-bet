@@ -29,17 +29,39 @@ describe("logEvent", () => {
     expect(parsed.nested.list[0].Cookie).toBe("[redacted]");
   });
 
+  it("redacts Auth.js session/OAuth fields by normalized key", () => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+    logEvent("info", "test_event", {
+      sessionToken: "sess-1",
+      access_token: "acc-1",
+      "refresh-token": "ref-1",
+      idToken: "id-1",
+      state: "state-1",
+      codeVerifier: "verifier-1",
+    });
+    const parsed = lastLine(spy);
+    expect(parsed.sessionToken).toBe("[redacted]");
+    expect(parsed.access_token).toBe("[redacted]");
+    expect(parsed["refresh-token"]).toBe("[redacted]");
+    expect(parsed.idToken).toBe("[redacted]");
+    expect(parsed.state).toBe("[redacted]");
+    expect(parsed.codeVerifier).toBe("[redacted]");
+  });
+
   it("scrubs configured secret env values embedded inside longer strings", () => {
     vi.stubEnv("DATABASE_URL", "postgres://user:pw@host/db");
     vi.stubEnv("FOOTBALL_DATA_API_TOKEN", "fd-token-123");
     vi.stubEnv("OPENAI_API_KEY", "sk-opsecret");
     vi.stubEnv("RATE_LIMIT_HASH_SECRET", "rl-secret-xyz");
     vi.stubEnv("CRON_SECRET", "cron-secret-abc");
+    vi.stubEnv("AUTH_SECRET", "auth-secret-123");
+    vi.stubEnv("AUTH_GITHUB_SECRET", "gh-secret-456");
+    vi.stubEnv("AUTH_GOOGLE_SECRET", "goog-secret-789");
 
     const spy = vi.spyOn(console, "info").mockImplementation(() => {});
     logEvent("info", "test_event", {
       message: "failed to reach https://x?token=fd-token-123",
-      details: `db=postgres://user:pw@host/db key=sk-opsecret rl=rl-secret-xyz cron=cron-secret-abc`,
+      details: `db=postgres://user:pw@host/db key=sk-opsecret rl=rl-secret-xyz cron=cron-secret-abc auth=auth-secret-123 gh=gh-secret-456 goog=goog-secret-789`,
     });
     const parsed = lastLine(spy);
     expect(parsed.message).not.toContain("fd-token-123");
@@ -48,6 +70,9 @@ describe("logEvent", () => {
     expect(parsed.details).not.toContain("sk-opsecret");
     expect(parsed.details).not.toContain("rl-secret-xyz");
     expect(parsed.details).not.toContain("cron-secret-abc");
+    expect(parsed.details).not.toContain("auth-secret-123");
+    expect(parsed.details).not.toContain("gh-secret-456");
+    expect(parsed.details).not.toContain("goog-secret-789");
 
     vi.unstubAllEnvs();
   });
