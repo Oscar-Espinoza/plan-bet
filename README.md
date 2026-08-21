@@ -69,6 +69,8 @@ All are server-only except `NEXT_PUBLIC_SITE_URL`.
 | `AUTH_GOOGLE_ID`          | for Google sign-in | Google OAuth client ID                                                                                         |
 | `AUTH_GOOGLE_SECRET`      | for Google sign-in | Google OAuth client secret                                                                                     |
 
+Identity is the verified email address, not the provider. Signing in with a second provider on an email that already has an account joins that account and its existing ledger rather than starting a new one; a different email is a different account with its own starting credits. Google must report the address as verified or the sign-in is refused.
+
 ## Scripts
 
 ```bash

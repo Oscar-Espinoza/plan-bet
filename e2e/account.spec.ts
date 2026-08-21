@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 test("/sign-in renders the unavailable panel on the keyless server with no page error", async ({
   page,
@@ -11,6 +11,26 @@ test("/sign-in renders the unavailable panel on the keyless server with no page 
     page.getByRole("heading", { name: "Sign-in unavailable" }),
   ).toBeVisible();
   expect(browserErrors).toEqual([]);
+});
+
+// Scoped to main because Next.js renders a permanently empty route-announcer
+// with role="alert" outside it on every page.
+const signInAlert = (page: Page) => page.locator("main").getByRole("alert");
+
+test("/sign-in explains a failed sign-in instead of looking untouched", async ({
+  page,
+}) => {
+  await page.goto("/sign-in?error=OAuthAccountNotLinked");
+  await expect(signInAlert(page)).toContainText(
+    "already connected to a different Matchday Plan account",
+  );
+  // The raw code is Auth.js internals; the reader gets plain language only.
+  await expect(page.locator("body")).not.toContainText("OAuthAccountNotLinked");
+});
+
+test("/sign-in shows no alert when nothing failed", async ({ page }) => {
+  await page.goto("/sign-in");
+  await expect(signInAlert(page)).toHaveCount(0);
 });
 
 test("the bets API never returns 200 with no session", async ({

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { StatusTag } from "@/components/ui/status-tag";
 import { configuredProviderNames, requireAccount, signIn } from "@/lib/auth";
 import { safeCallbackUrl } from "@/lib/api-request";
 
@@ -12,10 +13,24 @@ const PROVIDER_LABEL: Record<string, string> = {
   google: "Continue with Google",
 };
 
-type Props = { searchParams: Promise<{ callbackUrl?: string }> };
+// Auth.js redirects a failed sign-in back here with `?error=<code>`. Rendering
+// nothing made a hard failure look exactly like a success, so every code gets
+// plain language and an unmapped one still says something. Like the API
+// handlers, this never echoes the raw code or any configuration.
+const ERROR_MESSAGE: Record<string, string> = {
+  OAuthAccountNotLinked:
+    "That account is already connected to a different Matchday Plan account. Sign in with the provider you used originally.",
+  AccessDenied: "Sign-in was cancelled or refused by the provider.",
+  Configuration: "Sign-in is misconfigured in this environment.",
+};
+const FALLBACK_ERROR_MESSAGE = "Sign-in did not complete. Try again.";
+
+type Props = {
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+};
 
 export default async function Page({ searchParams }: Props) {
-  const { callbackUrl: rawCallbackUrl } = await searchParams;
+  const { callbackUrl: rawCallbackUrl, error } = await searchParams;
   const callbackUrl = safeCallbackUrl(rawCallbackUrl);
 
   const account = await requireAccount();
@@ -35,6 +50,17 @@ export default async function Page({ searchParams }: Props) {
           </p>
         </div>
       </header>
+
+      {error && (
+        <section className="panel" role="alert">
+          <div className="panel-body flex items-start gap-3">
+            <StatusTag tone="warning">Sign-in failed</StatusTag>
+            <p className="muted">
+              {ERROR_MESSAGE[error] ?? FALLBACK_ERROR_MESSAGE}
+            </p>
+          </div>
+        </section>
+      )}
 
       <section className="panel" aria-labelledby="sign-in-heading">
         <div className="panel-header">

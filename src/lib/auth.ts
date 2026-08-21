@@ -15,14 +15,31 @@ import {
   users,
   verificationTokens,
 } from "@/db/schema";
-import { configuredProviderNames, isAuthConfigured } from "@/lib/auth-config";
+import {
+  configuredProviderNames,
+  isAuthConfigured,
+  isTrustedProviderEmail,
+} from "@/lib/auth-config";
 
 export { isAuthConfigured, configuredProviderNames };
 
+/**
+ * `allowDangerousEmailAccountLinking` lets one person use either button on one
+ * email: the second provider joins the existing user rather than being
+ * refused, so there is one account and one ledger. Linking sets
+ * `isNewUser = false`, so the adapter's `createUser` never runs and no second
+ * starting grant is written. The `signIn` callback below is what makes the
+ * flag safe — without it this would trust an unverified address.
+ */
 function configuredProviders() {
   const providers = [];
-  if (configuredProviderNames().includes("github")) providers.push(GitHub);
-  if (configuredProviderNames().includes("google")) providers.push(Google);
+  const names = configuredProviderNames();
+  if (names.includes("github")) {
+    providers.push(GitHub({ allowDangerousEmailAccountLinking: true }));
+  }
+  if (names.includes("google")) {
+    providers.push(Google({ allowDangerousEmailAccountLinking: true }));
+  }
   return providers;
 }
 
@@ -79,6 +96,10 @@ function buildConfig(): NextAuthConfig {
     pages: { signIn: "/sign-in" },
     trustHost: true,
     callbacks: {
+      signIn({ account, profile }) {
+        if (!account) return true;
+        return isTrustedProviderEmail(account.provider, profile);
+      },
       session({ session, user }) {
         session.user.id = user.id;
         return session;
