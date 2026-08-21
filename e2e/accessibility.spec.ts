@@ -5,13 +5,14 @@ const ROUTES = [
   "/",
   "/games/soc-rma-01",
   "/games/mlb-nyy-01",
-  "/watchlist",
-  "/activity",
+  // /you redirects to /sign-in on the keyless demo server (no DATABASE_URL),
+  // which still exercises a real page — same as /account and /bets, which
+  // now redirect here too and would otherwise duplicate this check.
+  "/you",
   "/system",
   "/games/not-a-demo-game",
   "/sign-in",
   "/rules",
-  "/bets",
 ];
 
 const SEVERE_IMPACTS = new Set(["serious", "critical"]);

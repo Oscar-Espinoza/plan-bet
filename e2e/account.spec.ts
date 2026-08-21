@@ -117,11 +117,13 @@ test("POST /api/bets rejects a cross-origin request", async ({ request }) => {
   expect(response.status()).toBe(403);
 });
 
-// /bets is built by a parallel session; its exact copy isn't known here, so
-// this asserts the contract only — a real page (h1 + main landmark), no
-// crash, no blank screen — never a specific sentence. Full axe coverage for
-// this route lives in accessibility.spec.ts.
-test("/bets renders an honest panel in keyless demo mode with no page error", async ({
+// /bets now redirects to /you, which in turn redirects to /sign-in on the
+// keyless demo server (no DATABASE_URL, so requireAccount() reports
+// "unconfigured"). This asserts the contract only — a real page (h1 + main
+// landmark) at the end of that chain, no crash, no blank screen — never a
+// specific sentence. Full axe coverage for /you lives in
+// accessibility.spec.ts.
+test("/bets redirects through /you to a real page in keyless demo mode with no page error", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -145,26 +147,21 @@ test("POST /api/cron/settle never returns 200 without a valid bearer secret", as
   expect([401, 503]).toContain(response.status());
 });
 
-test("anonymous watchlist state survives reload and matchday-plan:v1 stays version 1", async ({
+test("anonymous evidence-brief state survives reload and matchday-plan:v1 stays version 2", async ({
   page,
 }) => {
   await page.goto("/games/soc-rma-01");
   await page
-    .getByLabel("Preparation item")
-    .fill("Confirm the anonymous flow still works");
-  await page.getByRole("button", { name: "Add to watchlist" }).click();
+    .getByRole("button", { name: /View demo brief|Generate briefing/ })
+    .click();
+  await expect(page.getByText("Data used")).toBeVisible();
 
   await page.reload();
-  await page.getByRole("link", { name: "Watchlist" }).click();
-  await expect(
-    page.getByText("Confirm the anonymous flow still works", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByText("Data used")).toBeVisible();
 
   const stored = await page.evaluate(() =>
     localStorage.getItem("matchday-plan:v1"),
   );
   expect(stored).not.toBeNull();
-  expect(JSON.parse(stored!).version).toBe(1);
+  expect(JSON.parse(stored!).version).toBe(2);
 });

@@ -2,29 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Activity,
-  Gauge,
-  ListChecks,
-  Receipt,
-  ServerCog,
-  UserCircle,
-  UsersRound,
-} from "lucide-react";
+import { Gauge, UserCircle, UsersRound } from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
 import { getTeamsBySport, teams } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 import type { Sport } from "@/lib/contracts";
 import { cn } from "@/lib/utils";
 
+// Seven flat items read as equally weighted and gave System — ops telemetry —
+// the same billing as the games board. Three items, one destination each:
+// the slate, where you stand, and the group lens on it. System moves to the
+// footer, beside Rules.
 const navItems = [
-  { href: "/", label: "Dashboard", icon: Gauge },
-  { href: "/watchlist", label: "Watchlist", icon: ListChecks },
-  { href: "/activity", label: "Activity", icon: Activity },
-  { href: "/bets", label: "Bets", icon: Receipt },
+  { href: "/", label: "Games", icon: Gauge },
+  { href: "/you", label: "You", icon: UserCircle },
   { href: "/groups", label: "Groups", icon: UsersRound },
-  { href: "/account", label: "Account", icon: UserCircle },
-  { href: "/system", label: "System", icon: ServerCog },
 ];
 
 function isCurrent(pathname: string, href: string) {
@@ -196,7 +188,8 @@ export function AppShell({
             >
               Baseball Savant
             </a>
-            . <Link href="/rules">Rules</Link>
+            . <Link href="/rules">Rules</Link> ·{" "}
+            <Link href="/system">System</Link>
           </p>
           <p className="fine-print">
             Credits are fictional and non-withdrawable. Not a sportsbook.

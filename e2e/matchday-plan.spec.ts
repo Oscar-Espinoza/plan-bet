@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Barcelona prep workflow persists, records activity, and resets safely", async ({
-  page,
-}) => {
+test("Barcelona demo brief view persists across reload", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
@@ -21,56 +19,16 @@ test("Barcelona prep workflow persists, records activity, and resets safely", as
     page.locator(".matchup-team-name").filter({ hasText: "FC Barcelona" }),
   ).toBeVisible();
 
-  await page.getByLabel("Preparation item").fill("Confirm midfield rotation");
-  await page.getByRole("button", { name: "Add to watchlist" }).click();
-  await page
-    .getByLabel("Your post-game note")
-    .fill("Barcelona controlled the central spaces in the demo recap.");
-  await page.getByRole("button", { name: "Save recap" }).click();
   await page
     .getByRole("button", { name: /View demo brief|Generate briefing/ })
     .click();
   await expect(page.getByText("Data used")).toBeVisible();
 
+  // The evidence brief stays open across reload because `viewedBriefings`
+  // survives in matchday-plan:v1 — the one piece of prep-desk state Phase A
+  // kept.
   await page.reload();
-  await expect(page.getByLabel("Your post-game note")).toHaveValue(
-    "Barcelona controlled the central spaces in the demo recap.",
-  );
-
-  await page.getByRole("link", { name: "Watchlist" }).click();
-  await expect(
-    page.getByText("Confirm midfield rotation", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Complete Confirm midfield rotation" })
-    .click();
-
-  await page.getByRole("link", { name: "Activity" }).click();
-  await expect(
-    page.locator(".metric-card").filter({ hasText: "Briefs viewed" }),
-  ).toContainText("1");
-  await expect(
-    page.locator(".metric-card").filter({ hasText: "Watchlist" }),
-  ).toContainText("1");
-  await expect(
-    page.locator(".metric-card").filter({ hasText: "Completed" }),
-  ).toContainText("1");
-  await expect(
-    page.locator(".metric-card").filter({ hasText: "Recaps" }),
-  ).toContainText("1");
-  await expect(
-    page.getByText("Completed “Confirm midfield rotation”"),
-  ).toBeVisible();
-
-  await page.getByRole("button", { name: "Reset demo" }).click();
-  const dialog = page.getByRole("alertdialog");
-  await expect(
-    dialog.getByRole("heading", { name: "Reset this demo?" }),
-  ).toBeVisible();
-  await dialog.getByRole("button", { name: "Reset demo" }).click();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Real Madrid" }),
-  ).toBeVisible();
+  await expect(page.getByText("Data used")).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() => localStorage.getItem("portfolio:e2e-sentinel")),
@@ -93,15 +51,6 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
 
-  const resetTrigger = page.getByRole("button", { name: "Reset demo" });
-  await resetTrigger.click();
-  const cancelDialog = page.getByRole("alertdialog");
-  await expect(
-    cancelDialog.getByRole("heading", { name: "Reset this demo?" }),
-  ).toBeVisible();
-  await cancelDialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(resetTrigger).toBeFocused();
-
   await page.emulateMedia({ reducedMotion: "reduce" });
   // The stylesheet declares no `transition` anywhere, so a transitionDuration
   // assertion tests nothing. .loading-panel carries the app's one real
@@ -123,7 +72,7 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
     "/",
     "/games/soc-rma-01",
     "/games/mlb-nyy-01",
-    "/watchlist",
+    "/you",
     "/rules",
   ]) {
     for (const viewport of [
@@ -154,7 +103,7 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("Yankees detail, watchlist, Activity, sport switching, and archived routes remain deterministic", async ({
+test("Yankees detail, sport switching, and archived routes remain deterministic", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -172,24 +121,10 @@ test("Yankees detail, watchlist, Activity, sport switching, and archived routes 
   await expect(
     page.locator(".matchup-team-name").filter({ hasText: "New York Yankees" }),
   ).toBeVisible();
-  await page.getByLabel("Preparation item").fill("Confirm Yankees starter");
-  await page.getByRole("button", { name: "Add to watchlist" }).click();
-
-  await page.getByRole("link", { name: "Watchlist" }).click();
-  await expect(
-    page.getByText("Confirm Yankees starter", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /Open (matchup|archived demo)/ }),
-  ).toBeVisible();
-
-  await page.getByRole("link", { name: "Activity" }).click();
-  await expect(
-    page.getByText("Added “Confirm Yankees starter” to the watchlist"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /View (game|archived demo)/ }),
-  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /View demo brief|Generate briefing/ })
+    .click();
+  await expect(page.getByText("Data used")).toBeVisible();
 
   await page.goto("/games/mlb-nyy-01");
   await expect(
@@ -200,7 +135,7 @@ test("Yankees detail, watchlist, Activity, sport switching, and archived routes 
     page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "Dashboard" }).click();
+  await page.getByRole("link", { name: "Games" }).click();
   await page
     .getByLabel("Select sport")
     .getByRole("button", { name: "Soccer" })
