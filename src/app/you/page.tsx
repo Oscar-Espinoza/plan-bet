@@ -250,88 +250,6 @@ export default async function Page({ searchParams }: Props) {
         </Card>
       </div>
 
-      <section className="panel" aria-labelledby="you-filters-heading">
-        <div className="panel-header">
-          <h2 className="panel-title" id="you-filters-heading">
-            Filters
-          </h2>
-        </div>
-        <div className="panel-body">
-          <form
-            method="get"
-            aria-label="Filter wager history"
-            className="flex flex-wrap items-end gap-3"
-          >
-            <div>
-              <label htmlFor="you-sport" className="field-label">
-                Sport
-              </label>
-              <select
-                id="you-sport"
-                name="sport"
-                className="control-select"
-                defaultValue={filters.sport}
-              >
-                <option value="all">All sports</option>
-                <option value="soccer">Soccer</option>
-                <option value="baseball">Baseball</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="you-outcome" className="field-label">
-                Outcome
-              </label>
-              <select
-                id="you-outcome"
-                name="outcome"
-                className="control-select"
-                defaultValue={filters.outcome}
-              >
-                <option value="all">All outcomes</option>
-                <option value="open">Open</option>
-                <option value="won">Won</option>
-                <option value="lost">Lost</option>
-                <option value="void">Void</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="you-range" className="field-label">
-                Time range
-              </label>
-              <select
-                id="you-range"
-                name="range"
-                className="control-select"
-                defaultValue={filters.range}
-              >
-                <option value="all">All time</option>
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="you-scope" className="field-label">
-                Placed
-              </label>
-              <select
-                id="you-scope"
-                name="scope"
-                className="control-select"
-                defaultValue={filters.scope}
-              >
-                <option value="all">Solo and group</option>
-                <option value="solo">Solo only</option>
-                <option value="group">Group only</option>
-              </select>
-            </div>
-            <Button type="submit" size="sm">
-              Apply filters
-            </Button>
-          </form>
-        </div>
-      </section>
-
       <section className="panel" aria-labelledby="you-history-heading">
         <div className="panel-header">
           <h2 className="panel-title" id="you-history-heading">
@@ -339,6 +257,79 @@ export default async function Page({ searchParams }: Props) {
           </h2>
           <span className="fine-print">Page {page}</span>
         </div>
+
+        <form
+          method="get"
+          aria-label="Filter wager history"
+          className="filter-bar"
+        >
+          <div>
+            <label htmlFor="you-sport" className="field-label">
+              Sport
+            </label>
+            <select
+              id="you-sport"
+              name="sport"
+              className="control-select"
+              defaultValue={filters.sport}
+            >
+              <option value="all">All sports</option>
+              <option value="soccer">Soccer</option>
+              <option value="baseball">Baseball</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="you-outcome" className="field-label">
+              Outcome
+            </label>
+            <select
+              id="you-outcome"
+              name="outcome"
+              className="control-select"
+              defaultValue={filters.outcome}
+            >
+              <option value="all">All outcomes</option>
+              <option value="open">Open</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+              <option value="void">Void</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="you-range" className="field-label">
+              Time range
+            </label>
+            <select
+              id="you-range"
+              name="range"
+              className="control-select"
+              defaultValue={filters.range}
+            >
+              <option value="all">All time</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="you-scope" className="field-label">
+              Placed
+            </label>
+            <select
+              id="you-scope"
+              name="scope"
+              className="control-select"
+              defaultValue={filters.scope}
+            >
+              <option value="all">Solo and group</option>
+              <option value="solo">Solo only</option>
+              <option value="group">Group only</option>
+            </select>
+          </div>
+          <Button type="submit" size="sm">
+            Apply filters
+          </Button>
+        </form>
 
         <BetsHistory items={history.items} emptyState={emptyState} />
 
