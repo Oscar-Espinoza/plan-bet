@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 /**
  * Renders nothing when sign-in isn't configured — without ever calling
  * `requireAccount()` / `auth()`. That is what keeps a keyless build's
- * statically-rendered routes (/watchlist, /activity, /rules) static.
+ * statically-rendered routes (/, /rules) static.
  */
 export async function AccountControl() {
   if (!isAuthConfigured()) return null;
@@ -27,14 +27,19 @@ export async function AccountControl() {
   ]);
   const balance = summary.balance.toLocaleString();
   const openSuffix = openCount > 0 ? ` · ${openCount} open` : "";
+  // Ambient standing (principle 1): balance and record are visible from
+  // anywhere, not just on /you. "927 · 14-15" — the W-L half omits voids,
+  // matching the chip's already-terse "927 credits · 2 open" shape.
+  const record = `${summary.won}-${summary.lost}`;
 
   return (
     <Link
       className="button button-secondary button-sm"
-      href="/account"
-      aria-label={`Account, balance ${balance} credits${openCount > 0 ? `, ${openCount} open wagers` : ""}`}
+      href="/you"
+      aria-label={`Balance ${balance} credits, record ${summary.won} won ${summary.lost} lost${openCount > 0 ? `, ${openCount} open wagers` : ""}`}
     >
-      {balance} credits{openSuffix}
+      {balance} · {record}
+      {openSuffix}
     </Link>
   );
 }
