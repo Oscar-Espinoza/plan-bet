@@ -87,9 +87,9 @@ export default async function Page({ searchParams }: Props) {
         ) : (
           <div className="panel-body">
             <p className="muted">
-              No sign-in provider is configured in this environment. The
-              dashboard, watchlist, and activity views all work without an
-              account — sign-in only unlocks the free-to-play credit ledger.
+              No sign-in provider is configured in this environment. The games
+              board works without an account — sign-in only unlocks the
+              free-to-play credit ledger.
             </p>
           </div>
         )}

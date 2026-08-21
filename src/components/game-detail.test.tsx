@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { GameDetail } from "@/components/game-detail";
 import { createEvidenceBriefing } from "@/lib/briefing";
 import { allGames, getSnapshot, getTeam } from "@/lib/seed";
+import { createDefaultState } from "@/lib/storage";
 import { useMatchdayStore } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
 import type { GameSnapshot } from "@/lib/contracts";
@@ -48,7 +49,7 @@ const snapshot: GameSnapshot = {
 
 describe("GameDetail evidence rendering", () => {
   beforeEach(() => {
-    useMatchdayStore.getState().resetDemo();
+    useMatchdayStore.setState({ ...createDefaultState(), hydrated: true });
   });
 
   afterEach(cleanup);
@@ -134,7 +135,7 @@ describe("GameDetail evidence rendering", () => {
 
 describe("GameDetail markets panel", () => {
   beforeEach(() => {
-    useMatchdayStore.getState().resetDemo();
+    useMatchdayStore.setState({ ...createDefaultState(), hydrated: true });
   });
 
   afterEach(cleanup);

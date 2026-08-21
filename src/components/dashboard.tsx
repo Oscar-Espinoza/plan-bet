@@ -1,14 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  CalendarDays,
-  ChevronRight,
-  ClipboardCheck,
-  MapPin,
-  RefreshCw,
-} from "lucide-react";
+import { CalendarDays, ChevronRight, MapPin, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DemoStamp } from "@/components/demo-stamp";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -50,12 +43,8 @@ export function Dashboard({ data }: { data: DashboardData }) {
   const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
   const selectSport = useMatchdayStore((state) => state.selectSport);
   const selectTeam = useMatchdayStore((state) => state.selectTeam);
-  const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
   const schedule = data[selectedTeamSlug];
   const { team, games, context, freshness } = schedule;
-  const relevantItems = watchlistItems.filter(
-    (item) => item.teamSlug === selectedTeamSlug && item.status === "open",
-  );
 
   return (
     <>
@@ -265,40 +254,6 @@ export function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 ))}
             </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Watchlist</h2>
-              <StatusTag>{relevantItems.length} open</StatusTag>
-            </div>
-            {relevantItems.length ? (
-              <div className="watch-summary">
-                {relevantItems.slice(0, 3).map((item) => (
-                  <div className="watch-summary-item" key={item.id}>
-                    <ClipboardCheck aria-hidden="true" size={15} />
-                    <span>{item.text}</span>
-                  </div>
-                ))}
-                <Button
-                  asChild
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                >
-                  <Link href="/watchlist">
-                    Review all <ArrowUpRight aria-hidden="true" size={14} />
-                  </Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="mini-empty">
-                <p>No open checks for {team.shortName}.</p>
-                <Button asChild variant="secondary" size="sm">
-                  <Link href="/watchlist">Add a watchlist item</Link>
-                </Button>
-              </div>
-            )}
           </section>
 
           <section className="freshness-panel" data-mode={freshness.mode}>

@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import {
   Activity,
   Gauge,
   ListChecks,
   Receipt,
-  RotateCcw,
   ServerCog,
   UserCircle,
   UsersRound,
 } from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
-import { Button } from "@/components/ui/button";
 import { getTeamsBySport, teams } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 import type { Sport } from "@/lib/contracts";
@@ -44,7 +41,6 @@ function WorkspaceControls({
   const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
   const selectSport = useMatchdayStore((state) => state.selectSport);
   const selectTeam = useMatchdayStore((state) => state.selectTeam);
-  const resetDemo = useMatchdayStore((state) => state.resetDemo);
   const router = useRouter();
   const pathname = usePathname();
   const sportTeams = getTeamsBySport(selectedSport);
@@ -63,11 +59,6 @@ function WorkspaceControls({
     if (!team) return;
     selectTeam(team.slug);
     if (!showsSelection) router.push("/");
-  };
-
-  const handleReset = () => {
-    resetDemo();
-    router.push("/");
   };
 
   return (
@@ -118,35 +109,6 @@ function WorkspaceControls({
             ))}
         </optgroup>
       </select>
-      <AlertDialog.Root>
-        <AlertDialog.Trigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Reset demo">
-            <RotateCcw aria-hidden="true" size={16} />
-          </Button>
-        </AlertDialog.Trigger>
-        <AlertDialog.Portal>
-          <AlertDialog.Overlay className="alert-overlay" />
-          <AlertDialog.Content className="alert-content">
-            <AlertDialog.Title className="alert-title">
-              Reset this demo?
-            </AlertDialog.Title>
-            <AlertDialog.Description className="alert-description">
-              This clears Matchday Plan selections, watchlist items, recaps, and
-              activity from this browser. Other local storage is left untouched.
-            </AlertDialog.Description>
-            <div className="alert-actions">
-              <AlertDialog.Cancel asChild>
-                <Button variant="secondary">Cancel</Button>
-              </AlertDialog.Cancel>
-              <AlertDialog.Action asChild>
-                <Button variant="danger" onClick={handleReset}>
-                  Reset demo
-                </Button>
-              </AlertDialog.Action>
-            </div>
-          </AlertDialog.Content>
-        </AlertDialog.Portal>
-      </AlertDialog.Root>
       {accountControl}
     </div>
   );

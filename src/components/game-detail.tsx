@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,9 +14,7 @@ import {
   Clock3,
   Cpu,
   MapPin,
-  Plus,
   RefreshCw,
-  Save,
   ShieldCheck,
 } from "lucide-react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
@@ -115,7 +113,6 @@ export function GameDetail({
   const router = useRouter();
   const { snapshot, briefing } = data;
   const { game, context, evidenceFacts, sources, freshness } = snapshot;
-  const [watchText, setWatchText] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [quota, setQuota] = useState<BriefingQuota>();
@@ -130,7 +127,6 @@ export function GameDetail({
     flushSync(() => setMessage(""));
     setMessage(text);
   };
-  const recapNote = useMatchdayStore((state) => state.recapNotes[game.id]);
   const viewed = useMatchdayStore((state) =>
     state.viewedBriefings.includes(game.id),
   );
@@ -146,27 +142,9 @@ export function GameDetail({
     (team) => team.slug === selectedTeamSlug,
   )?.name;
   const hydrated = useMatchdayStore((state) => state.hydrated);
-  const recapRef = useRef<HTMLTextAreaElement>(null);
-  // Tracks which game's stored note the textarea last picked up. The field is
-  // uncontrolled (no onChange) so typing never touches this component's
-  // state; only hydration finishing or navigating to a different game should
-  // overwrite the DOM value, never a re-render triggered by something else
-  // (which is what remounting the element via a `key` used to do, wiping
-  // whatever the reader had just typed).
-  const recapSyncedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!hydrated || recapSyncedFor.current === game.id) return;
-    recapSyncedFor.current = game.id;
-    if (recapRef.current) recapRef.current.value = recapNote ?? "";
-  }, [hydrated, game.id, recapNote]);
-  // Selected as the stored reference and derived below: returning a fresh array
-  // from the selector would re-render on every store read.
-  const watchlistItems = useMatchdayStore((state) => state.watchlistItems);
   const saveGeneratedBriefing = useMatchdayStore(
     (state) => state.saveGeneratedBriefing,
   );
-  const addWatchlistItem = useMatchdayStore((state) => state.addWatchlistItem);
-  const saveRecap = useMatchdayStore((state) => state.saveRecap);
   const viewBriefing = useMatchdayStore((state) => state.viewBriefing);
   const toggleSavedBriefing = useMatchdayStore(
     (state) => state.toggleSavedBriefing,
@@ -186,9 +164,6 @@ export function GameDetail({
           ? "Fallback"
           : "Evidence brief";
   const briefOpen = viewed || Boolean(generated);
-  const openWatchlist = watchlistItems
-    .filter((item) => item.gameId === game.id && item.status === "open")
-    .map((item) => item.text);
   // Reference numbers key off the snapshot's own fact order, so a fact keeps the
   // same number whether or not this briefing happens to cite it.
   const citedRefs = (ids: string[]) =>
@@ -214,35 +189,13 @@ export function GameDetail({
     );
   };
   const isHome = game.homeTeamSlug === team.slug;
-  const opponent = isHome ? game.awayTeam : game.homeTeam;
   const archivedDemo =
     game.sport === "baseball" &&
     freshness.mode === "demo" &&
     isLegacyBaseballGameId(game.id);
 
-  const submitWatch = (event: React.FormEvent) => {
-    event.preventDefault();
-    const id = addWatchlistItem({
-      sport: game.sport,
-      teamSlug: team.slug,
-      gameId: game.id,
-      gameLabel: `${team.shortName} ${isHome ? "vs" : "at"} ${opponent}`,
-      text: watchText,
-    });
-    if (!id) return;
-    setWatchText("");
-    announce("Watchlist item added.");
-  };
-
-  const submitRecap = (event: React.FormEvent) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget as HTMLFormElement);
-    const recap = String(form.get("recap") ?? "");
-    if (saveRecap(game.id, recap, team.slug)) announce("Recap saved locally.");
-  };
-
   const openBrief = () => {
-    viewBriefing(game.id, team.slug);
+    viewBriefing(game.id);
     announce("Evidence brief opened.");
   };
 
@@ -258,13 +211,7 @@ export function GameDetail({
       const response = await fetch(`/api/games/${game.id}/briefings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: anonymousId,
-          watchlist: openWatchlist
-            .slice(0, 10)
-            .map((text) => text.slice(0, 280)),
-          note: recapNote,
-        }),
+        body: JSON.stringify({ sessionId: anonymousId }),
       });
       const payload: unknown = await response.json();
       if (!response.ok) {
@@ -287,7 +234,7 @@ export function GameDetail({
       const result = briefingResultSchema.parse(
         (payload as { data: unknown }).data,
       );
-      saveGeneratedBriefing(game.id, team.slug, result.briefing);
+      saveGeneratedBriefing(game.id, result.briefing);
       setQuota(result.quota);
       setReason(result.reason);
       announce(
@@ -654,7 +601,7 @@ export function GameDetail({
                 <div className="brief-actions">
                   <Button
                     variant="secondary"
-                    onClick={() => toggleSavedBriefing(game.id, team.slug)}
+                    onClick={() => toggleSavedBriefing(game.id)}
                   >
                     {saved ? (
                       <BookmarkCheck aria-hidden="true" size={16} />
@@ -777,52 +724,6 @@ export function GameDetail({
 
         <aside className="detail-side" aria-label="Preparation tools">
           {wagering && <BetSlip data={wagering} />}
-          <section className="panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Watch this game</h2>
-            </div>
-            <form className="side-form" onSubmit={submitWatch}>
-              <label htmlFor="game-watch-item" className="field-label">
-                Preparation item
-              </label>
-              <textarea
-                id="game-watch-item"
-                className="textarea"
-                value={watchText}
-                onChange={(event) => setWatchText(event.target.value)}
-                maxLength={500}
-                placeholder="e.g. Confirm the starting lineup"
-                required
-              />
-              <Button type="submit" className="w-full">
-                <Plus aria-hidden="true" size={16} /> Add to watchlist
-              </Button>
-            </form>
-          </section>
-          <section className="panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Recap note</h2>
-            </div>
-            <form className="side-form" onSubmit={submitRecap}>
-              <label htmlFor="game-recap" className="field-label">
-                Your post-game note
-              </label>
-              <textarea
-                id="game-recap"
-                ref={recapRef}
-                name="recap"
-                className="textarea recap-field"
-                defaultValue={recapNote ?? ""}
-                maxLength={2000}
-                placeholder="Add a concise observation after the game…"
-                required
-              />
-              <Button type="submit" variant="secondary" className="w-full">
-                <Save aria-hidden="true" size={16} /> Save recap
-              </Button>
-              <p className="fine-print">Stored only in this browser.</p>
-            </form>
-          </section>
           <div className="side-disclaimer">
             <strong>How this brief is made</strong>
             <p>

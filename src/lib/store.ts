@@ -7,34 +7,18 @@ import {
   createDefaultState,
   parseStoredState,
   storedStateSchema,
-  type ActivityEvent,
   type StoredState,
-  type WatchlistItem,
 } from "@/lib/storage";
 import type { Briefing, Sport, TeamSlug } from "@/lib/contracts";
-import { normalizeText } from "@/lib/utils";
-
-type WatchlistInput = Pick<WatchlistItem, "sport" | "teamSlug" | "text"> &
-  Partial<Pick<WatchlistItem, "gameId" | "gameLabel">>;
 
 type MatchdayActions = {
   hydrated: boolean;
   hydrate: () => void;
   selectSport: (sport: Sport) => void;
   selectTeam: (teamSlug: TeamSlug) => void;
-  addWatchlistItem: (input: WatchlistInput) => string | null;
-  updateWatchlistItem: (id: string, text: string) => boolean;
-  toggleWatchlistItem: (id: string) => boolean;
-  deleteWatchlistItem: (id: string) => boolean;
-  saveRecap: (gameId: string, text: string, teamSlug: TeamSlug) => boolean;
-  viewBriefing: (gameId: string, teamSlug: TeamSlug) => void;
-  saveGeneratedBriefing: (
-    gameId: string,
-    teamSlug: TeamSlug,
-    briefing: Briefing,
-  ) => void;
-  toggleSavedBriefing: (gameId: string, teamSlug: TeamSlug) => void;
-  resetDemo: () => void;
+  viewBriefing: (gameId: string) => void;
+  saveGeneratedBriefing: (gameId: string, briefing: Briefing) => void;
+  toggleSavedBriefing: (gameId: string) => void;
 };
 
 export type MatchdayStore = StoredState & MatchdayActions;
@@ -48,15 +32,12 @@ function makeId() {
 
 function dataFromStore(state: MatchdayStore): StoredState {
   return {
-    version: 1,
+    version: 2,
     selectedSport: state.selectedSport,
     selectedTeamSlug: state.selectedTeamSlug,
-    watchlistItems: state.watchlistItems,
-    recapNotes: state.recapNotes,
     savedBriefings: state.savedBriefings,
     viewedBriefings: state.viewedBriefings,
     generatedBriefings: state.generatedBriefings,
-    activityEvents: state.activityEvents,
     anonymousId: state.anonymousId,
   };
 }
@@ -67,20 +48,6 @@ function persist(state: MatchdayStore) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-function event(
-  type: ActivityEvent["type"],
-  label: string,
-  details?: Pick<ActivityEvent, "gameId" | "teamSlug">,
-): ActivityEvent {
-  return {
-    id: makeId(),
-    type,
-    label,
-    at: new Date().toISOString(),
-    ...details,
-  };
-}
-
 const ssrDefaults = createDefaultState();
 
 export const useMatchdayStore = create<MatchdayStore>((set, get) => {
@@ -88,8 +55,6 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
     set(update);
     persist(get());
   };
-  const addEvent = (activity: ActivityEvent) =>
-    [activity, ...get().activityEvents].slice(0, 100);
 
   return {
     ...ssrDefaults,
@@ -108,174 +73,33 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
       if (get().selectedSport === sport) return;
       const selectedTeamSlug: TeamSlug =
         sport === "soccer" ? "real-madrid" : "new-york-yankees";
-      const team = getTeam(selectedTeamSlug)!;
-      commit({
-        selectedSport: sport,
-        selectedTeamSlug,
-        activityEvents: addEvent(
-          event("team_selected", `Switched workspace to ${team.name}`, {
-            teamSlug: selectedTeamSlug,
-          }),
-        ),
-      });
+      commit({ selectedSport: sport, selectedTeamSlug });
     },
     selectTeam: (teamSlug) => {
       if (get().selectedTeamSlug === teamSlug) return;
       const team = getTeam(teamSlug);
       if (!team) return;
-      commit({
-        selectedSport: team.sport,
-        selectedTeamSlug: teamSlug,
-        activityEvents: addEvent(
-          event("team_selected", `Selected ${team.name}`, { teamSlug }),
-        ),
-      });
+      commit({ selectedSport: team.sport, selectedTeamSlug: teamSlug });
     },
-    addWatchlistItem: (input) => {
-      const text = normalizeText(input.text);
-      if (!text) return null;
-      const id = makeId();
-      const item: WatchlistItem = {
-        id,
-        sport: input.sport,
-        teamSlug: input.teamSlug,
-        gameId: input.gameId,
-        gameLabel: input.gameLabel,
-        text,
-        status: "open",
-        createdAt: new Date().toISOString(),
-      };
-      commit({
-        watchlistItems: [item, ...get().watchlistItems],
-        activityEvents: addEvent(
-          event("watchlist_created", `Added “${text}” to the watchlist`, {
-            gameId: input.gameId,
-            teamSlug: input.teamSlug,
-          }),
-        ),
-      });
-      return id;
-    },
-    updateWatchlistItem: (id, value) => {
-      const text = normalizeText(value);
-      const current = get().watchlistItems.find((item) => item.id === id);
-      if (!current || !text || current.text === text) return false;
-      commit({
-        watchlistItems: get().watchlistItems.map((item) =>
-          item.id === id ? { ...item, text } : item,
-        ),
-        activityEvents: addEvent(
-          event("watchlist_updated", `Updated “${text}”`, {
-            gameId: current.gameId,
-            teamSlug: current.teamSlug,
-          }),
-        ),
-      });
-      return true;
-    },
-    toggleWatchlistItem: (id) => {
-      const current = get().watchlistItems.find((item) => item.id === id);
-      if (!current) return false;
-      const completed = current.status === "open";
-      commit({
-        watchlistItems: get().watchlistItems.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                status: completed ? "completed" : "open",
-                completedAt: completed ? new Date().toISOString() : undefined,
-              }
-            : item,
-        ),
-        activityEvents: addEvent(
-          event(
-            completed ? "watchlist_completed" : "watchlist_reopened",
-            `${completed ? "Completed" : "Reopened"} “${current.text}”`,
-            {
-              gameId: current.gameId,
-              teamSlug: current.teamSlug,
-            },
-          ),
-        ),
-      });
-      return true;
-    },
-    deleteWatchlistItem: (id) => {
-      const current = get().watchlistItems.find((item) => item.id === id);
-      if (!current) return false;
-      commit({
-        watchlistItems: get().watchlistItems.filter((item) => item.id !== id),
-        activityEvents: addEvent(
-          event("watchlist_deleted", `Removed “${current.text}”`, {
-            gameId: current.gameId,
-            teamSlug: current.teamSlug,
-          }),
-        ),
-      });
-      return true;
-    },
-    saveRecap: (gameId, value, teamSlug) => {
-      const text = normalizeText(value, 2000);
-      if (!text) return false;
-      const previous = get().recapNotes[gameId];
-      if (previous === text) return false;
-      commit({
-        recapNotes: { ...get().recapNotes, [gameId]: text },
-        activityEvents: addEvent(
-          event(
-            "recap_saved",
-            previous ? "Updated a game recap" : "Saved a game recap",
-            { gameId, teamSlug },
-          ),
-        ),
-      });
-      return true;
-    },
-    viewBriefing: (gameId, teamSlug) => {
+    viewBriefing: (gameId) => {
       if (get().viewedBriefings.includes(gameId)) return;
-      commit({
-        viewedBriefings: [...get().viewedBriefings, gameId],
-        activityEvents: addEvent(
-          event("briefing_viewed", "Viewed a demo brief", { gameId, teamSlug }),
-        ),
-      });
+      commit({ viewedBriefings: [...get().viewedBriefings, gameId] });
     },
-    saveGeneratedBriefing: (gameId, teamSlug, briefing) => {
+    saveGeneratedBriefing: (gameId, briefing) => {
       commit({
         generatedBriefings: { ...get().generatedBriefings, [gameId]: briefing },
         viewedBriefings: get().viewedBriefings.includes(gameId)
           ? get().viewedBriefings
           : [...get().viewedBriefings, gameId],
-        activityEvents: addEvent(
-          event(
-            "briefing_generated",
-            briefing.mode === "ai"
-              ? "Generated an AI briefing"
-              : "Received a fallback briefing",
-            { gameId, teamSlug },
-          ),
-        ),
       });
     },
-    toggleSavedBriefing: (gameId, teamSlug) => {
+    toggleSavedBriefing: (gameId) => {
       const saved = get().savedBriefings.includes(gameId);
       commit({
         savedBriefings: saved
           ? get().savedBriefings.filter((id) => id !== gameId)
           : [...get().savedBriefings, gameId],
-        activityEvents: addEvent(
-          event(
-            saved ? "briefing_removed" : "briefing_saved",
-            saved ? "Removed a saved brief" : "Saved a demo brief",
-            { gameId, teamSlug },
-          ),
-        ),
       });
-    },
-    resetDemo: () => {
-      if (typeof window !== "undefined")
-        window.localStorage.removeItem(STORAGE_KEY);
-      set({ ...createDefaultState(makeId()), hydrated: true });
     },
   };
 });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AppShell } from "@/components/app-shell";
+import { createDefaultState } from "@/lib/storage";
 import { useMatchdayStore } from "@/lib/store";
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), pathname: "/" }));
@@ -37,7 +38,7 @@ function renderShell(pathname: string) {
 describe("workspace controls on a game route", () => {
   beforeEach(() => {
     nav.push.mockClear();
-    useMatchdayStore.getState().resetDemo();
+    useMatchdayStore.setState({ ...createDefaultState(), hydrated: true });
   });
 
   afterEach(cleanup);
@@ -63,7 +64,7 @@ describe("workspace controls on a game route", () => {
   });
 
   it("leaves navigation alone when the current page already follows the selection", () => {
-    renderShell("/watchlist");
+    renderShell("/groups");
 
     fireEvent.change(screen.getByLabelText("Selected team"), {
       target: { value: "barcelona" },
