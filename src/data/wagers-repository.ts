@@ -1,6 +1,15 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import { getDatabase } from "@/db/client";
 import { creditEntries, games, gameSnapshots, wagers } from "@/db/schema";
 import {
@@ -45,6 +54,7 @@ export function rowToWager(
     id: row.id,
     routeId: row.routeId,
     canonicalGameId: row.canonicalGameId,
+    groupId: row.groupId ?? undefined,
     sport: row.sport,
     marketId: row.marketId,
     marketLabel: row.marketLabel,
@@ -163,6 +173,28 @@ export async function listWagersForGame(
   return attachSettled(rows);
 }
 
+/**
+ * Every group member can see every wager placed in the group, so this
+ * carries `userId` alongside the wager — unlike the personal-history readers
+ * above, whose caller already knows whose wagers they are.
+ */
+export async function listWagersForGroup(
+  groupId: string,
+  limit: number,
+): Promise<{ wager: Wager; userId: string }[]> {
+  const rows = await getDatabase()
+    .select()
+    .from(wagers)
+    .where(eq(wagers.groupId, groupId))
+    .orderBy(desc(wagers.createdAt))
+    .limit(limit);
+  const settled = await attachSettled(rows);
+  return rows.map((row, index) => ({
+    wager: settled[index]!,
+    userId: row.userId,
+  }));
+}
+
 export async function listWagers(userId: string, limit: number) {
   const rows = await getDatabase()
     .select()
@@ -178,6 +210,8 @@ export type WagerHistoryFilter = {
   // "open" = no return row yet, distinct from a settled outcome.
   outcome?: WagerOutcome | "open";
   since?: Date;
+  // "solo" = groupId is null, "group" = groupId is set (any group).
+  scope?: "solo" | "group";
   limit: number;
   offset: number;
 };
@@ -202,6 +236,8 @@ export async function listWagerHistory(
   } else if (filter.outcome) {
     conditions.push(eq(creditEntries.outcome, filter.outcome));
   }
+  if (filter.scope === "solo") conditions.push(isNull(wagers.groupId));
+  else if (filter.scope === "group") conditions.push(isNotNull(wagers.groupId));
 
   const rows = await getDatabase()
     .select({ wager: wagers })

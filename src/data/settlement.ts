@@ -2,6 +2,10 @@ import "server-only";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
 import {
+  notifyGroupSettlements,
+  type SettledGroupWager,
+} from "@/data/group-notifications";
+import {
   acquireRefreshLease,
   completeRefreshLease,
 } from "@/data/sports-repository";
@@ -77,6 +81,9 @@ export async function settleWagers(input: {
     byOutcome: { won: 0, lost: 0, void: 0 },
   };
   let runError: unknown;
+  // Only wagers this run actually paid (the insert won the unique index), so
+  // a re-run over already-settled wagers never re-notifies.
+  const notifiable: SettledGroupWager[] = [];
 
   try {
     const database = getDatabase();
@@ -87,9 +94,12 @@ export async function settleWagers(input: {
       .select({
         id: wagers.id,
         userId: wagers.userId,
+        groupId: wagers.groupId,
         sport: wagers.sport,
         marketId: wagers.marketId,
         selectionId: wagers.selectionId,
+        selectionLabel: wagers.selectionLabel,
+        matchup: wagers.matchup,
         stake: wagers.stake,
         potentialReturn: wagers.potentialReturn,
         summary: games.summary,
@@ -155,6 +165,16 @@ export async function settleWagers(input: {
         if (inserted) {
           counts.settled += 1;
           counts.byOutcome[grade] += 1;
+          if (candidate.groupId) {
+            notifiable.push({
+              groupId: candidate.groupId,
+              userId: candidate.userId,
+              matchup: candidate.matchup,
+              selectionLabel: candidate.selectionLabel,
+              outcome: grade,
+              returned: amount,
+            });
+          }
         } else {
           // credit_entries_wager_return_uidx already had a row: a previous
           // run (or a concurrent one) already paid this wager.
@@ -190,6 +210,10 @@ export async function settleWagers(input: {
   });
 
   if (runError) throw runError;
+
+  // Sent after the lease is released, so a slow mail provider never holds the
+  // settlement lease open. One digest per member per run, not per wager.
+  await notifyGroupSettlements(notifiable);
 
   return { ok: true, runId: lease.id, ...counts };
 }

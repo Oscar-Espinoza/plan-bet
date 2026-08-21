@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ResetBankroll } from "@/components/reset-bankroll";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { getCreditSummary } from "@/data/credits";
 import { requireAccount, signOut } from "@/lib/auth";
 
@@ -36,12 +37,7 @@ export default async function Page() {
       </header>
 
       <div className="section-grid">
-        <section className="panel" aria-labelledby="balance-heading">
-          <div className="panel-header">
-            <h2 className="panel-title" id="balance-heading">
-              Balance
-            </h2>
-          </div>
+        <Card title="Balance" titleId="balance-heading">
           <div className="stat-row">
             <span>Balance</span>
             <strong>{summary.balance.toLocaleString()} credits</strong>
@@ -66,14 +62,9 @@ export default async function Page() {
             <span>Reset your bankroll back to the starting balance.</span>
             <ResetBankroll />
           </div>
-        </section>
+        </Card>
 
-        <section className="panel" aria-labelledby="record-heading">
-          <div className="panel-header">
-            <h2 className="panel-title" id="record-heading">
-              Record
-            </h2>
-          </div>
+        <Card title="Record" titleId="record-heading">
           <div className="stat-row">
             <span>Won</span>
             <strong>{summary.won.toLocaleString()}</strong>
@@ -102,14 +93,9 @@ export default async function Page() {
               <Link href="/rules">simulator rules</Link>.
             </span>
           </div>
-        </section>
+        </Card>
 
-        <section className="panel" aria-labelledby="account-actions-heading">
-          <div className="panel-header">
-            <h2 className="panel-title" id="account-actions-heading">
-              Account
-            </h2>
-          </div>
+        <Card title="Account" titleId="account-actions-heading">
           <div className="form-block">
             <span>
               Read the <Link href="/rules">simulator rules</Link> before you
@@ -129,7 +115,7 @@ export default async function Page() {
               </Button>
             </form>
           </div>
-        </section>
+        </Card>
       </div>
     </>
   );

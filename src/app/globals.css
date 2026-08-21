@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/ibm-plex-sans";
 @import "@fontsource/barlow-condensed/600.css";
 @import "@fontsource/barlow-condensed/700.css";
 
@@ -36,7 +36,7 @@ body {
   overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Inter Variable", system-ui, sans-serif;
+  font-family: "IBM Plex Sans Variable", system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -171,17 +171,6 @@ a {
   border-left-color: var(--green);
   background: var(--surface-raised);
   color: var(--text);
-}
-
-.sidebar-foot {
-  position: absolute;
-  right: 1rem;
-  bottom: 1.25rem;
-  left: 1rem;
-  border-top: 1px solid var(--line);
-  color: var(--faint);
-  padding: 1rem 0.5rem 0;
-  font-size: 0.72rem;
 }
 
 .workspace {
@@ -386,6 +375,9 @@ a {
 .section-grid {
   display: grid;
   gap: 1rem;
+  /* Matches the internal gap, so a panel following the grid is separated by
+     the same rhythm as the cards inside it. */
+  margin-bottom: 1rem;
 }
 
 .panel {
@@ -536,6 +528,34 @@ a {
   color: #ffb8bc;
 }
 
+.banner {
+  border: 1px solid var(--line-strong);
+  border-radius: 0.4rem;
+  background: var(--surface-muted);
+  color: var(--text);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.banner-positive {
+  border-color: #285e45;
+  background: var(--green-dark);
+  color: #8ee9b7;
+}
+
+.banner-warning {
+  border-color: #6f552a;
+  background: #281f11;
+  color: #f0c476;
+}
+
+.banner-negative {
+  border-color: #6f3035;
+  background: #2b1519;
+  color: #ffb8bc;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -605,6 +625,18 @@ a {
   place-items: center;
   padding: 2rem;
   text-align: center;
+}
+
+/* The same block inside a panel, without the full-page reserve height. */
+.empty-state-compact {
+  min-height: 0;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.empty-state-compact .empty-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .empty-icon {

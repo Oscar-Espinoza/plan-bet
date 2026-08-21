@@ -306,6 +306,9 @@ export const wagerPlacementSchema = z.object({
   // Echo only: compared against the server's price, never stored.
   price: z.number().positive(),
   stake: z.number().int().min(1).max(500),
+  // Absent = solo wager. Re-checked against real membership server-side,
+  // same as price — a client-supplied groupId is never trusted alone.
+  groupId: z.uuid().optional(),
 });
 export type WagerPlacementInput = z.infer<typeof wagerPlacementSchema>;
 
@@ -331,6 +334,8 @@ export const wagerSchema = z.object({
   id: z.uuid(),
   routeId: z.string().min(1),
   canonicalGameId: z.string().min(1),
+  // Absent for a solo wager. Set once at insert time, never updated.
+  groupId: z.uuid().optional(),
   sport: sportSchema,
   marketId: z.string().min(1),
   marketLabel: z.string().min(1),
@@ -358,3 +363,72 @@ export const wagerPlacementResultSchema = z.object({
   summary: creditSummarySchema,
 });
 export type WagerPlacementResult = z.infer<typeof wagerPlacementResultSchema>;
+
+export const groupMemberRoleSchema = z.enum(["owner", "member"]);
+export type GroupMemberRole = z.infer<typeof groupMemberRoleSchema>;
+
+export const groupSchema = z.object({
+  id: z.uuid(),
+  name: z.string().min(1).max(80),
+  slug: z.string().min(1),
+  createdByUserId: z.uuid(),
+  createdAt: z.iso.datetime(),
+});
+export type Group = z.infer<typeof groupSchema>;
+
+export const groupMemberSchema = z.object({
+  groupId: z.uuid(),
+  userId: z.uuid(),
+  role: groupMemberRoleSchema,
+  name: z.string().nullable(),
+  email: z.string().nullable(),
+  notifyOnActivity: z.boolean(),
+  joinedAt: z.iso.datetime(),
+});
+export type GroupMember = z.infer<typeof groupMemberSchema>;
+
+export const groupInviteStatusSchema = z.enum([
+  "pending",
+  "accepted",
+  "expired",
+]);
+export type GroupInviteStatus = z.infer<typeof groupInviteStatusSchema>;
+
+export const groupInviteSchema = z.object({
+  id: z.uuid(),
+  groupId: z.uuid(),
+  email: z.email(),
+  status: groupInviteStatusSchema,
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+});
+export type GroupInvite = z.infer<typeof groupInviteSchema>;
+
+// Ranked by net return (sum of `return` credit_entries minus stakes) over a
+// group's wagers only — a read-time aggregate, never a stored column, same
+// as CreditSummary.
+export const groupLeaderboardEntrySchema = z.object({
+  userId: z.uuid(),
+  name: z.string().nullable(),
+  netReturn: z.number().int(),
+  wagerCount: z.number().int().nonnegative(),
+  won: z.number().int().nonnegative(),
+  lost: z.number().int().nonnegative(),
+  voided: z.number().int().nonnegative(),
+});
+export type GroupLeaderboardEntry = z.infer<typeof groupLeaderboardEntrySchema>;
+
+export const groupCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
+export type GroupCreateInput = z.infer<typeof groupCreateSchema>;
+
+export const groupInviteRequestSchema = z.object({
+  email: z.email(),
+});
+export type GroupInviteRequestInput = z.infer<typeof groupInviteRequestSchema>;
+
+export const groupNotifyRequestSchema = z.object({
+  notifyOnActivity: z.boolean(),
+});
+export type GroupNotifyRequestInput = z.infer<typeof groupNotifyRequestSchema>;

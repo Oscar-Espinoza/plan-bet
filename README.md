@@ -69,6 +69,8 @@ All are server-only except `NEXT_PUBLIC_SITE_URL`.
 | `AUTH_GITHUB_SECRET`      | for GitHub sign-in | GitHub OAuth app client secret                                                                                 |
 | `AUTH_GOOGLE_ID`          | for Google sign-in | Google OAuth client ID                                                                                         |
 | `AUTH_GOOGLE_SECRET`      | for Google sign-in | Google OAuth client secret                                                                                     |
+| `RESEND_API_KEY`          | for group emails   | Resend API key; absent means group notifications are a logged no-op                                            |
+| `EMAIL_FROM`              | for group emails   | verified sender address; absent means group notifications are a logged no-op                                   |
 
 Identity is the verified email address, not the provider. Signing in with a second provider on an email that already has an account joins that account and its existing ledger rather than starting a new one; a different email is a different account with its own starting credits. Google must report the address as verified or the sign-in is refused.
 
@@ -87,21 +89,24 @@ pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it
 
 ## API
 
-| Route                                | Purpose                                                                       |
-| ------------------------------------ | ----------------------------------------------------------------------------- |
-| `GET /api/teams`                     | The four configured canonical teams                                           |
-| `GET /api/teams/:slug/games?limit=5` | Validated canonical schedule and team context                                 |
-| `GET /api/games/:gameId`             | Canonical game snapshot, evidence facts, and source records                   |
-| `POST /api/games/:gameId/briefings`  | Quota-limited grounded AI briefing, cited to the saved snapshot               |
-| `GET /api/health`                    | App, database, schema currency, and provider status                           |
-| `GET /api/system/recent?limit=10`    | Bounded recent ingestion and aggregate briefing metrics                       |
-| `GET`/`POST /api/cron/refresh`       | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`                       |
-| `GET`/`POST /api/cron/settle`        | Scheduled settlement, `Authorization: Bearer $CRON_SECRET`                    |
-| `GET`/`POST /api/auth/*`             | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
-| `GET /api/bets/summary`              | The signed-in account's credit ledger summary; `401`/`503` signed out         |
-| `POST /api/bets/reset`               | Resets the signed-in account's bankroll to the starting balance, rate-limited |
-| `POST /api/bets`                     | Places a wager at the server-priced quote, atomically debiting the ledger     |
-| `GET /api/bets?limit=10`             | The signed-in account's own wagers, bounded and newest first                  |
+| Route                                   | Purpose                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------- |
+| `GET /api/teams`                        | The four configured canonical teams                                           |
+| `GET /api/teams/:slug/games?limit=5`    | Validated canonical schedule and team context                                 |
+| `GET /api/games/:gameId`                | Canonical game snapshot, evidence facts, and source records                   |
+| `POST /api/games/:gameId/briefings`     | Quota-limited grounded AI briefing, cited to the saved snapshot               |
+| `GET /api/health`                       | App, database, schema currency, and provider status                           |
+| `GET /api/system/recent?limit=10`       | Bounded recent ingestion and aggregate briefing metrics                       |
+| `GET`/`POST /api/cron/refresh`          | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`                       |
+| `GET`/`POST /api/cron/settle`           | Scheduled settlement, `Authorization: Bearer $CRON_SECRET`                    |
+| `GET`/`POST /api/auth/*`                | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
+| `GET /api/bets/summary`                 | The signed-in account's credit ledger summary; `401`/`503` signed out         |
+| `POST /api/bets/reset`                  | Resets the signed-in account's bankroll to the starting balance, rate-limited |
+| `POST /api/bets`                        | Places a wager at the server-priced quote, atomically debiting the ledger     |
+| `GET /api/bets?limit=10`                | The signed-in account's own wagers, bounded and newest first                  |
+| `POST /api/groups`                      | Creates a group with the signed-in account as owner                           |
+| `POST /api/groups/:slug/invite`         | Emails a 7-day invite link to an address, members only                        |
+| `PATCH /api/groups/:slug/notifications` | Toggles the caller's own group email notifications                            |
 
 Responses are `{ data }` or `{ error: { code, message, requestId } }`, always `Cache-Control: no-store`. Error messages never echo configuration.
 

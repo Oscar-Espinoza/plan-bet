@@ -1,6 +1,8 @@
 import "server-only";
 
 import { eq, sql } from "drizzle-orm";
+import { notifyGroupWagerPlaced } from "@/data/group-notifications";
+import { isGroupMember } from "@/data/groups-repository";
 import { readGameForWager, rowToWager } from "@/data/wagers-repository";
 import { SUMMARY_PROJECTION, toSummary } from "@/data/credits";
 import { withDatabaseTransaction } from "@/db/client";
@@ -46,7 +48,8 @@ export type PlaceWagerResult =
   | { ok: false; reason: "unavailable" }
   | { ok: false; reason: "closed"; status: WagerClosedReason }
   | { ok: false; reason: "price_moved"; price: number }
-  | { ok: false; reason: "insufficient_balance" };
+  | { ok: false; reason: "insufficient_balance" }
+  | { ok: false; reason: "not_a_group_member" };
 
 /**
  * Never throws for an expected outcome — every rejection is a discriminated
@@ -62,7 +65,16 @@ export async function placeWager(input: {
   selectionId: string;
   price: number;
   stake: number;
+  groupId?: string;
+  actorName?: string | null;
 }): Promise<PlaceWagerResult> {
+  // A client-supplied groupId is never trusted alone — same boundary as
+  // price. Checked before the game/market lookups purely because it is the
+  // cheaper check.
+  if (input.groupId && !(await isGroupMember(input.groupId, input.userId))) {
+    return { ok: false, reason: "not_a_group_member" };
+  }
+
   const game = await readGameForWager(input.routeId);
   if (!game) return { ok: false, reason: "unavailable" };
 
@@ -89,7 +101,7 @@ export async function placeWager(input: {
 
   const potentialReturn = Math.round(input.stake * selection.price);
 
-  return withDatabaseTransaction(async (transaction) => {
+  const result = await withDatabaseTransaction(async (transaction) => {
     await transaction.execute(
       sql`select pg_advisory_xact_lock(4, hashtext(${input.userId}))`,
     );
@@ -110,6 +122,7 @@ export async function placeWager(input: {
       .insert(wagers)
       .values({
         userId: input.userId,
+        groupId: input.groupId ?? null,
         canonicalGameId: game.canonicalId,
         routeId: input.routeId,
         sport: game.sport,
@@ -150,4 +163,20 @@ export async function placeWager(input: {
       summary: toSummary(summaryRow),
     } as const;
   });
+
+  // After the commit, never inside it: a mail provider must not hold a
+  // transaction open, and a notification that fails must not roll a placed
+  // wager back. notifyGroupWagerPlaced swallows its own failures.
+  if (result.ok && input.groupId) {
+    await notifyGroupWagerPlaced({
+      groupId: input.groupId,
+      actorUserId: input.userId,
+      actorName: input.actorName ?? null,
+      matchup: result.wager.matchup,
+      selectionLabel: result.wager.selectionLabel,
+      stake: result.wager.stake,
+    });
+  }
+
+  return result;
 }

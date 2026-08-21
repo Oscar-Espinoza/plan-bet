@@ -46,6 +46,9 @@ const EXPECTED_TABLES = [
   "verification_tokens",
   "credit_entries",
   "wagers",
+  "groups",
+  "group_members",
+  "group_invites",
 ] as const;
 
 export async function checkDatabaseConnection() {

@@ -10,6 +10,8 @@ import {
   Receipt,
   RotateCcw,
   ServerCog,
+  UserCircle,
+  UsersRound,
 } from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ const navItems = [
   { href: "/watchlist", label: "Watchlist", icon: ListChecks },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/bets", label: "Bets", icon: Receipt },
+  { href: "/groups", label: "Groups", icon: UsersRound },
+  { href: "/account", label: "Account", icon: UserCircle },
   { href: "/system", label: "System", icon: ServerCog },
 ];
 
@@ -186,14 +190,6 @@ export function AppShell({
             );
           })}
         </nav>
-        <div className="sidebar-foot">
-          <span className="eyebrow">Session 05</span>
-          <p>
-            Validated soccer and baseball with last-known-good and demo
-            fallback, cited AI briefings that degrade to a deterministic
-            evidence brief, and a scheduled refresh you can inspect on System.
-          </p>
-        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">

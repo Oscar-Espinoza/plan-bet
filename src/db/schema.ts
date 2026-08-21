@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -292,6 +293,80 @@ export const verificationTokens = pgTable(
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
 );
 
+export const groupMemberRoleEnum = pgEnum("group_member_role", [
+  "owner",
+  "member",
+]);
+
+export const groupInviteStatusEnum = pgEnum("group_invite_status", [
+  "pending",
+  "accepted",
+  "expired",
+]);
+
+export const groups = pgTable("groups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: groupMemberRoleEnum("role").notNull(),
+    notifyOnActivity: boolean("notify_on_activity").default(true).notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.groupId, table.userId] }),
+    index("group_members_user_idx").on(table.userId),
+  ],
+);
+
+/**
+ * Invites target an email address, not a user id — the invitee may not have
+ * signed in yet. Accepted once the invitee is signed in with a matching
+ * email; classid 5 (the advisory-lock class this feature claims, see
+ * CLAUDE.md) serializes concurrent accepts of the same token.
+ */
+export const groupInvites = pgTable(
+  "group_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    token: text("token").notNull().unique(),
+    invitedByUserId: uuid("invited_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: groupInviteStatusEnum("status").default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("group_invites_group_idx").on(table.groupId),
+    index("group_invites_email_idx").on(table.email),
+  ],
+);
+
 /**
  * Append-only, one row per placement. No `status` column, no `updated_at`,
  * no update or delete path anywhere: a wager's state is derived from whether
@@ -306,6 +381,9 @@ export const wagers = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Null for a solo wager. Set once at insert time, like every other
+    // wagers column — never updated after placement.
+    groupId: uuid("group_id").references(() => groups.id),
     canonicalGameId: text("canonical_game_id").notNull(), // football-data-564645 / mlb-777123
     routeId: text("route_id").notNull(), // team-perspective page it was placed from
     sport: sportEnum("sport").notNull(),
@@ -335,6 +413,7 @@ export const wagers = pgTable(
   (table) => [
     index("wagers_user_created_idx").on(table.userId, table.createdAt),
     index("wagers_game_idx").on(table.canonicalGameId),
+    index("wagers_group_idx").on(table.groupId),
   ],
 );
 

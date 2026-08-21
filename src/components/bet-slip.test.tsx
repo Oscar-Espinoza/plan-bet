@@ -78,7 +78,12 @@ describe("BetSlip - open", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
-      state: { kind: "open", markets: soccerMarkets, balance: 1000 },
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [],
+      },
       wagers: [],
     };
     render(<BetSlip data={data} />);
@@ -101,7 +106,12 @@ describe("BetSlip - open", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
-      state: { kind: "open", markets: soccerMarkets, balance: 1000 },
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [],
+      },
       wagers: [],
     };
     render(<BetSlip data={data} />);
@@ -118,7 +128,12 @@ describe("BetSlip - open", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
-      state: { kind: "open", markets: soccerMarkets, balance: 1000 },
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [],
+      },
       wagers: [
         {
           id: "wager-1",
@@ -144,5 +159,43 @@ describe("BetSlip - open", () => {
 
     expect(screen.getByText("Your wagers on this game")).toBeInTheDocument();
     expect(screen.getByText("Home")).toBeInTheDocument();
+  });
+
+  it("offers no group selector when the account belongs to no groups", () => {
+    const data: WagerPanelData = {
+      signedIn: true,
+      routeId: "soc-rma-01",
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [],
+      },
+      wagers: [],
+    };
+    render(<BetSlip data={data} />);
+
+    expect(screen.queryByLabelText("Place")).not.toBeInTheDocument();
+  });
+
+  it("offers a group selector defaulting to Alone when the account belongs to a group", () => {
+    const data: WagerPanelData = {
+      signedIn: true,
+      routeId: "soc-rma-01",
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [{ id: "group-1", name: "Sunday League" }],
+      },
+      wagers: [],
+    };
+    render(<BetSlip data={data} />);
+
+    const select = screen.getByLabelText("Place") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(
+      screen.getByRole("option", { name: "With Sunday League" }),
+    ).toBeInTheDocument();
   });
 });

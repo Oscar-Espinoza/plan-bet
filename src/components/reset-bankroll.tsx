@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 
 export function ResetBankroll() {
@@ -57,9 +58,9 @@ export function ResetBankroll() {
             affect any wagers already placed.
           </AlertDialog.Description>
           {error ? (
-            <p className="alert-description" role="alert">
+            <Banner tone="negative" role="alert">
               {error}
-            </p>
+            </Banner>
           ) : null}
           <div className="alert-actions">
             <AlertDialog.Cancel asChild>

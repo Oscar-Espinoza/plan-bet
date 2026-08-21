@@ -37,6 +37,7 @@ import { briefingResultSchema } from "@/lib/contracts";
 import { TIME_TOKEN } from "@/lib/briefing-prompt";
 import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { gradeSelection, marketsFor } from "@/lib/markets";
+import { teams } from "@/lib/seed";
 import { useMatchdayStore } from "@/lib/store";
 
 function Provided({ value }: { value?: string }) {
@@ -140,6 +141,10 @@ export function GameDetail({
     (state) => state.generatedBriefings[game.id],
   );
   const anonymousId = useMatchdayStore((state) => state.anonymousId);
+  const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
+  const selectedTeamName = teams.find(
+    (team) => team.slug === selectedTeamSlug,
+  )?.name;
   const hydrated = useMatchdayStore((state) => state.hydrated);
   const recapRef = useRef<HTMLTextAreaElement>(null);
   // Tracks which game's stored note the textarea last picked up. The field is
@@ -308,7 +313,10 @@ export function GameDetail({
           : `${game.homeTeam} vs ${game.awayTeam}`}
       </h1>
       <Link href="/" className="back-link">
-        <ArrowLeft aria-hidden="true" size={15} /> Back to next five
+        <ArrowLeft aria-hidden="true" size={15} />{" "}
+        {selectedTeamName
+          ? `Back to ${selectedTeamName} schedule`
+          : "Back to next five"}
       </Link>
       <header className="matchup-header panel">
         <div className="matchup-topline">

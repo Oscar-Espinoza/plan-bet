@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import type { GameStatus, Wager } from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
@@ -11,7 +12,12 @@ import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
 export type WagerPanelState =
   | { kind: "unavailable" }
   | { kind: "closed"; reason: GameStatus | "started" }
-  | { kind: "open"; markets: Market[]; balance: number };
+  | {
+      kind: "open";
+      markets: Market[];
+      balance: number;
+      groups: { id: string; name: string }[];
+    };
 
 export type WagerPanelData =
   | { signedIn: false; routeId: string }
@@ -49,14 +55,18 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     market?.selections.find((s) => s.id === selectionId) ??
     market?.selections[0];
   const [stake, setStake] = useState(MIN_STAKE);
+  const [groupId, setGroupId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   const balance =
     data.signedIn && data.state.kind === "open" ? data.state.balance : 0;
+  const groups =
+    data.signedIn && data.state.kind === "open" ? data.state.groups : [];
   const potentialReturn = selection ? Math.round(stake * selection.price) : 0;
   const balanceAfter = balance - stake;
+  const insufficientCredits = stake > balance;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -72,6 +82,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
         selectionId: selection.id,
         price: selection.price,
         stake,
+        groupId: groupId || undefined,
       }),
     }).catch(() => null);
     setPending(false);
@@ -88,6 +99,8 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
       return;
     }
     setMessage("Wager placed.");
+    setStake(MIN_STAKE);
+    setGroupId("");
     router.refresh();
   };
 
@@ -179,6 +192,27 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             required
           />
 
+          {groups.length > 0 && (
+            <>
+              <label htmlFor="wager-group" className="field-label">
+                Place
+              </label>
+              <select
+                id="wager-group"
+                className="field"
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+              >
+                <option value="">Alone</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    With {group.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
           <div className="data-pair">
             <span>Potential return</span>
             <span>{potentialReturn}</span>
@@ -188,13 +222,25 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             <span>{balanceAfter}</span>
           </div>
 
-          {error && (
-            <p role="alert" className="fine-print">
-              {error}
-            </p>
+          {insufficientCredits && (
+            <Banner tone="negative" role="alert">
+              Stake exceeds your balance of {balance}.
+            </Banner>
           )}
 
-          <Button type="submit" className="w-full" disabled={pending}>
+          {error && (
+            <Banner tone="negative" role="alert">
+              {error}
+            </Banner>
+          )}
+
+          {message && <Banner tone="positive">{message}</Banner>}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={pending || insufficientCredits}
+          >
             Place wager
           </Button>
           <p className="fine-print">
@@ -203,10 +249,6 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           </p>
         </form>
       )}
-
-      <div aria-live="polite" className="sr-only">
-        {message}
-      </div>
 
       {wagers.length > 0 && (
         <div className="side-form">

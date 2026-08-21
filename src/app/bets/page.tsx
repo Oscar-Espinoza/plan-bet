@@ -18,6 +18,7 @@ const outcomeSchema = z
   .enum(["all", "won", "lost", "void", "open"])
   .catch("all");
 const rangeSchema = z.enum(["all", "7d", "30d", "90d"]).catch("all");
+const scopeSchema = z.enum(["all", "solo", "group"]).catch("all");
 const pageSchema = z.coerce.number().int().min(1).catch(1);
 
 const RANGE_DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
@@ -32,13 +33,14 @@ function first(value: string | string[] | undefined) {
 }
 
 function buildHref(
-  filters: { sport: string; outcome: string; range: string },
+  filters: { sport: string; outcome: string; range: string; scope: string },
   page: number,
 ) {
   const params = new URLSearchParams();
   if (filters.sport !== "all") params.set("sport", filters.sport);
   if (filters.outcome !== "all") params.set("outcome", filters.outcome);
   if (filters.range !== "all") params.set("range", filters.range);
+  if (filters.scope !== "all") params.set("scope", filters.scope);
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/bets?${qs}` : "/bets";
@@ -93,6 +95,7 @@ export default async function Page({ searchParams }: Props) {
     sport: sportSchema.parse(first(raw.sport)),
     outcome: outcomeSchema.parse(first(raw.outcome)),
     range: rangeSchema.parse(first(raw.range)),
+    scope: scopeSchema.parse(first(raw.scope)),
   };
   const page = pageSchema.parse(first(raw.page));
 
@@ -100,6 +103,7 @@ export default async function Page({ searchParams }: Props) {
     sport: filters.sport === "all" ? undefined : filters.sport,
     outcome: filters.outcome === "all" ? undefined : filters.outcome,
     since: sinceFor(filters.range),
+    scope: filters.scope === "all" ? undefined : filters.scope,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
@@ -107,7 +111,8 @@ export default async function Page({ searchParams }: Props) {
   const filtersActive =
     filters.sport !== "all" ||
     filters.outcome !== "all" ||
-    filters.range !== "all";
+    filters.range !== "all" ||
+    filters.scope !== "all";
   const emptyState = filtersActive
     ? {
         title: "No wagers match these filters",
@@ -189,6 +194,21 @@ export default async function Page({ searchParams }: Props) {
                 <option value="7d">Last 7 days</option>
                 <option value="30d">Last 30 days</option>
                 <option value="90d">Last 90 days</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="bets-scope" className="field-label">
+                Placed
+              </label>
+              <select
+                id="bets-scope"
+                name="scope"
+                className="control-select"
+                defaultValue={filters.scope}
+              >
+                <option value="all">Solo and group</option>
+                <option value="solo">Solo only</option>
+                <option value="group">Group only</option>
               </select>
             </div>
             <Button type="submit" size="sm">

@@ -49,7 +49,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const outcome = await placeWager({ userId: account.userId, ...body.data });
+  const outcome = await placeWager({
+    userId: account.userId,
+    actorName: account.name,
+    ...body.data,
+  });
 
   if (!outcome.ok) {
     switch (outcome.reason) {
@@ -81,6 +85,12 @@ export async function POST(request: NextRequest) {
         return apiFailure(
           "invalid_request",
           "That stake is more than your balance.",
+          context,
+        );
+      case "not_a_group_member":
+        return apiFailure(
+          "forbidden",
+          "You are not a member of that group.",
           context,
         );
     }
