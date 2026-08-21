@@ -819,6 +819,20 @@ a {
   font-size: 0.78rem;
 }
 
+/* A group heading inside a full-bleed .stat-row list. Aligns with the rows'
+   1rem gutter instead of the panel edge, and breathes off the row above. */
+.stat-group-label {
+  padding: 0.9rem 1rem 0.35rem;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+/* The list already sits above the panel's own border — the last row's divider
+   doubles it. Standing escapes this only because it ends on a .form-block. */
+.stat-row:last-child {
+  border-bottom: 0;
+}
+
 .stat-row strong {
   color: var(--text);
   font-family: "Barlow Condensed", sans-serif;

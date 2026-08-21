@@ -64,7 +64,7 @@ function hitRateLabel(won: number, lost: number) {
 
 function SliceRow({ slice }: { slice: RecordSlice }) {
   return (
-    <div className="stat-row" key={slice.key}>
+    <div className="stat-row">
       <span>{slice.label}</span>
       <strong>
         {slice.won}-{slice.lost}
@@ -227,21 +227,25 @@ export default async function Page({ searchParams }: Props) {
         </Card>
 
         <Card title="Slices" titleId="slices-heading">
-          <p className="fine-print">By sport</p>
+          <p className="stat-group-label">By sport</p>
           {slices.bySport.length ? (
             slices.bySport.map((slice) => (
               <SliceRow slice={slice} key={slice.key} />
             ))
           ) : (
-            <p className="not-provided">No settled wagers yet.</p>
+            <div className="panel-body">
+              <p className="not-provided">No settled wagers yet.</p>
+            </div>
           )}
-          <p className="fine-print">By market</p>
+          <p className="stat-group-label">By market</p>
           {slices.byMarket.length ? (
             slices.byMarket.map((slice) => (
               <SliceRow slice={slice} key={slice.key} />
             ))
           ) : (
-            <p className="not-provided">No settled wagers yet.</p>
+            <div className="panel-body">
+              <p className="not-provided">No settled wagers yet.</p>
+            </div>
           )}
         </Card>
       </div>
