@@ -590,25 +590,7 @@ a {
 }
 
 .field,
-.textarea {
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  border-radius: 0.38rem;
-  background: var(--surface-muted);
-  color: var(--text);
-  padding: 0.68rem 0.75rem;
-}
-
 .field::placeholder,
-.textarea::placeholder {
-  color: var(--faint);
-}
-
-.textarea {
-  min-height: 7rem;
-  resize: vertical;
-}
-
 .field-label {
   display: block;
   margin-bottom: 0.4rem;
@@ -874,33 +856,6 @@ a {
 .form-l {
   background: #361b20;
   color: #ff9da2;
-}
-
-.watch-summary {
-  display: grid;
-  gap: 0.65rem;
-  padding: 0.85rem;
-}
-
-.watch-summary-item {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 0.5rem;
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-
-.watch-summary-item svg {
-  flex: 0 0 auto;
-  color: var(--green);
-  margin-top: 0.1rem;
-}
-
-.watch-summary-item span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mini-empty {
@@ -1447,10 +1402,6 @@ sup.brief-reason {
   text-align: center;
 }
 
-.recap-field {
-  min-height: 9rem;
-}
-
 .side-disclaimer {
   border: 1px solid var(--line);
   border-left: 2px solid var(--amber);
@@ -1464,43 +1415,6 @@ sup.brief-reason {
   color: var(--muted);
 }
 
-.watch-create {
-  display: grid;
-  gap: 0.8rem;
-  margin-bottom: 1rem;
-  padding: 0.85rem;
-}
-
-.watch-create-team {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.watch-create-team > div {
-  display: grid;
-}
-
-.watch-create-team strong {
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1rem;
-  text-transform: uppercase;
-}
-
-.watch-create form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.55rem;
-}
-
-.watch-input-wrap {
-  min-width: 0;
-}
-
-.watchlist-header {
-  align-items: flex-end;
-}
-
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1509,85 +1423,6 @@ sup.brief-reason {
   border-bottom: 1px solid var(--line);
   background: var(--surface-muted);
   padding: 0.75rem 1rem;
-}
-
-.watchlist-items {
-  display: grid;
-}
-
-.watch-item {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: flex-start;
-  gap: 0.65rem;
-  border-bottom: 1px solid var(--line);
-  padding: 0.85rem;
-}
-
-.watch-item:last-child {
-  border-bottom: 0;
-}
-
-.watch-toggle {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border: 1px solid var(--line-strong);
-  border-radius: 0.3rem;
-  background: var(--surface-muted);
-  color: var(--green);
-  cursor: pointer;
-}
-
-.watch-item-body {
-  min-width: 0;
-}
-
-.watch-item-meta {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.35rem;
-  overflow: hidden;
-  color: var(--faint);
-  font-size: 0.64rem;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.watch-item-body > p {
-  margin: 0.3rem 0 0;
-  font-size: 0.82rem;
-}
-
-.watch-completed {
-  color: var(--faint);
-  text-decoration: line-through;
-}
-
-.watch-game-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.35rem;
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 680;
-}
-
-.watch-actions {
-  display: flex;
-}
-
-.watch-edit {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
 }
 
 .metric-grid {
@@ -1624,57 +1459,7 @@ sup.brief-reason {
   text-transform: uppercase;
 }
 
-.activity-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.activity-list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-  border-bottom: 1px solid var(--line);
-  padding: 0.8rem 1rem;
-}
-
-.activity-list li:last-child {
-  border-bottom: 0;
-}
-
-.activity-icon {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  color: var(--green);
-}
-
-.activity-list strong {
-  font-size: 0.76rem;
-}
-
-.activity-list p {
-  margin: 0.15rem 0 0;
-  color: var(--faint);
-  font-size: 0.65rem;
-}
-
-.activity-list a {
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 680;
-}
-
 @media (min-width: 640px) {
-  .watch-create {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-  }
-
   .metric-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
