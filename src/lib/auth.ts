@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
 import type { Adapter, AdapterUser } from "next-auth/adapters";
@@ -126,16 +127,22 @@ export type AccountResult =
  * is what keeps unconfigured builds, CI, and Playwright's keyless production
  * server from ever exercising a session lookup — and what keeps statically
  * rendered routes static.
+ *
+ * React.cache()'d because <AccountControl /> in the root layout calls this on
+ * every request alongside whatever page is rendering — per-request dedupe, not
+ * a cross-request cache, so one user's session can never be served to another.
  */
-export async function requireAccount(): Promise<AccountResult> {
-  if (!isAuthConfigured()) return { ok: false, reason: "unconfigured" };
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false, reason: "unauthenticated" };
-  return {
-    ok: true,
-    userId: session.user.id,
-    email: session.user.email ?? null,
-    name: session.user.name ?? null,
-    image: session.user.image ?? null,
-  };
-}
+export const requireAccount = cache(
+  async function requireAccount(): Promise<AccountResult> {
+    if (!isAuthConfigured()) return { ok: false, reason: "unconfigured" };
+    const session = await auth();
+    if (!session?.user?.id) return { ok: false, reason: "unauthenticated" };
+    return {
+      ok: true,
+      userId: session.user.id,
+      email: session.user.email ?? null,
+      name: session.user.name ?? null,
+      image: session.user.image ?? null,
+    };
+  },
+);

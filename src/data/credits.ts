@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
 import { creditEntries } from "@/db/schema";
@@ -52,14 +53,19 @@ export function toSummary(row?: {
  * All five figures are aggregates over the append-only ledger — never a
  * stored column. An account with no rows reads 0 across the board, never
  * `null`.
+ *
+ * React.cache()'d: /you and /games/[id] each read this once for the page and
+ * once more for the topbar chip. Per-request dedupe only.
  */
-export async function getCreditSummary(userId: string): Promise<CreditSummary> {
+export const getCreditSummary = cache(async function getCreditSummary(
+  userId: string,
+): Promise<CreditSummary> {
   const [row] = await getDatabase()
     .select(SUMMARY_PROJECTION)
     .from(creditEntries)
     .where(eq(creditEntries.userId, userId));
   return toSummary(row);
-}
+});
 
 /**
  * ponytail: advisory lock + count over credit_entries, same shape as

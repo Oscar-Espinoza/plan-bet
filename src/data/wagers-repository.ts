@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import {
   and,
   desc,
@@ -326,7 +327,10 @@ export async function getRecordSlices(userId: string): Promise<RecordSlices> {
   });
 }
 
-export async function countOpenWagers(userId: string): Promise<number> {
+/** React.cache()'d — /you reads this for the page and the topbar chip both. */
+export const countOpenWagers = cache(async function countOpenWagers(
+  userId: string,
+): Promise<number> {
   const [row] = await getDatabase()
     .select({ count: sql<number>`count(*)::int` })
     .from(wagers)
@@ -340,4 +344,4 @@ export async function countOpenWagers(userId: string): Promise<number> {
       ),
     );
   return row?.count ?? 0;
-}
+});

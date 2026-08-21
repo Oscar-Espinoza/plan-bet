@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { AccountControl } from "@/components/account-control";
 import { AppShell } from "@/components/app-shell";
@@ -66,7 +67,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppShell accountControl={<AccountControl />}>{children}</AppShell>
+        {/* The chip awaits a session lookup plus two ledger aggregates. Left
+            unsuspended in the root layout it blocks the whole shell from
+            flushing on every route. fallback={null} is what the component
+            itself renders when sign-in is unconfigured, so nothing shifts. */}
+        <AppShell
+          accountControl={
+            <Suspense fallback={null}>
+              <AccountControl />
+            </Suspense>
+          }
+        >
+          {children}
+        </AppShell>
       </body>
     </html>
   );
