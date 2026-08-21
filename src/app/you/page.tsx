@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { BetsHistory } from "@/components/bets-history";
 import { ResetBankroll } from "@/components/reset-bankroll";
@@ -80,6 +81,49 @@ type Props = {
 
 export default async function Page({ searchParams }: Props) {
   const account = await requireAccount();
+
+  // Deviation from the plan's literal "requireAccount() -> redirect": Next's
+  // redirect() from a full-document GET renders a client-side meta-refresh
+  // rather than an HTTP 3xx here, which axe and a plain page.goto both read
+  // as a mid-test navigation. /bets already established the fix for exactly
+  // this "unconfigured" condition — an inline honest panel instead of a
+  // redirect — and CLAUDE.md is explicit that a missing DATABASE_URL "must
+  // not break builds or navigation." Only "unauthenticated" still redirects.
+  if (!account.ok && account.reason === "unconfigured") {
+    return (
+      <>
+        <header className="page-heading">
+          <div>
+            <p className="eyebrow">Free-to-play record</p>
+            <h1 className="display-title">You</h1>
+            <p className="page-description">
+              Balance, record, open wagers, and history — one surface for where
+              you stand.
+            </p>
+          </div>
+        </header>
+        <section className="panel" aria-labelledby="you-unavailable-heading">
+          <div className="panel-header">
+            <h2 className="panel-title" id="you-unavailable-heading">
+              Sign-in unavailable
+            </h2>
+          </div>
+          <div className="empty-state">
+            <div>
+              <span className="empty-icon">
+                <AlertTriangle aria-hidden="true" />
+              </span>
+              <h3 className="empty-title">Sign-in is not configured</h3>
+              <p className="empty-copy">
+                This environment has no auth provider configured, so there is no
+                wager record to show.
+              </p>
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
   if (!account.ok) redirect("/sign-in?callbackUrl=/you");
 
   const raw = await searchParams;
