@@ -10,11 +10,16 @@ const RESET_HOURLY_LIMIT = 5;
 
 // Exported so src/data/wagers.ts can read the same aggregate inside its own
 // advisory-locked transaction rather than duplicating the projection.
+// won/lost/voided count `return` rows by their `outcome` column (Session
+// 09) — filters, not a join, since the outcome lives on this same table.
 export const SUMMARY_PROJECTION = {
   balance: sql<number>`coalesce(sum(${creditEntries.amount}), 0)::int`,
   lifetimeStaked: sql<number>`coalesce(-sum(${creditEntries.amount}) filter (where ${creditEntries.kind} = 'stake'), 0)::int`,
   lifetimeReturned: sql<number>`coalesce(sum(${creditEntries.amount}) filter (where ${creditEntries.kind} = 'return'), 0)::int`,
   resetCount: sql<number>`coalesce(count(*) filter (where ${creditEntries.kind} = 'reset'), 0)::int`,
+  won: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'won'), 0)::int`,
+  lost: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'lost'), 0)::int`,
+  voided: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'void'), 0)::int`,
 };
 
 export function toSummary(row?: {
@@ -22,6 +27,9 @@ export function toSummary(row?: {
   lifetimeStaked: number;
   lifetimeReturned: number;
   resetCount: number;
+  won?: number;
+  lost?: number;
+  voided?: number;
 }): CreditSummary {
   const balance = row?.balance ?? 0;
   const lifetimeStaked = row?.lifetimeStaked ?? 0;
@@ -34,6 +42,9 @@ export function toSummary(row?: {
     lifetimeReturned,
     net: lifetimeReturned - lifetimeStaked,
     resetCount: row?.resetCount ?? 0,
+    won: row?.won ?? 0,
+    lost: row?.lost ?? 0,
+    voided: row?.voided ?? 0,
   });
 }
 

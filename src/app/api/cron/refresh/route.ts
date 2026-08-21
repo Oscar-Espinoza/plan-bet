@@ -1,7 +1,7 @@
-import { timingSafeEqual } from "node:crypto";
 import { refreshSportData, type RefreshOutcome } from "@/data/sports-data";
 import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 import type { Sport } from "@/lib/contracts";
+import { isAuthorized } from "@/lib/cron-auth";
 import { providerErrorCode } from "@/providers/provider-error";
 import { getSportsProvider } from "@/providers/registry";
 
@@ -10,17 +10,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const SPORTS: Sport[] = ["soccer", "baseball"];
-
-function isAuthorized(header: string | null, secret: string): boolean {
-  if (!header?.startsWith("Bearer ")) return false;
-  const provided = Buffer.from(header.slice("Bearer ".length));
-  const expected = Buffer.from(secret);
-  // timingSafeEqual throws on length mismatch, so length-check first and let
-  // both paths fall through to the same 401 — never let the length check
-  // produce a different response than the content check.
-  if (provided.length !== expected.length) return false;
-  return timingSafeEqual(provided, expected);
-}
 
 async function handleRefresh(request: Request) {
   const context = createRouteContext("POST /api/cron/refresh");

@@ -754,3 +754,244 @@ describe("Phase 07 final results", () => {
     expect(row!.summary.result.homeScore).toBe(0);
   });
 });
+
+/**
+ * Settlement reuses ingestion_runs for the lease/run record (provider
+ * "settlement") and credit_entries as the settlement record itself — the
+ * single `return` row IS the settlement, guarded by
+ * credit_entries_wager_return_uidx. No settlements table.
+ */
+describe("Session 09 settlement", () => {
+  it("applies the credit_entries.outcome and settlement_run_id migration", async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'credit_entries'
+    `;
+    const names = columns.map((column) => column.column_name);
+    expect(names).toEqual(
+      expect.arrayContaining(["outcome", "settlement_run_id"]),
+    );
+  });
+
+  it("allows only one active settlement lease at a time", async () => {
+    await sql`
+      insert into ingestion_runs (
+        provider, operation, scope, status, request_id
+      ) values ('settlement', 'settle', 'all', 'running', 'settle-one')
+    `;
+    await expect(
+      sql`
+        insert into ingestion_runs (
+          provider, operation, scope, status, request_id
+        ) values ('settlement', 'settle', 'all', 'running', 'settle-two')
+      `,
+    ).rejects.toMatchObject({ code: "23505" });
+
+    await sql`
+      update ingestion_runs
+      set status = 'succeeded', completed_at = now()
+      where request_id = 'settle-one'
+    `;
+    await expect(
+      sql`
+        insert into ingestion_runs (
+          provider, operation, scope, status, request_id
+        ) values ('settlement', 'settle', 'all', 'running', 'settle-two')
+      `,
+    ).resolves.toBeDefined();
+  });
+
+  it("two concurrent lease claims leave only one winner", async () => {
+    // A distinct scope from the test above: that test leaves its own
+    // ('settlement', 'settle', 'all') lease row running, which would
+    // otherwise block every claim here before the race even starts.
+    const results = await Promise.allSettled(
+      Array.from(
+        { length: 8 },
+        () => sql`
+          insert into ingestion_runs (
+            provider, operation, scope, status, request_id
+          ) values (
+            'settlement', 'settle', 'concurrent-claims', 'running', 'settle-concurrent'
+          )
+        `,
+      ),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+  });
+
+  it("leaves exactly one settlement row and one credit under concurrent inserts for the same wager", async () => {
+    const userId = await createUser(
+      `settle-concurrent-wager-${randomUUID()}@example.com`,
+    );
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-910001",
+      routeId: "football-data-910001-real-madrid",
+      stake: 50,
+    });
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason, wager_id)
+      values (${userId}, 'stake', -50, 'wager placed', ${wagerId})
+    `;
+
+    const results = await Promise.allSettled(
+      Array.from(
+        { length: 5 },
+        () => sql`
+          insert into credit_entries (
+            user_id, kind, amount, reason, wager_id, outcome
+          ) values (${userId}, 'return', 120, 'wager settled', ${wagerId}, 'won')
+        `,
+      ),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries
+      where wager_id = ${wagerId} and kind = 'return'
+    `;
+    expect(count).toBe(1);
+    const [{ balance }] = await sql<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    expect(balance).toBe(1000 - 50 + 120);
+  });
+
+  it("running the whole settlement twice moves the balance exactly once", async () => {
+    const userId = await createUser(`settle-twice-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-910002",
+      routeId: "football-data-910002-real-madrid",
+      stake: 50,
+    });
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason, wager_id)
+      values (${userId}, 'stake', -50, 'wager placed', ${wagerId})
+    `;
+
+    // The exact statement settleWagers issues: INSERT ... ON CONFLICT DO
+    // NOTHING against credit_entries_wager_return_uidx.
+    async function runSettlementOnce() {
+      await sql`
+        insert into credit_entries (
+          user_id, kind, amount, reason, wager_id, outcome
+        ) values (${userId}, 'return', 120, 'wager settled', ${wagerId}, 'won')
+        on conflict (wager_id) where kind = 'return' do nothing
+      `;
+    }
+
+    await runSettlementOnce();
+    await runSettlementOnce();
+
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries
+      where wager_id = ${wagerId} and kind = 'return'
+    `;
+    expect(count).toBe(1);
+    const [{ balance }] = await sql<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    expect(balance).toBe(1000 - 50 + 120);
+  });
+
+  it("a void settlement returns exactly the stake, never more or less", async () => {
+    const userId = await createUser(`settle-void-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-910003",
+      routeId: "football-data-910003-real-madrid",
+      stake: 50,
+    });
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason, wager_id)
+      values (${userId}, 'stake', -50, 'wager placed', ${wagerId})
+    `;
+    await sql`
+      insert into credit_entries (
+        user_id, kind, amount, reason, wager_id, outcome
+      ) values (${userId}, 'return', 50, 'wager settled', ${wagerId}, 'void')
+    `;
+    const [{ balance }] = await sql<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    expect(balance).toBe(1000);
+  });
+
+  it("enforces the credit_entries.settlement_run_id FK and traces a settled row back to its run", async () => {
+    const userId = await createUser(`settle-fk-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-910004",
+      routeId: "football-data-910004-real-madrid",
+      stake: 50,
+    });
+    const [run] = await sql<{ id: string }[]>`
+      insert into ingestion_runs (
+        provider, operation, scope, status, request_id
+      ) values ('settlement', 'settle', 'all', 'succeeded', 'settle-fk')
+      returning id
+    `;
+
+    await expect(
+      sql`
+        insert into credit_entries (
+          user_id, kind, amount, reason, wager_id, outcome, settlement_run_id
+        ) values (
+          ${userId}, 'return', 120, 'wager settled', ${wagerId}, 'won', ${randomUUID()}
+        )
+      `,
+    ).rejects.toMatchObject({ code: "23503" });
+
+    await sql`
+      insert into credit_entries (
+        user_id, kind, amount, reason, wager_id, outcome, settlement_run_id
+      ) values (
+        ${userId}, 'return', 120, 'wager settled', ${wagerId}, 'won', ${run!.id}
+      )
+    `;
+    const [row] = await sql<{ settlement_run_id: string }[]>`
+      select settlement_run_id from credit_entries where wager_id = ${wagerId}
+    `;
+    expect(row!.settlement_run_id).toBe(run!.id);
+  });
+
+  it("leaves outcome and settlement_run_id null on every non-return kind", async () => {
+    const userId = await createUser(`settle-null-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const [row] = await sql<
+      { outcome: string | null; settlement_run_id: string | null }[]
+    >`
+      select outcome, settlement_run_id from credit_entries
+      where user_id = ${userId} and kind = 'grant'
+    `;
+    expect(row).toEqual({ outcome: null, settlement_run_id: null });
+  });
+});

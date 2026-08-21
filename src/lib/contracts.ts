@@ -278,12 +278,22 @@ export type ApiFailure = {
   error: { code: string; message: string; requestId: string };
 };
 
+// Mirrors `Grade` in src/lib/markets.ts (contracts.ts cannot import markets.ts
+// without a cycle, since markets.ts already imports Sport/GameSummary from
+// here). No "push": every published market line ends in .5, so it is
+// unreachable — see the markets.ts ponytail note.
+export const wagerOutcomeSchema = z.enum(["won", "lost", "void"]);
+export type WagerOutcome = z.infer<typeof wagerOutcomeSchema>;
+
 export const creditSummarySchema = z.object({
   balance: z.number().int(),
   lifetimeStaked: z.number().int().nonnegative(),
   lifetimeReturned: z.number().int().nonnegative(),
   net: z.number().int(),
   resetCount: z.number().int().nonnegative(),
+  won: z.number().int().nonnegative().default(0),
+  lost: z.number().int().nonnegative().default(0),
+  voided: z.number().int().nonnegative().default(0),
 });
 export type CreditSummary = z.infer<typeof creditSummarySchema>;
 
@@ -298,6 +308,24 @@ export const wagerPlacementSchema = z.object({
   stake: z.number().int().min(1).max(500),
 });
 export type WagerPlacementInput = z.infer<typeof wagerPlacementSchema>;
+
+export const wagerSettlementSchema = z.object({
+  outcome: wagerOutcomeSchema,
+  returned: z.number().int().nonnegative(),
+  settledAt: z.iso.datetime(),
+  // The score that decided this wager, read back from the game at display
+  // time rather than copied into the wager row. Optional because the game
+  // row can be gone by then — history still renders from the stored
+  // `matchup`, and the result reads "Not provided" rather than inventing a
+  // score. A void carries none: nothing decided it.
+  finalScore: z
+    .object({
+      homeScore: z.number().int().nonnegative(),
+      awayScore: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type WagerSettlement = z.infer<typeof wagerSettlementSchema>;
 
 export const wagerSchema = z.object({
   id: z.uuid(),
@@ -317,8 +345,11 @@ export const wagerSchema = z.object({
   scheduledAt: z.iso.datetime(),
   placedAt: z.iso.datetime(),
   // Derived from whether a `return` credit_entries row exists for this
-  // wager (Session 09) — never a stored column.
+  // wager (Session 09) — never a stored column. Kept alongside the richer
+  // `settlement` object below so existing callers that only read `settled`
+  // do not churn.
   settled: z.boolean(),
+  settlement: wagerSettlementSchema.optional(),
 });
 export type Wager = z.infer<typeof wagerSchema>;
 

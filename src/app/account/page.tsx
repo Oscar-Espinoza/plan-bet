@@ -9,6 +9,11 @@ import { requireAccount, signOut } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Account" };
 
+function hitRateLabel(won: number, lost: number) {
+  const decided = won + lost;
+  return decided > 0 ? `${Math.round((won / decided) * 100)}%` : "Not provided";
+}
+
 export default async function Page() {
   const account = await requireAccount();
   if (!account.ok) redirect("/sign-in?callbackUrl=/account");
@@ -60,6 +65,42 @@ export default async function Page() {
           <div className="form-block">
             <span>Reset your bankroll back to the starting balance.</span>
             <ResetBankroll />
+          </div>
+        </section>
+
+        <section className="panel" aria-labelledby="record-heading">
+          <div className="panel-header">
+            <h2 className="panel-title" id="record-heading">
+              Record
+            </h2>
+          </div>
+          <div className="stat-row">
+            <span>Won</span>
+            <strong>{summary.won.toLocaleString()}</strong>
+          </div>
+          <div className="stat-row">
+            <span>Lost</span>
+            <strong>{summary.lost.toLocaleString()}</strong>
+          </div>
+          <div className="stat-row">
+            <span>Void</span>
+            <strong>{summary.voided.toLocaleString()}</strong>
+          </div>
+          <div className="stat-row">
+            <span>Hit rate</span>
+            <strong>{hitRateLabel(summary.won, summary.lost)}</strong>
+          </div>
+          <div className="form-block">
+            <span>
+              Times reset: {summary.resetCount.toLocaleString()} — a reset makes
+              this record less meaningful.
+            </span>
+          </div>
+          <div className="form-block">
+            <span>
+              See the <Link href="/bets">full history</Link> or the{" "}
+              <Link href="/rules">simulator rules</Link>.
+            </span>
           </div>
         </section>
 

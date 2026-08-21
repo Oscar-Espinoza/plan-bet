@@ -146,7 +146,7 @@ export async function placeWager(input: {
       ok: true,
       // Freshly inserted: no return row can exist yet, so settled is always
       // false here.
-      wager: rowToWager(wagerRow!, false),
+      wager: rowToWager(wagerRow!),
       summary: toSummary(summaryRow),
     } as const;
   });

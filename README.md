@@ -19,7 +19,8 @@ _Captured from the production build in deterministic demo mode._
 - PostgreSQL-backed cache with explicit live / stale / demo freshness labels and a last-known-good fallback
 - Grounded AI briefings: 5–7 items, each citing evidence facts from the game's own saved snapshot, degrading to a deterministic evidence brief when generation is unavailable or fails validation
 - Browser-local watchlist CRUD, filters, recap notes, saved briefings, and activity totals
-- `/system` operational view: provider freshness, ingestion history, briefing latency, fallback and retry rates
+- `/system` operational view: provider freshness, ingestion history, briefing latency, fallback and retry rates, and settlement run health
+- Free-to-play wager simulator: sign in, place a wager at a fixed house price, and settlement grades it from the stored result — `/bets` for history and filters, `/account` for balance and record
 - Responsive, keyboard-accessible, screen-reader-tested desktop and mobile workspace
 
 The preparation workspace needs no account; personal state never leaves the browser and lives in a single validated key, `matchday-plan:v1`. Signing in only unlocks the free-to-play credit ledger for the wager simulator — the rest of the workspace works signed out.
@@ -59,7 +60,7 @@ All are server-only except `NEXT_PUBLIC_SITE_URL`.
 | `BRIEFING_PROMPT_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
 | `BRIEFING_SCHEMA_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
 | `RATE_LIMIT_HASH_SECRET`  | in production      | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
-| `CRON_SECRET`             | in production      | bearer secret for `/api/cron/refresh`; absent means the endpoint refuses to run                                |
+| `CRON_SECRET`             | in production      | bearer secret for `/api/cron/refresh` and `/api/cron/settle`; absent means the endpoint refuses to run         |
 | `MATCHDAY_DATA_MODE`      | no                 | set to `demo` for deterministic local and E2E runs                                                             |
 | `NEXT_PUBLIC_SITE_URL`    | no                 | canonical origin for metadata; falls back to the Vercel production URL                                         |
 | `AUTH_SECRET`             | for sign-in        | Auth.js signing secret; absent means sign-in is unavailable and the workspace runs anonymous exactly as before |
@@ -95,6 +96,7 @@ pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it
 | `GET /api/health`                    | App, database, schema currency, and provider status                           |
 | `GET /api/system/recent?limit=10`    | Bounded recent ingestion and aggregate briefing metrics                       |
 | `GET`/`POST /api/cron/refresh`       | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`                       |
+| `GET`/`POST /api/cron/settle`        | Scheduled settlement, `Authorization: Bearer $CRON_SECRET`                    |
 | `GET`/`POST /api/auth/*`             | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
 | `GET /api/bets/summary`              | The signed-in account's credit ledger summary; `401`/`503` signed out         |
 | `POST /api/bets/reset`               | Resets the signed-in account's bankroll to the starting balance, rate-limited |
@@ -131,7 +133,8 @@ Every one of these runs in CI on pull requests and on `main`, with no sports, Op
 - The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
 - Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
 - Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
-- No real-money betting, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits priced with a small fixed house table this app publishes itself, not bookmaker odds; accounts, the credit ledger, final results, and placing and locking a wager are live, and settling a wager (Session 09) is still in progress.
+- No real-money betting, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits priced with a small fixed house table this app publishes itself, not bookmaker odds. Accounts, the credit ledger, placing and locking a wager, and scheduled settlement with history and record are all live.
+- Corners, cards, and assists are not gradable from the current sports providers and are not offered as markets. Every published line ends in `.5`, so a push cannot occur and is not a modeled outcome.
 
 ## Attribution
 

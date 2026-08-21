@@ -1,9 +1,16 @@
 import "server-only";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
 import { creditEntries, games, gameSnapshots, wagers } from "@/db/schema";
-import { gameSummarySchema, wagerSchema, type Wager } from "@/lib/contracts";
+import {
+  gameSummarySchema,
+  wagerSchema,
+  type Sport,
+  type Wager,
+  type WagerOutcome,
+  type WagerSettlement,
+} from "@/lib/contracts";
 
 /**
  * The server's own copy of status, kickoff, and result — read fresh for
@@ -32,7 +39,7 @@ export async function readGameForWager(routeId: string) {
 
 export function rowToWager(
   row: typeof wagers.$inferSelect,
-  settled: boolean,
+  settlement?: WagerSettlement,
 ): Wager {
   return wagerSchema.parse({
     id: row.id,
@@ -51,7 +58,8 @@ export function rowToWager(
     competition: row.competition,
     scheduledAt: row.scheduledAt.toISOString(),
     placedAt: row.createdAt.toISOString(),
-    settled,
+    settled: Boolean(settlement),
+    settlement,
   });
 }
 
@@ -59,6 +67,8 @@ export function rowToWager(
  * Open = no `credit_entries` row with kind `return` for that wager (Session
  * 09 inserts exactly one, amount 0 for a loss). A batch lookup rather than a
  * correlated subquery per row: list sizes are bounded by the caller anyway.
+ * Carries the settlement itself now, not just whether one exists, so history
+ * and the record view read the outcome without a second query.
  */
 async function attachSettled(
   rows: (typeof wagers.$inferSelect)[],
@@ -66,7 +76,12 @@ async function attachSettled(
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
   const settledRows = await getDatabase()
-    .select({ wagerId: creditEntries.wagerId })
+    .select({
+      wagerId: creditEntries.wagerId,
+      outcome: creditEntries.outcome,
+      amount: creditEntries.amount,
+      settledAt: creditEntries.createdAt,
+    })
     .from(creditEntries)
     .where(
       and(
@@ -74,8 +89,61 @@ async function attachSettled(
         inArray(creditEntries.wagerId, ids),
       ),
     );
-  const settledIds = new Set(settledRows.map((row) => row.wagerId));
-  return rows.map((row) => rowToWager(row, settledIds.has(row.id)));
+  const settlementByWagerId = new Map<string, WagerSettlement>();
+  for (const row of settledRows) {
+    // wagerId/outcome are only nullable in the column type because they are
+    // null for every other credit_entries kind — a `return` row always sets
+    // both, but narrow defensively rather than asserting.
+    if (!row.wagerId || !row.outcome) continue;
+    settlementByWagerId.set(row.wagerId, {
+      outcome: row.outcome,
+      returned: row.amount,
+      settledAt: row.settledAt.toISOString(),
+    });
+  }
+
+  // The score that decided each settled wager. One batch read over the games
+  // these rows point at — a wager whose game row is gone keeps its stored
+  // matchup and simply carries no score, never an invented one.
+  const decidedGameIds = [
+    ...new Set(
+      rows
+        .filter((row) => settlementByWagerId.has(row.id))
+        .map((row) => row.canonicalGameId),
+    ),
+  ];
+  const scoreByGameId = new Map<
+    string,
+    { homeScore: number; awayScore: number }
+  >();
+  if (decidedGameIds.length > 0) {
+    const gameRows = await getDatabase()
+      .select({ canonicalId: games.canonicalId, summary: games.summary })
+      .from(games)
+      .where(inArray(games.canonicalId, decidedGameIds));
+    for (const game of gameRows) {
+      const { result } = gameSummarySchema.parse(game.summary);
+      if (result) {
+        scoreByGameId.set(game.canonicalId, {
+          homeScore: result.homeScore,
+          awayScore: result.awayScore,
+        });
+      }
+    }
+  }
+
+  return rows.map((row) => {
+    const settlement = settlementByWagerId.get(row.id);
+    if (!settlement) return rowToWager(row);
+    return rowToWager(row, {
+      ...settlement,
+      // A void was decided by nothing, so it shows no score.
+      finalScore:
+        settlement.outcome === "void"
+          ? undefined
+          : scoreByGameId.get(row.canonicalGameId),
+    });
+  });
 }
 
 export async function listWagersForGame(
@@ -103,6 +171,56 @@ export async function listWagers(userId: string, limit: number) {
     .orderBy(desc(wagers.createdAt))
     .limit(limit);
   return attachSettled(rows);
+}
+
+export type WagerHistoryFilter = {
+  sport?: Sport;
+  // "open" = no return row yet, distinct from a settled outcome.
+  outcome?: WagerOutcome | "open";
+  since?: Date;
+  limit: number;
+  offset: number;
+};
+
+/**
+ * Newest first, `limit + 1` rows fetched so "there is a next page" needs no
+ * separate count query — the caller slices to `limit` and treats a longer
+ * result as `hasMore`. Filtering on outcome/open needs the settlement join
+ * up front (a wager the plain `wagers` table alone can't answer); the actual
+ * settlement payload for the returned page still comes from `attachSettled`,
+ * the one place that shape is built.
+ */
+export async function listWagerHistory(
+  userId: string,
+  filter: WagerHistoryFilter,
+): Promise<{ items: Wager[]; hasMore: boolean }> {
+  const conditions = [eq(wagers.userId, userId)];
+  if (filter.sport) conditions.push(eq(wagers.sport, filter.sport));
+  if (filter.since) conditions.push(gte(wagers.createdAt, filter.since));
+  if (filter.outcome === "open") {
+    conditions.push(isNull(creditEntries.id));
+  } else if (filter.outcome) {
+    conditions.push(eq(creditEntries.outcome, filter.outcome));
+  }
+
+  const rows = await getDatabase()
+    .select({ wager: wagers })
+    .from(wagers)
+    .leftJoin(
+      creditEntries,
+      and(
+        eq(creditEntries.wagerId, wagers.id),
+        eq(creditEntries.kind, "return"),
+      ),
+    )
+    .where(and(...conditions))
+    .orderBy(desc(wagers.createdAt))
+    .limit(filter.limit + 1)
+    .offset(filter.offset);
+
+  const hasMore = rows.length > filter.limit;
+  const page = rows.slice(0, filter.limit).map((row) => row.wager);
+  return { items: await attachSettled(page), hasMore };
 }
 
 export async function countOpenWagers(userId: string): Promise<number> {

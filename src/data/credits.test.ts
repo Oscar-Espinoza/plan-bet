@@ -44,6 +44,9 @@ describe("getCreditSummary", () => {
             lifetimeStaked: 300,
             lifetimeReturned: 100,
             resetCount: 2,
+            won: 3,
+            lost: 1,
+            voided: 0,
           },
         ]),
     });
@@ -56,6 +59,9 @@ describe("getCreditSummary", () => {
       lifetimeReturned: 100,
       net: -200,
       resetCount: 2,
+      won: 3,
+      lost: 1,
+      voided: 0,
     });
   });
 
@@ -70,6 +76,9 @@ describe("getCreditSummary", () => {
       lifetimeReturned: 0,
       net: 0,
       resetCount: 0,
+      won: 0,
+      lost: 0,
+      voided: 0,
     });
   });
 });
@@ -135,6 +144,9 @@ describe("resetBankroll", () => {
         lifetimeReturned: 0,
         net: 0,
         resetCount: 1,
+        won: 0,
+        lost: 0,
+        voided: 0,
       },
     });
   });

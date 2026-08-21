@@ -7,6 +7,7 @@ import {
   Activity,
   Gauge,
   ListChecks,
+  Receipt,
   RotateCcw,
   ServerCog,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: Gauge },
   { href: "/watchlist", label: "Watchlist", icon: ListChecks },
   { href: "/activity", label: "Activity", icon: Activity },
+  { href: "/bets", label: "Bets", icon: Receipt },
   { href: "/system", label: "System", icon: ServerCog },
 ];
 

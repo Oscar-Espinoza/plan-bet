@@ -11,6 +11,7 @@ const ROUTES = [
   "/games/not-a-demo-game",
   "/sign-in",
   "/rules",
+  "/bets",
 ];
 
 const SEVERE_IMPACTS = new Set(["serious", "critical"]);

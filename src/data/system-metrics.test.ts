@@ -79,7 +79,42 @@ describe("getSystemMetrics", () => {
       windowHours: 24,
       ingestion: { recent: [], byProvider: [] },
       briefings: { total: 0, latencyMs: null, errors: [] },
+      settlement: {
+        lastRunAt: null,
+        lastSuccessAt: null,
+        status: null,
+        byOutcome: { won: 0, lost: 0, void: 0 },
+        oldestOpenWagerAt: null,
+      },
       freshness: [],
+    });
+  });
+
+  it("surfaces a stalled settlement run and its outcome counts", async () => {
+    isDatabaseConfiguredMock.mockReturnValue(true);
+    // One shared row shape answers every query in the mock (chain() ignores
+    // which columns were selected); only the fields settlement reads matter.
+    const rows = [
+      {
+        status: "running",
+        startedAt: new Date("2026-08-20T06:30:00Z"),
+        lastSuccessAt: "2026-08-19T06:30:00.000Z",
+        won: 3,
+        lost: 1,
+        voided: 0,
+        oldestCreatedAt: "2026-08-18T12:00:00.000Z",
+      },
+    ];
+    getDatabaseMock.mockReturnValue({ select: () => chain(rows) });
+
+    const result = await getSystemMetrics();
+
+    expect(result).toMatchObject({
+      available: true,
+      settlement: {
+        status: "running",
+        byOutcome: { won: 3, lost: 1, void: 0 },
+      },
     });
   });
 });

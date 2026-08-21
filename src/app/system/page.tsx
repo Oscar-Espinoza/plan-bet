@@ -329,6 +329,83 @@ export default async function Page() {
               )}
             </div>
           </section>
+
+          <section className="panel" aria-labelledby="settlement-heading">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Last {metrics.windowHours}h</p>
+                <h2 className="panel-title" id="settlement-heading">
+                  Settlement
+                </h2>
+              </div>
+              <span className="fine-print">
+                {metrics.settlement.status ? (
+                  <StatusTag tone={runTone(metrics.settlement.status)}>
+                    {metrics.settlement.status}
+                  </StatusTag>
+                ) : (
+                  "No runs yet"
+                )}
+              </span>
+            </div>
+            <div className="stat-stack">
+              <div className="stat-row">
+                <span>Last run</span>
+                <strong>
+                  {metrics.settlement.lastRunAt ? (
+                    <LocalDateTime value={metrics.settlement.lastRunAt} short />
+                  ) : (
+                    "Not provided"
+                  )}
+                </strong>
+              </div>
+              <div className="stat-row">
+                <span>Last success</span>
+                <strong>
+                  {metrics.settlement.lastSuccessAt ? (
+                    <LocalDateTime
+                      value={metrics.settlement.lastSuccessAt}
+                      short
+                    />
+                  ) : (
+                    "Not provided"
+                  )}
+                </strong>
+              </div>
+              <div className="stat-row">
+                <span>Oldest open wager</span>
+                <strong>
+                  {metrics.settlement.oldestOpenWagerAt ? (
+                    <LocalDateTime
+                      value={metrics.settlement.oldestOpenWagerAt}
+                      short
+                    />
+                  ) : (
+                    "None open"
+                  )}
+                </strong>
+              </div>
+            </div>
+            <div className="panel-body">
+              <div className="metric-grid">
+                <div className="metric-card panel">
+                  <CheckCircle2 aria-hidden="true" size={17} />
+                  <strong>{metrics.settlement.byOutcome.won}</strong>
+                  <span>Won</span>
+                </div>
+                <div className="metric-card panel">
+                  <AlertTriangle aria-hidden="true" size={17} />
+                  <strong>{metrics.settlement.byOutcome.lost}</strong>
+                  <span>Lost</span>
+                </div>
+                <div className="metric-card panel">
+                  <Repeat aria-hidden="true" size={17} />
+                  <strong>{metrics.settlement.byOutcome.void}</strong>
+                  <span>Void</span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       )}
     </>

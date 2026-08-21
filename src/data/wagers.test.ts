@@ -15,12 +15,16 @@ vi.mock("@/db/client", () => ({
 }));
 vi.mock("@/data/wagers-repository", () => ({
   readGameForWager: readGameForWagerMock,
-  rowToWager: (row: Record<string, unknown>, settled: boolean) => ({
+  rowToWager: (
+    row: Record<string, unknown>,
+    settlement?: { outcome: string; returned: number; settledAt: string },
+  ) => ({
     ...row,
     line: row.line ?? undefined,
     scheduledAt: (row.scheduledAt as Date).toISOString(),
     placedAt: (row.createdAt as Date).toISOString(),
-    settled,
+    settled: Boolean(settlement),
+    settlement,
   }),
 }));
 

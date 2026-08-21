@@ -345,6 +345,14 @@ export const creditEntryKindEnum = pgEnum("credit_entry_kind", [
   "reset",
 ]);
 
+// No "push": every published market line ends in .5 (see markets.ts), so a
+// push is unreachable and grading only ever needs won/lost/void.
+export const creditEntryOutcomeEnum = pgEnum("credit_entry_outcome", [
+  "won",
+  "lost",
+  "void",
+]);
+
 /**
  * Append-only. There is no update or delete path anywhere in application code:
  * balance is `sum(amount)`, and a reset is a new row, not an edit.
@@ -360,6 +368,13 @@ export const creditEntries = pgTable(
     amount: integer("amount").notNull(), // signed, whole credits
     reason: text("reason").notNull(), // why this row exists
     wagerId: uuid("wager_id").references(() => wagers.id),
+    // outcome / settlementRunId (Session 09): set only on kind = 'return',
+    // the settlement record itself — there is no separate settlements table.
+    // Null on every other kind (grant, stake, reset).
+    outcome: creditEntryOutcomeEnum("outcome"),
+    settlementRunId: uuid("settlement_run_id").references(
+      () => ingestionRuns.id,
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

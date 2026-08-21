@@ -1351,6 +1351,43 @@ sup.brief-reason {
   font-size: 0.65rem;
 }
 
+.table-wrap {
+  overflow-x: auto;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.wager-table {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.wager-table th,
+.wager-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0.7rem;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.wager-table th {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wager-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.wager-table a {
+  color: var(--green);
+  font-weight: 650;
+}
+
 .side-form {
   padding: 1rem;
 }

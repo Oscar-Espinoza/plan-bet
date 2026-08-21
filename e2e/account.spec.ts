@@ -117,6 +117,34 @@ test("POST /api/bets rejects a cross-origin request", async ({ request }) => {
   expect(response.status()).toBe(403);
 });
 
+// /bets is built by a parallel session; its exact copy isn't known here, so
+// this asserts the contract only — a real page (h1 + main landmark), no
+// crash, no blank screen — never a specific sentence. Full axe coverage for
+// this route lives in accessibility.spec.ts.
+test("/bets renders an honest panel in keyless demo mode with no page error", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+
+  const response = await page.goto("/bets");
+  expect(response?.ok()).toBe(true);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("main")).toBeVisible();
+  expect(browserErrors).toEqual([]);
+});
+
+// CRON_SECRET may or may not be set in this environment (playwright.config.ts
+// only blanks DATABASE_URL/FOOTBALL_DATA_API_TOKEN/OPENAI_API_KEY), so the
+// route can honestly answer either "not configured" (503) or "unauthorized"
+// (401) with no bearer — it must never answer 200.
+test("POST /api/cron/settle never returns 200 without a valid bearer secret", async ({
+  request,
+}) => {
+  const response = await request.post("/api/cron/settle");
+  expect([401, 503]).toContain(response.status());
+});
+
 test("anonymous watchlist state survives reload and matchday-plan:v1 stays version 1", async ({
   page,
 }) => {

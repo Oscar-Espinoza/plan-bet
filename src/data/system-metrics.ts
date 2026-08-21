@@ -1,9 +1,15 @@
 import "server-only";
 
-import { and, desc, gte, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { modeForExpiry } from "@/data/cache-policy";
 import { getDatabase, isDatabaseConfigured } from "@/db/client";
-import { briefingRuns, ingestionRuns, teams } from "@/db/schema";
+import {
+  briefingRuns,
+  creditEntries,
+  ingestionRuns,
+  teams,
+  wagers,
+} from "@/db/schema";
 import type { Sport } from "@/lib/contracts";
 
 const DEFAULT_LIMIT = 10;
@@ -53,6 +59,16 @@ export type SystemMetrics =
         estimatedCostMicros: number;
         lastGenerationAt: string | null;
         errors: { code: string; count: number }[];
+      };
+      // Same provider/operation/scope reused from ingestion_runs — settlement
+      // has no table of its own (docs/architecture.md explains why). A run
+      // stuck in "running" surfaces here rather than being hidden.
+      settlement: {
+        lastRunAt: string | null;
+        lastSuccessAt: string | null;
+        status: "running" | "succeeded" | "failed" | null;
+        byOutcome: { won: number; lost: number; void: number };
+        oldestOpenWagerAt: string | null;
       };
       freshness: {
         sport: Sport;
@@ -183,16 +199,84 @@ export async function getSystemMetrics(
       })
       .from(teams);
 
-    // Five independent reads; running them concurrently keeps /system and
-    // /api/system/recent to one round-trip's latency instead of five.
-    const [recentRuns, byProviderRows, [briefingAgg], errorRows, teamRows] =
-      await Promise.all([
-        recentRunsQuery,
-        byProviderQuery,
-        briefingAggQuery,
-        errorRowsQuery,
-        teamRowsQuery,
-      ]);
+    // Latest settlement run regardless of window, so a run that stalled more
+    // than windowHours ago still shows as "running" rather than vanishing.
+    const settlementLatestQuery = database
+      .select({
+        status: ingestionRuns.status,
+        startedAt: ingestionRuns.startedAt,
+      })
+      .from(ingestionRuns)
+      .where(eq(ingestionRuns.provider, "settlement"))
+      .orderBy(desc(ingestionRuns.startedAt))
+      .limit(1);
+
+    const settlementSuccessQuery = database
+      .select({
+        lastSuccessAt: sql<string | null>`max(${ingestionRuns.startedAt})`,
+      })
+      .from(ingestionRuns)
+      .where(
+        and(
+          eq(ingestionRuns.provider, "settlement"),
+          eq(ingestionRuns.status, "succeeded"),
+        ),
+      );
+
+    // In-window counts, projected by outcome only — no wager id, no user id.
+    const settlementOutcomeQuery = database
+      .select({
+        won: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'won')`,
+        lost: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'lost')`,
+        voided: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'void')`,
+      })
+      .from(creditEntries)
+      .where(
+        and(
+          eq(creditEntries.kind, "return"),
+          gte(creditEntries.createdAt, windowStart),
+        ),
+      );
+
+    // Open = no `return` credit_entries row yet, same left-join test used by
+    // wagers-repository. Projected down to a single timestamp — no wager id.
+    const oldestOpenWagerQuery = database
+      .select({
+        oldestCreatedAt: sql<string | null>`min(${wagers.createdAt})`,
+      })
+      .from(wagers)
+      .leftJoin(
+        creditEntries,
+        and(
+          eq(creditEntries.wagerId, wagers.id),
+          eq(creditEntries.kind, "return"),
+        ),
+      )
+      .where(isNull(creditEntries.id));
+
+    // Nine independent reads; running them concurrently keeps /system and
+    // /api/system/recent to one round-trip's latency instead of nine.
+    const [
+      recentRuns,
+      byProviderRows,
+      [briefingAgg],
+      errorRows,
+      teamRows,
+      [settlementLatest],
+      [settlementSuccess],
+      [settlementOutcome],
+      [oldestOpenWager],
+    ] = await Promise.all([
+      recentRunsQuery,
+      byProviderQuery,
+      briefingAggQuery,
+      errorRowsQuery,
+      teamRowsQuery,
+      settlementLatestQuery,
+      settlementSuccessQuery,
+      settlementOutcomeQuery,
+      oldestOpenWagerQuery,
+    ]);
 
     const freshestBySport = new Map<Sport, (typeof teamRows)[number]>();
     for (const row of teamRows) {
@@ -251,6 +335,17 @@ export async function getSystemMetrics(
             (row): row is { code: string; count: number } => row.code != null,
           )
           .map((row) => ({ code: row.code, count: toNumber(row.count) })),
+      },
+      settlement: {
+        lastRunAt: toIso(settlementLatest?.startedAt),
+        lastSuccessAt: toIso(settlementSuccess?.lastSuccessAt),
+        status: settlementLatest?.status ?? null,
+        byOutcome: {
+          won: toNumber(settlementOutcome?.won),
+          lost: toNumber(settlementOutcome?.lost),
+          void: toNumber(settlementOutcome?.voided),
+        },
+        oldestOpenWagerAt: toIso(oldestOpenWager?.oldestCreatedAt),
       },
       freshness: [...freshestBySport.entries()].map(([sport, row]) => ({
         sport,
