@@ -1,0 +1,2 @@
+# Tooling cache, gitignored but still visible to prettier.
+.impeccable/
