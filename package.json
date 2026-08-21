@@ -22,6 +22,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed-database.ts",
+    "test:seed": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/seed-usability-test.ts",
     "data:refresh:baseball": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/refresh-baseball.ts",
     "smoke:briefing": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/smoke-briefing.ts",
     "data:refresh:soccer": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/refresh-soccer.ts"
