@@ -62,6 +62,61 @@ test("POST /api/bets/reset rejects a cross-origin request", async ({
   expect(response.status()).toBe(403);
 });
 
+// The keyless demo server has no DATABASE_URL, so isAuthConfigured() is
+// false and there is no session to place a wager with (playwright.config.ts
+// deviation 2 in the session 08 plan). What is provable here: the game page
+// degrades cleanly with no wager form and no page error — the same
+// "unconfigured" branch AccountControl already takes — and the placement
+// route itself refuses with no session and rejects a cross-origin call.
+test("the game page renders with no wager form and no page error on the keyless server", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+
+  await page.goto("/games/soc-rma-01");
+  await expect(page.getByRole("button", { name: "Place wager" })).toHaveCount(
+    0,
+  );
+  expect(browserErrors).toEqual([]);
+});
+
+test("POST /api/bets never returns 200 with no session", async ({
+  request,
+  baseURL,
+}) => {
+  // Same-origin so the request clears isSameOrigin and reaches requireAccount.
+  const origin = new URL(baseURL!).origin;
+  const response = await request.post("/api/bets", {
+    headers: { origin, "content-type": "application/json" },
+    data: {
+      routeId: "soc-rma-01",
+      marketId: "soccer-match-result",
+      selectionId: "home",
+      price: 2.4,
+      stake: 10,
+    },
+  });
+  expect([401, 503]).toContain(response.status());
+});
+
+test("POST /api/bets rejects a cross-origin request", async ({ request }) => {
+  const response = await request.post("/api/bets", {
+    headers: {
+      origin: "https://evil.example",
+      "content-type": "application/json",
+    },
+    data: {
+      routeId: "soc-rma-01",
+      marketId: "soccer-match-result",
+      selectionId: "home",
+      price: 2.4,
+      stake: 10,
+    },
+  });
+  expect(response.status()).toBe(403);
+});
+
 test("anonymous watchlist state survives reload and matchday-plan:v1 stays version 1", async ({
   page,
 }) => {

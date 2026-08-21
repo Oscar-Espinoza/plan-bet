@@ -45,6 +45,7 @@ const EXPECTED_TABLES = [
   "sessions",
   "verification_tokens",
   "credit_entries",
+  "wagers",
 ] as const;
 
 export async function checkDatabaseConnection() {

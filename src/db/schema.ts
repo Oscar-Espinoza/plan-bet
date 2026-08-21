@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -291,6 +292,52 @@ export const verificationTokens = pgTable(
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
 );
 
+/**
+ * Append-only, one row per placement. No `status` column, no `updated_at`,
+ * no update or delete path anywhere: a wager's state is derived from whether
+ * a `credit_entries` row with kind `return` exists for it (Session 09).
+ * `canonicalId`/`matchup`/`competition` are copied at placement time so a
+ * wager stays fully readable after its game snapshot expires or is replaced.
+ */
+export const wagers = pgTable(
+  "wagers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    canonicalGameId: text("canonical_game_id").notNull(), // football-data-564645 / mlb-777123
+    routeId: text("route_id").notNull(), // team-perspective page it was placed from
+    sport: sportEnum("sport").notNull(),
+    marketId: text("market_id").notNull(),
+    selectionId: text("selection_id").notNull(),
+    marketLabel: text("market_label").notNull(),
+    selectionLabel: text("selection_label").notNull(),
+    line: numeric("line", { precision: 5, scale: 1, mode: "number" }),
+    // numeric, not real: float4 cannot hold 1.85 exactly, and "the stored
+    // price never changes" has to be literally true.
+    price: numeric("price", {
+      precision: 6,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    stake: integer("stake").notNull(),
+    potentialReturn: integer("potential_return").notNull(),
+    matchup: text("matchup").notNull(),
+    competition: text("competition").notNull(),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+    pricesVersion: text("prices_version").notNull(),
+    rulesVersion: text("rules_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("wagers_user_created_idx").on(table.userId, table.createdAt),
+    index("wagers_game_idx").on(table.canonicalGameId),
+  ],
+);
+
 export const creditEntryKindEnum = pgEnum("credit_entry_kind", [
   "grant",
   "stake",
@@ -312,9 +359,7 @@ export const creditEntries = pgTable(
     kind: creditEntryKindEnum("kind").notNull(),
     amount: integer("amount").notNull(), // signed, whole credits
     reason: text("reason").notNull(), // why this row exists
-    // ponytail: no FK — `wagers` arrives in Session 08. Add the constraint in
-    // that session's migration rather than shipping a dangling reference now.
-    wagerId: uuid("wager_id"),
+    wagerId: uuid("wager_id").references(() => wagers.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -326,5 +371,10 @@ export const creditEntries = pgTable(
     uniqueIndex("credit_entries_user_grant_uidx")
       .on(table.userId)
       .where(sql`${table.kind} = 'grant'`),
+    // Settlement (Session 09) inserts exactly one return row per wager,
+    // conflict-do-nothing, so a repeated settlement run can never pay twice.
+    uniqueIndex("credit_entries_wager_return_uidx")
+      .on(table.wagerId)
+      .where(sql`${table.kind} = 'return'`),
   ],
 );

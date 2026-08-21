@@ -18,6 +18,12 @@ export type Market = {
 // Selection shape here is what the wager schema will keep once it arrives.
 export const HOUSE_PRICES_VERSION = "2026-08-20";
 
+// Published stake bounds. contracts.ts mirrors these as literal zod bounds
+// (it cannot import this module without a cycle, since this module already
+// imports Sport/GameSummary from contracts.ts) — keep the two in sync.
+export const MIN_STAKE = 1;
+export const MAX_STAKE = 500;
+
 const SOCCER_EXACT_SCORE_PRICES = {
   "0-0": 11,
   "1-0": 7.5,
@@ -108,6 +114,23 @@ const BASEBALL_MARKETS: Market[] = [
 
 export function marketsFor(sport: Sport): Market[] {
   return sport === "soccer" ? SOCCER_MARKETS : BASEBALL_MARKETS;
+}
+
+/**
+ * The single lookup the slip, the placement route, and Session 09's
+ * settlement all go through. An unknown market or selection id returns
+ * `undefined` — nothing downstream invents one.
+ */
+export function resolveSelection(
+  sport: Sport,
+  marketId: string,
+  selectionId: string,
+): { market: Market; selection: Selection } | undefined {
+  const market = marketsFor(sport).find((m) => m.id === marketId);
+  if (!market) return undefined;
+  const selection = market.selections.find((s) => s.id === selectionId);
+  if (!selection) return undefined;
+  return { market, selection };
 }
 
 export function gradeSelection(

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCreditSummary } from "@/data/credits";
+import { countOpenWagers } from "@/data/wagers-repository";
 import { isAuthConfigured, requireAccount } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
@@ -20,16 +21,20 @@ export async function AccountControl() {
     );
   }
 
-  const summary = await getCreditSummary(account.userId);
+  const [summary, openCount] = await Promise.all([
+    getCreditSummary(account.userId),
+    countOpenWagers(account.userId),
+  ]);
   const balance = summary.balance.toLocaleString();
+  const openSuffix = openCount > 0 ? ` · ${openCount} open` : "";
 
   return (
     <Link
       className="button button-secondary button-sm"
       href="/account"
-      aria-label={`Account, balance ${balance} credits`}
+      aria-label={`Account, balance ${balance} credits${openCount > 0 ? `, ${openCount} open wagers` : ""}`}
     >
-      {balance} credits
+      {balance} credits{openSuffix}
     </Link>
   );
 }

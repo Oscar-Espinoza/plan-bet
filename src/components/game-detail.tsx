@@ -19,6 +19,7 @@ import {
   Save,
   ShieldCheck,
 } from "lucide-react";
+import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { DemoStamp } from "@/components/demo-stamp";
 import { LocalDateTime } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
@@ -101,10 +102,14 @@ export function GameDetail({
   data,
   team,
   aiEnabled = false,
+  wagering,
 }: {
   data: GameDetailData;
   team: Team;
   aiEnabled?: boolean;
+  // Optional so game-detail.test.tsx keeps compiling without wiring it.
+  // Absent entirely when sign-in isn't configured — matches AccountControl.
+  wagering?: WagerPanelData;
 }) {
   const router = useRouter();
   const { snapshot, briefing } = data;
@@ -763,6 +768,7 @@ export function GameDetail({
         </div>
 
         <aside className="detail-side" aria-label="Preparation tools">
+          {wagering && <BetSlip data={wagering} />}
           <section className="panel">
             <div className="panel-header">
               <h2 className="panel-title">Watch this game</h2>

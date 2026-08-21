@@ -4,7 +4,12 @@ import {
   type GameResult,
   type GameSummary,
 } from "@/lib/contracts";
-import { gradeSelection, marketsFor, type Market } from "@/lib/markets";
+import {
+  gradeSelection,
+  marketsFor,
+  resolveSelection,
+  type Market,
+} from "@/lib/markets";
 
 function makeResult(
   homeScore: number,
@@ -265,6 +270,37 @@ describe("gradeSelection - void conditions", () => {
     const game = makeBaseballGame({ result: makeResult(3, 1) });
     expect(game.result?.completion).toBeUndefined();
     expect(gradeSelection(market, "home", game)).toBe("won");
+  });
+});
+
+describe("resolveSelection", () => {
+  it("resolves every catalogue market and selection for both sports", () => {
+    for (const sport of ["soccer", "baseball"] as const) {
+      for (const market of marketsFor(sport)) {
+        for (const selection of market.selections) {
+          const resolved = resolveSelection(sport, market.id, selection.id);
+          expect(resolved).toEqual({ market, selection });
+        }
+      }
+    }
+  });
+
+  it("returns undefined for an unknown market", () => {
+    expect(
+      resolveSelection("soccer", "not-a-real-market", "home"),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined for a known market with an unknown selection", () => {
+    expect(
+      resolveSelection("soccer", "soccer-match-result", "not-a-real-selection"),
+    ).toBeUndefined();
+  });
+
+  it("does not resolve a selection id under the wrong sport's market id", () => {
+    expect(
+      resolveSelection("baseball", "soccer-match-result", "home"),
+    ).toBeUndefined();
   });
 });
 

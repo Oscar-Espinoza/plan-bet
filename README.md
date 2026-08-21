@@ -98,6 +98,8 @@ pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it
 | `GET`/`POST /api/auth/*`             | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
 | `GET /api/bets/summary`              | The signed-in account's credit ledger summary; `401`/`503` signed out         |
 | `POST /api/bets/reset`               | Resets the signed-in account's bankroll to the starting balance, rate-limited |
+| `POST /api/bets`                     | Places a wager at the server-priced quote, atomically debiting the ledger     |
+| `GET /api/bets?limit=10`             | The signed-in account's own wagers, bounded and newest first                  |
 
 Responses are `{ data }` or `{ error: { code, message, requestId } }`, always `Cache-Control: no-store`. Error messages never echo configuration.
 
@@ -129,7 +131,7 @@ Every one of these runs in CI on pull requests and on `main`, with no sports, Op
 - The four teams are fixed. Team slugs are a typed enum and provider IDs are per-adapter constants.
 - Personal state is per browser. Nothing syncs across devices, and a returning visitor briefly sees the default team before their stored selection hydrates.
 - Neither provider supplies a venue timezone, so times render in the reader's timezone with a UTC reference rather than the stadium's local time.
-- No real-money betting, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits priced with a small fixed house table this app publishes itself, not bookmaker odds; accounts, the credit ledger, and final results are live, and the market catalogue, placing, locking, and settling a wager (Sessions 07b–09) are still in progress.
+- No real-money betting, predictions, tipping, notifications, live play-by-play, or social features. The free-to-play wager simulator uses fictional, non-withdrawable credits priced with a small fixed house table this app publishes itself, not bookmaker odds; accounts, the credit ledger, final results, and placing and locking a wager are live, and settling a wager (Session 09) is still in progress.
 
 ## Attribution
 

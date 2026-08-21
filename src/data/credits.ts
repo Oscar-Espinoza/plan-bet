@@ -8,14 +8,16 @@ import { creditSummarySchema, type CreditSummary } from "@/lib/contracts";
 export const STARTING_CREDITS = 1000;
 const RESET_HOURLY_LIMIT = 5;
 
-const SUMMARY_PROJECTION = {
+// Exported so src/data/wagers.ts can read the same aggregate inside its own
+// advisory-locked transaction rather than duplicating the projection.
+export const SUMMARY_PROJECTION = {
   balance: sql<number>`coalesce(sum(${creditEntries.amount}), 0)::int`,
   lifetimeStaked: sql<number>`coalesce(-sum(${creditEntries.amount}) filter (where ${creditEntries.kind} = 'stake'), 0)::int`,
   lifetimeReturned: sql<number>`coalesce(sum(${creditEntries.amount}) filter (where ${creditEntries.kind} = 'return'), 0)::int`,
   resetCount: sql<number>`coalesce(count(*) filter (where ${creditEntries.kind} = 'reset'), 0)::int`,
 };
 
-function toSummary(row?: {
+export function toSummary(row?: {
   balance: number;
   lifetimeStaked: number;
   lifetimeReturned: number;

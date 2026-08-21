@@ -6,7 +6,7 @@ import {
 } from "@testcontainers/postgresql";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres, { type Sql } from "postgres";
+import postgres, { type ISql, type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 let container: StartedPostgreSqlContainer;
@@ -501,6 +501,213 @@ describe("Session 04 briefing runs and quotas", () => {
     for (const forbidden of ["ip_address", "note", "watchlist", "user_text"]) {
       expect(names).not.toContain(forbidden);
     }
+  });
+});
+
+/**
+ * Replicates the shape of the placeWager transaction (advisory lock, balance
+ * check, wager insert, stake ledger row) directly against raw SQL, the same
+ * way claimSlot above exercises the briefing quota logic. App code speaks the
+ * Neon driver and cannot connect to plain Postgres, so this suite proves the
+ * schema and locking hold rather than calling the service.
+ */
+async function insertWagerRaw(
+  client: ISql,
+  input: {
+    userId: string;
+    canonicalGameId: string;
+    routeId: string;
+    stake: number;
+  },
+) {
+  const [wager] = await client<{ id: string }[]>`
+    insert into wagers (
+      user_id, canonical_game_id, route_id, sport, market_id, selection_id,
+      market_label, selection_label, price, stake, potential_return,
+      matchup, competition, scheduled_at, prices_version, rules_version
+    ) values (
+      ${input.userId}, ${input.canonicalGameId}, ${input.routeId}, 'soccer',
+      'soccer-match-result', 'home', 'Match Result', 'Home', 2.40,
+      ${input.stake}, ${Math.round(input.stake * 2.4)},
+      'Barcelona at Real Madrid', 'La Liga', now() + interval '1 day', 'v1', 'v1'
+    )
+    returning id
+  `;
+  return wager!.id;
+}
+
+async function placeWagerRaw(
+  userId: string,
+  canonicalGameId: string,
+  stake: number,
+) {
+  return sql.begin(async (transaction) => {
+    await transaction`select pg_advisory_xact_lock(4, hashtext(${userId}))`;
+    const [balanceRow] = await transaction<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    if (stake > balanceRow!.balance) return false;
+    const wagerId = await insertWagerRaw(transaction, {
+      userId,
+      canonicalGameId,
+      routeId: `${canonicalGameId}-real-madrid`,
+      stake,
+    });
+    await transaction`
+      insert into credit_entries (user_id, kind, amount, reason, wager_id)
+      values (${userId}, 'stake', ${-stake}, 'wager placed', ${wagerId})
+    `;
+    return true;
+  });
+}
+
+describe("Session 08 placing and locking a wager", () => {
+  it("applies the wagers migration with no status or updated_at column", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    expect(rows.map((row) => row.table_name)).toContain("wagers");
+
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'wagers'
+    `;
+    const names = columns.map((column) => column.column_name);
+    expect(names).not.toContain("status");
+    expect(names).not.toContain("updated_at");
+  });
+
+  it("cannot drive the balance below zero under concurrent placements", async () => {
+    const userId = await createUser(
+      `wager-concurrency-${randomUUID()}@example.com`,
+    );
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 100, 'signup')
+    `;
+
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        placeWagerRaw(userId, "football-data-900001", 30),
+      ),
+    );
+
+    // At most floor(100 / 30) = 3 placements can succeed.
+    expect(results.filter(Boolean).length).toBeLessThanOrEqual(3);
+    const [{ balance }] = await sql<{ balance: number }[]>`
+      select coalesce(sum(amount), 0)::int as balance from credit_entries
+      where user_id = ${userId}
+    `;
+    expect(balance).toBeGreaterThanOrEqual(0);
+  });
+
+  it("leaves neither wager nor ledger row when a transaction throws after inserting the wager", async () => {
+    const userId = await createUser(
+      `wager-rollback-${randomUUID()}@example.com`,
+    );
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+
+    await expect(
+      sql.begin(async (transaction) => {
+        await insertWagerRaw(transaction, {
+          userId,
+          canonicalGameId: "football-data-900002",
+          routeId: "football-data-900002-real-madrid",
+          stake: 50,
+        });
+        throw new Error("simulated failure after wager insert");
+      }),
+    ).rejects.toThrow("simulated failure after wager insert");
+
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from wagers where user_id = ${userId}
+    `;
+    expect(count).toBe(0);
+    const [{ count: stakeCount }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from credit_entries
+      where user_id = ${userId} and kind = 'stake'
+    `;
+    expect(stakeCount).toBe(0);
+  });
+
+  it("enforces the credit_entries.wager_id FK and rejects a second return for the same wager", async () => {
+    const userId = await createUser(`wager-fk-${randomUUID()}@example.com`);
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason)
+      values (${userId}, 'grant', 1000, 'signup')
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-900004",
+      routeId: "football-data-900004-real-madrid",
+      stake: 50,
+    });
+
+    await expect(
+      sql`
+        insert into credit_entries (user_id, kind, amount, reason, wager_id)
+        values (${userId}, 'stake', -50, 'wager placed', ${randomUUID()})
+      `,
+    ).rejects.toMatchObject({ code: "23503" });
+
+    await sql`
+      insert into credit_entries (user_id, kind, amount, reason, wager_id)
+      values (${userId}, 'return', 120, 'wager settled', ${wagerId})
+    `;
+    await expect(
+      sql`
+        insert into credit_entries (user_id, kind, amount, reason, wager_id)
+        values (${userId}, 'return', 0, 'wager settled', ${wagerId})
+      `,
+    ).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("keeps a wager fully readable after its game snapshot and game row are deleted", async () => {
+    await seedTeams();
+    const userId = await createUser(`wager-orphan-${randomUUID()}@example.com`);
+    const [team] = await sql<{ id: string }[]>`
+      select id from teams where slug = 'real-madrid'
+    `;
+    const [game] = await sql<{ id: string }[]>`
+      insert into games (
+        canonical_id, sport, provider, external_id, summary, scheduled_at,
+        source_observed_at, fetched_at, expires_at, payload_hash
+      ) values (
+        'football-data-900005', 'soccer', 'football-data', '900005', '{}',
+        now() + interval '1 day', now(), now(), now(), 'orphan-hash'
+      ) returning id
+    `;
+    await sql`
+      insert into game_snapshots (
+        route_id, game_id, team_id, snapshot, source_observed_at,
+        fetched_at, expires_at, payload_hash
+      ) values (
+        'football-data-900005-real-madrid', ${game!.id}, ${team!.id}, '{}',
+        now(), now(), now(), 'orphan-snapshot-hash'
+      )
+    `;
+    const wagerId = await insertWagerRaw(sql, {
+      userId,
+      canonicalGameId: "football-data-900005",
+      routeId: "football-data-900005-real-madrid",
+      stake: 50,
+    });
+
+    await sql`delete from game_snapshots where game_id = ${game!.id}`;
+    await sql`delete from games where id = ${game!.id}`;
+
+    const [row] = await sql<{ matchup: string; competition: string }[]>`
+      select matchup, competition from wagers where id = ${wagerId}
+    `;
+    expect(row).toEqual({
+      matchup: "Barcelona at Real Madrid",
+      competition: "La Liga",
+    });
   });
 });
 

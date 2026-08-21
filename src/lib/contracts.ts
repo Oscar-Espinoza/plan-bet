@@ -286,3 +286,44 @@ export const creditSummarySchema = z.object({
   resetCount: z.number().int().nonnegative(),
 });
 export type CreditSummary = z.infer<typeof creditSummarySchema>;
+
+// Mirrors MIN_STAKE / MAX_STAKE in src/lib/markets.ts — see the comment there
+// on why these are literals rather than an import.
+export const wagerPlacementSchema = z.object({
+  routeId: z.string().min(1).max(200),
+  marketId: z.string().min(1).max(100),
+  selectionId: z.string().min(1).max(100),
+  // Echo only: compared against the server's price, never stored.
+  price: z.number().positive(),
+  stake: z.number().int().min(1).max(500),
+});
+export type WagerPlacementInput = z.infer<typeof wagerPlacementSchema>;
+
+export const wagerSchema = z.object({
+  id: z.uuid(),
+  routeId: z.string().min(1),
+  canonicalGameId: z.string().min(1),
+  sport: sportSchema,
+  marketId: z.string().min(1),
+  marketLabel: z.string().min(1),
+  selectionId: z.string().min(1),
+  selectionLabel: z.string().min(1),
+  line: z.number().optional(),
+  price: z.number().positive(),
+  stake: z.number().int().positive(),
+  potentialReturn: z.number().int().nonnegative(),
+  matchup: z.string().min(1),
+  competition: z.string().min(1),
+  scheduledAt: z.iso.datetime(),
+  placedAt: z.iso.datetime(),
+  // Derived from whether a `return` credit_entries row exists for this
+  // wager (Session 09) — never a stored column.
+  settled: z.boolean(),
+});
+export type Wager = z.infer<typeof wagerSchema>;
+
+export const wagerPlacementResultSchema = z.object({
+  wager: wagerSchema,
+  summary: creditSummarySchema,
+});
+export type WagerPlacementResult = z.infer<typeof wagerPlacementResultSchema>;
