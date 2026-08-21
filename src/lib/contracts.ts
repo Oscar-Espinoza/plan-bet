@@ -364,6 +364,24 @@ export const wagerPlacementResultSchema = z.object({
 });
 export type WagerPlacementResult = z.infer<typeof wagerPlacementResultSchema>;
 
+// One row per sport or per market — settled counts only, open wagers are not
+// part of a record. `key` is the raw sport/marketId for anything a caller
+// needs to key off of; `label` is what /you actually prints.
+export const recordSliceSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  won: z.number().int().nonnegative(),
+  lost: z.number().int().nonnegative(),
+  voided: z.number().int().nonnegative(),
+});
+export type RecordSlice = z.infer<typeof recordSliceSchema>;
+
+export const recordSlicesSchema = z.object({
+  bySport: z.array(recordSliceSchema),
+  byMarket: z.array(recordSliceSchema),
+});
+export type RecordSlices = z.infer<typeof recordSlicesSchema>;
+
 export const groupMemberRoleSchema = z.enum(["owner", "member"]);
 export type GroupMemberRole = z.infer<typeof groupMemberRoleSchema>;
 

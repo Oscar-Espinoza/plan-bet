@@ -14,7 +14,9 @@ import { getDatabase } from "@/db/client";
 import { creditEntries, games, gameSnapshots, wagers } from "@/db/schema";
 import {
   gameSummarySchema,
+  recordSlicesSchema,
   wagerSchema,
+  type RecordSlices,
   type Sport,
   type Wager,
   type WagerOutcome,
@@ -257,6 +259,71 @@ export async function listWagerHistory(
   const hasMore = rows.length > filter.limit;
   const page = rows.slice(0, filter.limit).map((row) => row.wager);
   return { items: await attachSettled(page), hasMore };
+}
+
+const SPORT_LABELS: Record<Sport, string> = {
+  soccer: "Soccer",
+  baseball: "Baseball",
+};
+
+/**
+ * Settled counts grouped by sport and by market — the slice that answers
+ * "am I better at soccer than baseball" (J2). Same left-join-on-kind='return'
+ * shape `listWagerHistory` already uses, restricted to settled rows via
+ * `isNotNull(creditEntries.outcome)` so an open wager (no return row yet)
+ * never lands in either bucket. Two grouped selects over that one join shape
+ * rather than one query with `grouping sets`, since two readable selects beat
+ * one clever one for a two-dimension breakdown nobody is paginating.
+ */
+export async function getRecordSlices(userId: string): Promise<RecordSlices> {
+  const counts = {
+    won: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'won')::int`,
+    lost: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'lost')::int`,
+    voided: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'void')::int`,
+  };
+
+  const bySportRows = await getDatabase()
+    .select({ key: wagers.sport, ...counts })
+    .from(wagers)
+    .leftJoin(
+      creditEntries,
+      and(
+        eq(creditEntries.wagerId, wagers.id),
+        eq(creditEntries.kind, "return"),
+      ),
+    )
+    .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
+    .groupBy(wagers.sport);
+
+  const byMarketRows = await getDatabase()
+    .select({ key: wagers.marketId, label: wagers.marketLabel, ...counts })
+    .from(wagers)
+    .leftJoin(
+      creditEntries,
+      and(
+        eq(creditEntries.wagerId, wagers.id),
+        eq(creditEntries.kind, "return"),
+      ),
+    )
+    .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
+    .groupBy(wagers.marketId, wagers.marketLabel);
+
+  return recordSlicesSchema.parse({
+    bySport: bySportRows.map((row) => ({
+      key: row.key,
+      label: SPORT_LABELS[row.key as Sport],
+      won: row.won,
+      lost: row.lost,
+      voided: row.voided,
+    })),
+    byMarket: byMarketRows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      won: row.won,
+      lost: row.lost,
+      voided: row.voided,
+    })),
+  });
 }
 
 export async function countOpenWagers(userId: string): Promise<number> {
