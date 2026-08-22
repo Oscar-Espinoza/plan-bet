@@ -64,7 +64,9 @@ describe("BetSlip - unavailable and closed", () => {
     };
     render(<BetSlip data={data} />);
 
-    expect(screen.getByText("This game has finished.")).toBeInTheDocument();
+    expect(
+      screen.getByText("This game has finished. Your record is on /you."),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Place wager" }),
     ).not.toBeInTheDocument();

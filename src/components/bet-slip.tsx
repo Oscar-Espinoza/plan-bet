@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import type { GameStatus, Wager } from "@/lib/contracts";
+import type { Wager } from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
+import { CLOSED_COPY, type WagerClosedReason } from "@/lib/wager-copy";
 
 export type WagerPanelState =
   | { kind: "unavailable" }
-  | { kind: "closed"; reason: GameStatus | "started" }
+  | { kind: "closed"; reason: WagerClosedReason }
   | {
       kind: "open";
       markets: Market[];
@@ -27,16 +28,6 @@ export type WagerPanelData =
       state: WagerPanelState;
       wagers: Wager[];
     };
-
-const CLOSED_LABELS: Record<GameStatus | "started", string> = {
-  scheduled: "This game is not open for wagers.", // unreachable: scheduled is the open state
-  started: "This game has already started.",
-  live: "This game is already in progress.",
-  finished: "This game has finished.",
-  postponed: "This game has been postponed.",
-  cancelled: "This game has been cancelled.",
-  unknown: "This game is not open for wagers.",
-};
 
 function lineSuffix(line: number | undefined) {
   return typeof line === "number" ? ` ${line}` : "";
@@ -136,7 +127,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
         <p className="side-form">This game is not available for wagers.</p>
       )}
       {state.kind === "closed" && (
-        <p className="side-form">{CLOSED_LABELS[state.reason]}</p>
+        <p className="side-form">{CLOSED_COPY[state.reason]}</p>
       )}
 
       {state.kind === "open" && market && selection && (

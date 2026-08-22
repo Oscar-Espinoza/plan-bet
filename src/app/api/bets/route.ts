@@ -1,24 +1,15 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { listWagers } from "@/data/wagers-repository";
-import { placeWager, type WagerClosedReason } from "@/data/wagers";
+import { placeWager } from "@/data/wagers";
 import { requireAccount } from "@/lib/auth";
 import { isSameOrigin, readJsonBody } from "@/lib/api-request";
 import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 import { wagerPlacementSchema } from "@/lib/contracts";
+import { CLOSED_COPY, priceMovedCopy } from "@/lib/wager-copy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const CLOSED_MESSAGES: Record<WagerClosedReason, string> = {
-  scheduled: "This game is not open for wagers.", // unreachable: scheduled is the open state
-  started: "This game has already started.",
-  live: "This game is already in progress.",
-  finished: "This game has finished.",
-  postponed: "This game has been postponed.",
-  cancelled: "This game has been cancelled.",
-  unknown: "This game is not open for wagers.",
-};
 
 const limitSchema = z.coerce.number().int().min(1).max(10).default(10);
 
@@ -70,15 +61,11 @@ export async function POST(request: NextRequest) {
           context,
         );
       case "closed":
-        return apiFailure(
-          "forbidden",
-          CLOSED_MESSAGES[outcome.status],
-          context,
-        );
+        return apiFailure("forbidden", CLOSED_COPY[outcome.status], context);
       case "price_moved":
         return apiFailure(
           "invalid_request",
-          `The price is now ${outcome.price.toFixed(2)}. Review the slip and place again.`,
+          priceMovedCopy(outcome.price),
           context,
         );
       case "insufficient_balance":
