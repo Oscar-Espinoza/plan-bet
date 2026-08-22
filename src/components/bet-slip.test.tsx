@@ -186,10 +186,13 @@ describe("BetSlip - open", () => {
     expect(screen.queryByText(/You’re \d+-\d+ on/)).not.toBeInTheDocument();
   });
 
-  it("offers no group selector when the account belongs to no groups", () => {
+  it("offers no group selector when the account belongs to no groups, but prompts to create one", () => {
     render(<BetSlip data={openData()} />);
     fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
     expect(screen.queryByLabelText("Place")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Create a group" }),
+    ).toHaveAttribute("href", "/groups/new");
   });
 
   it("offers a group selector defaulting to Alone when the account belongs to a group", () => {

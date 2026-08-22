@@ -254,25 +254,28 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             </button>
           </div>
 
-          {groups.length > 0 && (
-            <>
-              <label htmlFor="wager-group" className="field-label">
-                Place
-              </label>
-              <select
-                id="wager-group"
-                className="field"
-                value={groupId}
-                onChange={(event) => setGroupId(event.target.value)}
-              >
-                <option value="">Alone</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    With {group.name}
-                  </option>
-                ))}
-              </select>
-            </>
+          <span className="field-label">Place</span>
+          {groups.length > 0 ? (
+            <select
+              id="wager-group"
+              aria-label="Place"
+              className="field"
+              value={groupId}
+              onChange={(event) => setGroupId(event.target.value)}
+            >
+              <option value="">Alone</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  With {group.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="fine-print">
+              Betting with friends?{" "}
+              <Link href="/groups/new">Create a group</Link> and your picks show
+              up on its board.
+            </p>
           )}
 
           <div className="data-pair">
