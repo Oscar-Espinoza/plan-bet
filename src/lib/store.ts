@@ -16,6 +16,9 @@ type MatchdayActions = {
   viewBriefing: (gameId: string) => void;
   saveGeneratedBriefing: (gameId: string, briefing: Briefing) => void;
   toggleSavedBriefing: (gameId: string) => void;
+  advanceTour: (step: number) => void;
+  finishTour: () => void;
+  dismissIntro: () => void;
 };
 
 export type MatchdayStore = StoredState & MatchdayActions;
@@ -34,6 +37,8 @@ function dataFromStore(state: MatchdayStore): StoredState {
     viewedBriefings: state.viewedBriefings,
     generatedBriefings: state.generatedBriefings,
     anonymousId: state.anonymousId,
+    tourStep: state.tourStep,
+    introDismissed: state.introDismissed,
   };
 }
 
@@ -84,5 +89,13 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
           : [...get().savedBriefings, gameId],
       });
     },
+    // Monotonic: backtracking to the slate mid-tour (or replaying step 0)
+    // never rewinds progress already made.
+    advanceTour: (step) => {
+      if (step <= get().tourStep) return;
+      commit({ tourStep: step });
+    },
+    finishTour: () => commit({ tourStep: 4 }),
+    dismissIntro: () => commit({ introDismissed: true }),
   };
 });

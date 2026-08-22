@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { IntroBanner } from "@/components/intro-banner";
 import { Slate } from "@/components/slate";
 import { getDashboardData } from "@/data/sports-data";
 
@@ -20,5 +21,10 @@ export default async function Home({ searchParams }: Props) {
   // Playwright) falls back to UTC, which is also what makes the e2e board
   // deterministic.
   const tz = (await headers()).get("x-vercel-ip-timezone") ?? "UTC";
-  return <Slate data={data} sport={sport} tz={tz} />;
+  return (
+    <>
+      <IntroBanner />
+      <Slate data={data} sport={sport} tz={tz} />
+    </>
+  );
 }

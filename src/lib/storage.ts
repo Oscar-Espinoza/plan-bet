@@ -14,6 +14,11 @@ export const storedStateSchema = z.object({
     .catch({})
     .default({}),
   anonymousId: z.uuid(),
+  // Added after v3 shipped. Same `.default` trick as generatedBriefings: an
+  // older payload parses clean and picks up the default, so no version bump
+  // and no migrateLegacy arm.
+  tourStep: z.number().int().min(0).max(4).catch(0).default(0),
+  introDismissed: z.boolean().catch(false).default(false),
 });
 export type StoredState = z.infer<typeof storedStateSchema>;
 
@@ -26,6 +31,8 @@ export function createDefaultState(
     viewedBriefings: [],
     generatedBriefings: {},
     anonymousId,
+    tourStep: 0,
+    introDismissed: false,
   };
 }
 

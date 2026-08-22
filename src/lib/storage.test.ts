@@ -71,4 +71,27 @@ describe("browser storage", () => {
     expect(result).not.toHaveProperty("selectedSport");
     expect(result).not.toHaveProperty("selectedTeamSlug");
   });
+
+  // The tour fields were added after v3 shipped as defaulted fields, the
+  // same trick generatedBriefings uses — no version bump, no migrateLegacy
+  // arm, and a returning v3 browser with no tour state just picks up 0/false.
+  it("defaults tourStep and introDismissed on a v3 payload that predates them", () => {
+    const v3 = {
+      version: 3,
+      savedBriefings: ["game-a"],
+      viewedBriefings: ["game-a"],
+      generatedBriefings: {},
+      anonymousId: "40000000-0000-4000-8000-000000000004",
+    };
+    const result = parseStoredState(JSON.stringify(v3), fallbackId);
+    expect(result.tourStep).toBe(0);
+    expect(result.introDismissed).toBe(false);
+    expect(result.savedBriefings).toEqual(["game-a"]);
+  });
+
+  it("round-trips a stored tour step", () => {
+    const stored = { ...createDefaultState(fallbackId), tourStep: 2 };
+    const result = parseStoredState(JSON.stringify(stored), fallbackId);
+    expect(result.tourStep).toBe(2);
+  });
 });

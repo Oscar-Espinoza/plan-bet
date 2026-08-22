@@ -551,6 +551,18 @@ a {
   color: #ffb8bc;
 }
 
+.intro-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.intro-banner p {
+  margin: 0;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
