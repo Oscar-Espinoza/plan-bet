@@ -9,10 +9,19 @@ import {
   inArray,
   isNotNull,
   isNull,
+  ne,
   sql,
 } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
-import { creditEntries, games, gameSnapshots, wagers } from "@/db/schema";
+import {
+  creditEntries,
+  games,
+  gameSnapshots,
+  groupMembers,
+  groups,
+  users,
+  wagers,
+} from "@/db/schema";
 import {
   gameSummarySchema,
   recordSlicesSchema,
@@ -198,6 +207,50 @@ export async function listWagersForGroup(
   }));
 }
 
+export type GroupWagerPick = {
+  wager: Wager;
+  userName: string | null;
+  groupName: string;
+};
+
+/**
+ * Other members' picks on this specific game, across every group the viewer
+ * belongs to — this is what surfaces group activity on the game page
+ * (Phase C) rather than only at /groups/[slug]. `ne(wagers.userId, userId)`
+ * excludes the viewer's own wagers, which already render separately below
+ * the grid.
+ */
+export async function listGroupWagersForGame(
+  userId: string,
+  canonicalGameId: string,
+): Promise<GroupWagerPick[]> {
+  const rows = await getDatabase()
+    .select({ wager: wagers, userName: users.name, groupName: groups.name })
+    .from(wagers)
+    .innerJoin(
+      groupMembers,
+      and(
+        eq(groupMembers.groupId, wagers.groupId),
+        eq(groupMembers.userId, userId),
+      ),
+    )
+    .innerJoin(users, eq(users.id, wagers.userId))
+    .innerJoin(groups, eq(groups.id, wagers.groupId))
+    .where(
+      and(
+        eq(wagers.canonicalGameId, canonicalGameId),
+        ne(wagers.userId, userId),
+      ),
+    )
+    .orderBy(desc(wagers.createdAt));
+  const settled = await attachSettled(rows.map((row) => row.wager));
+  return rows.map((row, index) => ({
+    wager: settled[index]!,
+    userName: row.userName,
+    groupName: row.groupName,
+  }));
+}
+
 export async function listWagers(userId: string, limit: number) {
   const rows = await getDatabase()
     .select()
@@ -210,8 +263,9 @@ export async function listWagers(userId: string, limit: number) {
 
 export type WagerHistoryFilter = {
   sport?: Sport;
-  // "open" = no return row yet, distinct from a settled outcome.
-  outcome?: WagerOutcome | "open";
+  // "open" = no return row yet; "settled" = any return row regardless of
+  // outcome — distinct from a specific settled outcome.
+  outcome?: WagerOutcome | "open" | "settled";
   since?: Date;
   // "solo" = groupId is null, "group" = groupId is set (any group).
   scope?: "solo" | "group";
@@ -236,6 +290,8 @@ export async function listWagerHistory(
   if (filter.since) conditions.push(gte(wagers.createdAt, filter.since));
   if (filter.outcome === "open") {
     conditions.push(isNull(creditEntries.id));
+  } else if (filter.outcome === "settled") {
+    conditions.push(isNotNull(creditEntries.outcome));
   } else if (filter.outcome) {
     conditions.push(eq(creditEntries.outcome, filter.outcome));
   }

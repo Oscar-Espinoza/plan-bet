@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
+import type { Wager } from "@/lib/contracts";
 import { marketsFor } from "@/lib/markets";
 
 const refresh = vi.fn();
@@ -84,6 +85,11 @@ describe("BetSlip - open", () => {
         lost: number;
         voided: number;
       }[];
+      groupPicks: {
+        wager: Wager;
+        userName: string | null;
+        groupName: string;
+      }[];
     }> = {},
   ): WagerPanelData => ({
     signedIn: true,
@@ -94,6 +100,7 @@ describe("BetSlip - open", () => {
       balance: 1000,
       groups: [],
       byMarket: [],
+      groupPicks: [],
       ...overrides,
     },
     wagers: [],
@@ -207,6 +214,42 @@ describe("BetSlip - open", () => {
     expect(select.value).toBe("");
     expect(
       screen.getByRole("option", { name: "With Sunday League" }),
+    ).toBeInTheDocument();
+  });
+
+  it("names another member's group pick above the grid", () => {
+    const pick: Wager = {
+      id: "wager-2",
+      routeId: "soc-rma-01",
+      canonicalGameId: "football-data-1",
+      groupId: "group-1",
+      sport: "soccer",
+      marketId: "soccer-total-2-5",
+      marketLabel: "Total goals",
+      selectionId: "over",
+      selectionLabel: "Over",
+      line: 2.5,
+      price: 1.9,
+      stake: 25,
+      potentialReturn: 47,
+      matchup: "Barcelona at Real Madrid",
+      competition: "La Liga",
+      scheduledAt: "2099-01-01T00:00:00.000Z",
+      placedAt: "2026-08-20T12:00:00.000Z",
+      settled: false,
+    };
+    render(
+      <BetSlip
+        data={openData({
+          groupPicks: [
+            { wager: pick, userName: "Dani", groupName: "Sunday League" },
+          ],
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Sunday League — Dani has 25 on Over 2.5."),
     ).toBeInTheDocument();
   });
 

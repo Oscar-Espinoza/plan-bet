@@ -135,24 +135,30 @@ export default async function Page({ searchParams }: Props) {
   };
   const page = pageSchema.parse(first(raw.page));
 
-  const [summary, openCount, openWagers, slices, history] = await Promise.all([
-    getCreditSummary(account.userId),
-    countOpenWagers(account.userId),
-    listWagerHistory(account.userId, {
-      outcome: "open",
-      limit: 5,
-      offset: 0,
-    }),
-    getRecordSlices(account.userId),
-    listWagerHistory(account.userId, {
-      sport: filters.sport === "all" ? undefined : filters.sport,
-      outcome: filters.outcome === "all" ? undefined : filters.outcome,
-      since: sinceFor(filters.range),
-      scope: filters.scope === "all" ? undefined : filters.scope,
-      limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
-    }),
-  ]);
+  const [summary, openCount, openWagers, justSettled, slices, history] =
+    await Promise.all([
+      getCreditSummary(account.userId),
+      countOpenWagers(account.userId),
+      listWagerHistory(account.userId, {
+        outcome: "open",
+        limit: 5,
+        offset: 0,
+      }),
+      listWagerHistory(account.userId, {
+        outcome: "settled",
+        limit: 5,
+        offset: 0,
+      }),
+      getRecordSlices(account.userId),
+      listWagerHistory(account.userId, {
+        sport: filters.sport === "all" ? undefined : filters.sport,
+        outcome: filters.outcome === "all" ? undefined : filters.outcome,
+        since: sinceFor(filters.range),
+        scope: filters.scope === "all" ? undefined : filters.scope,
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+      }),
+    ]);
 
   const filtersActive =
     filters.sport !== "all" ||
@@ -222,6 +228,16 @@ export default async function Page({ searchParams }: Props) {
             emptyState={{
               title: "No open wagers",
               copy: "Place a free-to-play wager from a game page to see it here.",
+            }}
+          />
+        </Card>
+
+        <Card title="Just settled" titleId="just-settled-heading">
+          <BetsHistory
+            items={justSettled.items}
+            emptyState={{
+              title: "Nothing settled yet",
+              copy: "Settled wagers land here once a game finishes.",
             }}
           />
         </Card>

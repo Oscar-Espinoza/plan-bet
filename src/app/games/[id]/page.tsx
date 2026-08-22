@@ -10,6 +10,7 @@ import { getGameDetail } from "@/data/sports-data";
 import { evaluateWagerAvailability } from "@/data/wagers";
 import {
   getRecordSlices,
+  listGroupWagersForGame,
   listWagersForGame,
   readGameForWager,
 } from "@/data/wagers-repository";
@@ -65,11 +66,12 @@ async function loadWagering(
     };
   }
 
-  const [summary, gameWagers, groups, record] = await Promise.all([
+  const [summary, gameWagers, groups, record, groupPicks] = await Promise.all([
     getCreditSummary(account.userId),
     listWagersForGame(account.userId, game.canonicalId),
     listGroupsForUser(account.userId),
     getRecordSlices(account.userId),
+    listGroupWagersForGame(account.userId, game.canonicalId),
   ]);
   const availability = evaluateWagerAvailability(game.summary);
   const state: WagerPanelState = availability.open
@@ -79,6 +81,11 @@ async function loadWagering(
         balance: summary.balance,
         groups: groups.map((group) => ({ id: group.id, name: group.name })),
         byMarket: record.byMarket,
+        groupPicks: groupPicks.map((pick) => ({
+          wager: pick.wager,
+          userName: pick.userName,
+          groupName: pick.groupName,
+        })),
       }
     : { kind: "closed", reason: availability.reason };
 
