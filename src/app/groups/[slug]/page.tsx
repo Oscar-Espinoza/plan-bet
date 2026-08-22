@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Receipt, Trophy, Users } from "lucide-react";
+import { Receipt, Users } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { JoinLink } from "@/components/join-link";
@@ -129,31 +129,25 @@ export default async function Page({ params }: Props) {
         </Card>
 
         <Card title="Leaderboard" titleId="leaderboard-heading">
-          {leaderboard.length === 0 ? (
-            <div className="empty-state empty-state-compact">
-              <div>
-                <span className="empty-icon">
-                  <Trophy aria-hidden="true" />
+          {/* Every member gets a row (getGroupLeaderboard starts from
+              groupMembers), including one at 0-0-0 who has never placed a
+              group wager — so there is no card-level empty state to reach. */}
+          {leaderboard.map((entry, index) => (
+            <div className="stat-row" key={entry.userId}>
+              <span>
+                {index + 1}. {entry.name ?? "Member"}
+                <span className="fine-print">
+                  {" "}
+                  · {entry.won}-{entry.lost}-{entry.voided} · {entry.wagerCount}{" "}
+                  {entry.wagerCount === 1 ? "wager" : "wagers"}
                 </span>
-                <h3 className="empty-title">No settled wagers yet</h3>
-                <p className="empty-copy">
-                  The record fills in once a group wager settles.
-                </p>
-              </div>
+              </span>
+              <strong>
+                {entry.netReturn >= 0 ? "+" : ""}
+                {entry.netReturn}
+              </strong>
             </div>
-          ) : (
-            leaderboard.map((entry, index) => (
-              <div className="stat-row" key={entry.userId}>
-                <span>
-                  {index + 1}. {entry.name ?? "Member"}
-                </span>
-                <strong>
-                  {entry.netReturn >= 0 ? "+" : ""}
-                  {entry.netReturn}
-                </strong>
-              </div>
-            ))
-          )}
+          ))}
         </Card>
       </div>
 

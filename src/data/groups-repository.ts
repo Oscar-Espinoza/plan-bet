@@ -225,32 +225,41 @@ export async function listPendingInvites(
 /**
  * Net return (sum of `return`/`stake` credit_entries) over a group's wagers
  * only, grouped by member — a read-time aggregate over the existing ledger,
- * never a stored column, same as CreditSummary. Sorted in JS rather than SQL:
- * group sizes are small and it avoids ordering by a computed alias.
+ * never a stored column, same as CreditSummary. Starts from `groupMembers`,
+ * not `creditEntries`: every member gets a row, including one who has never
+ * placed a group wager (coalesced to 0 across the board), rather than
+ * vanishing from the standings the way starting from the ledger did. Sorted
+ * in JS rather than SQL: group sizes are small and it avoids ordering by a
+ * computed alias.
  */
 export async function getGroupLeaderboard(
   groupId: string,
 ): Promise<GroupLeaderboardEntry[]> {
   const rows = await getDatabase()
     .select({
-      userId: creditEntries.userId,
+      userId: groupMembers.userId,
       name: users.name,
       netReturn: sql<number>`coalesce(sum(${creditEntries.amount}), 0)::int`,
-      wagerCount: sql<number>`count(distinct ${creditEntries.wagerId})::int`,
+      wagerCount: sql<number>`coalesce(count(distinct ${creditEntries.wagerId}), 0)::int`,
       won: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'won'), 0)::int`,
       lost: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'lost'), 0)::int`,
       voided: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'void'), 0)::int`,
     })
-    .from(creditEntries)
-    .innerJoin(wagers, eq(wagers.id, creditEntries.wagerId))
-    .innerJoin(users, eq(users.id, creditEntries.userId))
-    .where(
+    .from(groupMembers)
+    .innerJoin(users, eq(users.id, groupMembers.userId))
+    .leftJoin(
+      wagers,
+      and(eq(wagers.groupId, groupId), eq(wagers.userId, groupMembers.userId)),
+    )
+    .leftJoin(
+      creditEntries,
       and(
-        eq(wagers.groupId, groupId),
+        eq(creditEntries.wagerId, wagers.id),
         inArray(creditEntries.kind, ["stake", "return"]),
       ),
     )
-    .groupBy(creditEntries.userId, users.name);
+    .where(eq(groupMembers.groupId, groupId))
+    .groupBy(groupMembers.userId, users.name);
 
   const entries = rows.map((row) => groupLeaderboardEntrySchema.parse(row));
   return entries.sort((a, b) => b.netReturn - a.netReturn);

@@ -78,4 +78,45 @@ describe("getGroupLeaderboard", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("keeps a member who has never placed a group wager, coalesced to zero", async () => {
+    getDatabaseMock.mockReturnValue({
+      select: () =>
+        chain([
+          {
+            userId: "11111111-1111-4111-8111-111111111111",
+            name: "Alex",
+            netReturn: 40,
+            wagerCount: 3,
+            won: 2,
+            lost: 1,
+            voided: 0,
+          },
+          {
+            // Left-joined through with no wagers row at all — the query
+            // starts from groupMembers, not creditEntries, precisely so
+            // this member does not vanish from the standings.
+            userId: "44444444-4444-4444-8444-444444444444",
+            name: "Newcomer",
+            netReturn: 0,
+            wagerCount: 0,
+            won: 0,
+            lost: 0,
+            voided: 0,
+          },
+        ]),
+    });
+
+    const result = await getGroupLeaderboard("group-1");
+
+    expect(result).toContainEqual({
+      userId: "44444444-4444-4444-8444-444444444444",
+      name: "Newcomer",
+      netReturn: 0,
+      wagerCount: 0,
+      won: 0,
+      lost: 0,
+      voided: 0,
+    });
+  });
 });
