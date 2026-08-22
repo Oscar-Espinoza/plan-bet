@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { RouteError } from "@/components/route-error";
 
-export default function RootError({ reset }: { reset: () => void }) {
+export default function GroupsError({ reset }: { reset: () => void }) {
   return (
     <RouteError
-      title="This page hit an error"
+      title="Groups hit an error"
       copy={
         <>
-          Try again, or head back to the <Link href="/">games board</Link>.
+          Try again, or check your <Link href="/you">record</Link> while we sort
+          it out.
         </>
       }
       reset={reset}
