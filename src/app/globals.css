@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource/barlow-condensed/600.css";
-@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource-variable/big-shoulders-display/wght";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
 
 :root {
   /* Palette — the manual scoreboard. Ground shifts off blue-black into a
@@ -66,6 +68,11 @@
   --radius-sm: 0.3rem;
   --radius-md: 0.45rem;
   --radius-full: 99px;
+
+  /* Type faces. */
+  --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
+  --font-display: "Big Shoulders Display Variable", "Arial Narrow", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 }
 
 * {
@@ -82,8 +89,8 @@ body {
   min-width: 320px;
   margin: 0;
   overflow-x: hidden;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--ink);
+  color: var(--chalk);
   font-family: "IBM Plex Sans Variable", system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -127,11 +134,11 @@ a {
   top: 0.75rem;
   left: 0.75rem;
   transform: translateY(-200%);
-  border-radius: 0.4rem;
-  background: var(--text);
-  color: var(--bg);
+  border-radius: var(--radius-md);
+  background: var(--chalk);
+  color: var(--ink);
   padding: 0.65rem 0.9rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .skip-link:focus {
@@ -186,8 +193,8 @@ a {
 
 .brand-subtitle {
   color: var(--faint);
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -204,21 +211,21 @@ a {
   align-items: center;
   gap: 0.75rem;
   border-left: 2px solid transparent;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   padding: 0.6rem 0.75rem;
-  font-weight: 620;
+  font-weight: var(--weight-semibold);
 }
 
 .nav-link:hover {
-  background: var(--surface);
-  color: var(--text);
+  background: var(--slat);
+  color: var(--chalk);
 }
 
 .nav-link-active {
-  border-left-color: var(--green);
-  background: var(--surface-raised);
-  color: var(--text);
+  border-left-color: var(--sodium);
+  background: var(--slat-raised);
+  color: var(--chalk);
 }
 
 .workspace {
@@ -249,9 +256,8 @@ a {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -267,13 +273,13 @@ a {
 .control-select {
   min-width: 0;
   height: 2.45rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 0.35rem;
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--slat);
+  color: var(--chalk);
   padding: 0 2rem 0 0.65rem;
-  font-size: 0.78rem;
-  font-weight: 650;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .main-content {
@@ -296,20 +302,21 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border-top: 1px solid var(--line-strong);
-  background: var(--surface-raised);
+  border-top: 1px solid var(--rule-strong);
+  background: var(--slat-raised);
   padding: 0.65rem 1rem;
 }
 
 .tour-bar-copy {
   margin: 0;
-  color: var(--text);
-  font-size: 0.82rem;
+  color: var(--chalk);
+  font-size: var(--text-base);
 }
 
 .tour-bar-count {
   margin-right: 0.5rem;
   color: var(--muted);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -385,19 +392,22 @@ a {
   margin-bottom: 1.35rem;
 }
 
+/* Neutral by default — one accent doing thirteen jobs meant nothing could be
+   emphasised. The slate's "Next up" hero is the one place this gets lit;
+   see .slate-hero-live .eyebrow below. */
 .eyebrow {
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 750;
+  color: var(--faint);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .display-title {
   margin: 0.2rem 0 0;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: clamp(2.1rem, 5vw, 3.4rem);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: var(--weight-semibold);
   letter-spacing: -0.025em;
   line-height: 0.95;
   text-transform: uppercase;
@@ -416,18 +426,19 @@ a {
   align-items: center;
   gap: 0.3rem;
   color: var(--muted);
-  font-size: 0.69rem;
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
 
 .demo-stamp svg {
-  color: var(--green);
+  color: var(--field);
 }
 
 .demo-stamp[data-mode="stale"] svg {
-  color: var(--amber);
+  color: var(--sodium);
 }
 
 .demo-stamp[data-mode="demo"] svg {
@@ -489,15 +500,15 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.85rem 1rem;
 }
 
 .panel-title {
   margin: 0;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.035em;
   text-transform: uppercase;
 }
@@ -512,7 +523,7 @@ a {
 
 .fine-print {
   color: var(--faint);
-  font-size: 0.75rem;
+  font-size: var(--text-sm);
 }
 
 .button {
@@ -521,19 +532,19 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border: 1px solid var(--green);
-  border-radius: 0.38rem;
-  background: var(--green);
-  color: #07120c;
+  border: 1px solid var(--sodium);
+  border-radius: var(--radius-sm);
+  background: var(--sodium);
+  color: var(--ink);
   padding: 0.55rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 760;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   line-height: 1;
   cursor: pointer;
 }
 
 .button:hover:not(:disabled) {
-  background: #79daa6;
+  background: #ecb461;
 }
 
 .button:disabled {
@@ -560,15 +571,15 @@ a {
 }
 
 .button-danger {
-  border-color: #6f3035;
-  background: #2b1519;
-  color: #ffb8bc;
+  border-color: var(--tone-negative-border);
+  background: var(--tone-negative-bg);
+  color: var(--tone-negative-text);
 }
 
 .button-sm {
   min-height: 2.1rem;
   padding: 0.4rem 0.65rem;
-  font-size: 0.73rem;
+  font-size: var(--text-sm);
 }
 
 .button-icon {
@@ -581,62 +592,47 @@ a {
   display: inline-flex;
   width: fit-content;
   align-items: center;
-  border: 1px solid var(--line-strong);
-  border-radius: 99px;
-  background: var(--surface-muted);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-full);
+  background: var(--slat-muted);
   color: var(--muted);
   padding: 0.18rem 0.48rem;
-  font-size: 0.64rem;
-  font-weight: 750;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.05em;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
-.status-positive {
-  border-color: #285e45;
-  background: var(--green-dark);
-  color: #8ee9b7;
+.status-positive,
+.banner-positive {
+  border-color: var(--tone-positive-border);
+  background: var(--tone-positive-bg);
+  color: var(--tone-positive-text);
 }
 
-.status-warning {
-  border-color: #6f552a;
-  background: #281f11;
-  color: #f0c476;
+.status-warning,
+.banner-warning {
+  border-color: var(--tone-warning-border);
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
-.status-negative {
-  border-color: #6f3035;
-  background: #2b1519;
-  color: #ffb8bc;
+.status-negative,
+.banner-negative {
+  border-color: var(--tone-negative-border);
+  background: var(--tone-negative-bg);
+  color: var(--tone-negative-text);
 }
 
 .banner {
-  border: 1px solid var(--line-strong);
-  border-radius: 0.4rem;
-  background: var(--surface-muted);
-  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--slat-muted);
+  color: var(--chalk);
   padding: 0.6rem 0.8rem;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   line-height: 1.4;
-}
-
-.banner-positive {
-  border-color: #285e45;
-  background: var(--green-dark);
-  color: #8ee9b7;
-}
-
-.banner-warning {
-  border-color: #6f552a;
-  background: #281f11;
-  color: #f0c476;
-}
-
-.banner-negative {
-  border-color: #6f3035;
-  background: #2b1519;
-  color: #ffb8bc;
 }
 
 .intro-banner {
@@ -722,21 +718,21 @@ a {
   height: 3rem;
   place-items: center;
   margin: 0 auto 0.75rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--rule);
   border-radius: 50%;
   color: var(--muted);
 }
 
 .empty-title {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .empty-copy {
   max-width: 26rem;
   margin: 0.35rem auto 0;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-base);
 }
 
 .slate-hero {
@@ -766,19 +762,19 @@ a {
   display: inline-flex;
   min-height: 2.2rem;
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--slat-muted);
   color: var(--muted);
   padding: 0 0.85rem;
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .slate-chip-active {
-  border-color: var(--line-strong);
-  background: var(--surface-raised);
-  color: var(--text);
+  border-color: var(--rule-strong);
+  background: var(--slat-raised);
+  color: var(--chalk);
 }
 
 .slate-groups {
@@ -877,10 +873,10 @@ a {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.75rem 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 /* A group heading inside a full-bleed .stat-row list. Aligns with the rows'
@@ -888,7 +884,7 @@ a {
 .stat-group-label {
   padding: 0.9rem 1rem 0.35rem;
   color: var(--faint);
-  font-size: 0.75rem;
+  font-size: var(--text-sm);
 }
 
 /* The list already sits above the panel's own border — the last row's divider
@@ -898,9 +894,10 @@ a {
 }
 
 .stat-row strong {
-  color: var(--text);
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.2rem;
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
@@ -910,18 +907,18 @@ a {
   justify-content: space-between;
   padding: 0.85rem 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .mini-empty {
   padding: 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .freshness-panel {
-  border-left: 2px solid var(--green);
-  background: var(--surface-muted);
+  border-left: 2px solid var(--field);
+  background: var(--slat-muted);
   padding: 0.85rem 1rem;
 }
 
@@ -929,13 +926,13 @@ a {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.74rem;
+  font-size: var(--text-sm);
 }
 
 .freshness-panel p {
   margin: 0.4rem 0 0;
   color: var(--muted);
-  font-size: 0.69rem;
+  font-size: var(--text-xs);
   line-height: 1.55;
 }
 
@@ -972,12 +969,12 @@ a {
   gap: 0.4rem;
   margin-bottom: 1rem;
   color: var(--muted);
-  font-size: 0.77rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .back-link:hover {
-  color: var(--text);
+  color: var(--chalk);
 }
 
 .matchup-header {
@@ -1003,8 +1000,8 @@ a {
 
 .competition-label {
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
 }
 
 .matchup-scoreboard {
@@ -1025,17 +1022,17 @@ a {
 }
 
 .matchup-team-name {
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(1.1rem, 4vw, 2rem);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   line-height: 1;
   text-transform: uppercase;
 }
 
 .matchup-side {
   color: var(--faint);
-  font-size: 0.64rem;
-  font-weight: 700;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1044,15 +1041,15 @@ a {
   display: grid;
   gap: 0.2rem;
   color: var(--muted);
-  font-size: 0.64rem;
+  font-size: var(--text-2xs);
   text-align: center;
 }
 
 .matchup-vs > span {
-  color: var(--green);
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.15rem;
-  font-weight: 700;
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
 }
 
@@ -1061,10 +1058,10 @@ a {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.75rem 1.5rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   padding: 0.7rem 1rem;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .matchup-details span {
@@ -1114,16 +1111,17 @@ a {
 .pitcher-card span,
 .data-pair span {
   color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 680;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .context-stats strong {
   overflow: hidden;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1137,8 +1135,8 @@ a {
 
 .context-columns h3 {
   margin: 0 0 0.65rem;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 0.95rem;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1148,19 +1146,19 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   padding: 0.65rem 0;
 }
 
 .availability-row > span {
   display: grid;
   gap: 0.15rem;
-  font-size: 0.78rem;
+  font-size: var(--text-base);
 }
 
 .availability-row small {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
 }
 
 .context-notes {
@@ -1169,11 +1167,11 @@ a {
   margin: 0;
   padding-left: 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-base);
 }
 
 .context-notes li::marker {
-  color: var(--green);
+  color: var(--muted);
 }
 
 .pitcher-grid {
@@ -1185,19 +1183,21 @@ a {
 .pitcher-card {
   display: grid;
   gap: 0.25rem;
-  border-left: 2px solid var(--green);
-  background: var(--surface-muted);
+  border-left: 2px solid var(--rule-strong);
+  background: var(--slat-muted);
   padding: 0.8rem;
 }
 
 .pitcher-card strong {
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.2rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
 }
 
 .pitcher-card small {
   color: var(--muted);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1205,16 +1205,20 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   padding: 0.65rem 0;
-  font-size: 0.77rem;
+  font-size: var(--text-sm);
+}
+
+.data-pair b {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .not-provided {
   color: var(--faint);
   font-style: italic;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .brief-intro {
@@ -1233,7 +1237,7 @@ a {
 .brief-intro > div:first-child > p {
   margin: 0.4rem 0 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .brief-meta {
@@ -1243,7 +1247,7 @@ a {
   gap: 0.4rem 0.85rem;
   margin-top: 0.55rem;
   color: var(--faint);
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -1253,55 +1257,51 @@ a {
   align-items: center;
   gap: 0.45rem;
   margin: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
   padding: 0.7rem 1rem;
-  color: var(--amber);
-  font-size: 0.75rem;
+  color: var(--sodium);
+  font-size: var(--text-sm);
 }
 
 .brief-content {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
 }
 
 .brief-list {
   display: grid;
   gap: 0.85rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 1rem 1rem 1.1rem;
 }
 
 .brief-list p {
   margin: 0;
   max-width: 46rem;
-  font-size: 0.86rem;
+  font-size: var(--text-base);
   line-height: 1.6;
 }
 
-.brief-reason {
-  color: var(--amber);
-  font-weight: 700;
-}
-
-.brief-ref {
-  color: var(--green);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0.02em;
-}
-
+.brief-reason,
 sup.brief-reason {
-  color: var(--amber);
-  font-weight: 700;
+  color: var(--sodium);
+  font-weight: var(--weight-bold);
 }
 
+/* Citation marker — a number, so it is routed through the mono face rather
+   than accented; muted keeps it a quiet reference, not a second accent. */
 .brief-ref {
   margin-left: 0.1rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
 }
 
 .brief-actions {
   display: flex;
   justify-content: flex-end;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.75rem 1rem;
 }
 
@@ -1310,8 +1310,8 @@ sup.brief-reason {
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1rem;
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   cursor: pointer;
   list-style: none;
 }
@@ -1333,35 +1333,37 @@ sup.brief-reason {
 .evidence-list {
   display: grid;
   gap: 0;
-  border-top: 1px solid var(--line);
-  background: var(--surface-muted);
+  border-top: 1px solid var(--rule);
+  background: var(--slat-muted);
 }
 
 .evidence-list > div {
   display: grid;
   gap: 0.15rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.7rem 1rem;
 }
 
 .evidence-list span,
 .evidence-list small {
   color: var(--faint);
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
 }
 
 .evidence-list strong {
-  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .limitations {
   display: flex;
   gap: 0.6rem;
-  border-top: 1px solid var(--line);
-  background: #18150f;
-  color: var(--amber);
+  border-top: 1px solid var(--rule);
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
   padding: 0.85rem 1rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .limitations svg {
@@ -1387,24 +1389,26 @@ sup.brief-reason {
 
 .source-index {
   color: var(--faint);
-  font-family: "Barlow Condensed", sans-serif;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
 .source-list strong {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .source-list p {
   margin: 0.2rem 0 0;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
 }
 
 .source-list time {
   grid-column: 2;
   color: var(--faint);
-  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
 }
 
 .table-wrap {
@@ -1416,12 +1420,12 @@ sup.brief-reason {
   width: 100%;
   min-width: 42rem;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .wager-table th,
 .wager-table td {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.6rem 0.7rem;
   white-space: nowrap;
   text-align: left;
@@ -1429,8 +1433,8 @@ sup.brief-reason {
 
 .wager-table th {
   color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1439,9 +1443,13 @@ sup.brief-reason {
   border-bottom: 0;
 }
 
+/* A table link, not the money in the row — chalk with an underline rather
+   than an accent colour. */
 .wager-table a {
-  color: var(--green);
-  font-weight: 650;
+  color: var(--chalk);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 .side-form {
@@ -1481,29 +1489,32 @@ sup.brief-reason {
   align-items: center;
   justify-content: center;
   gap: 0.15rem;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-  background: var(--surface-muted);
-  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--slat-muted);
+  color: var(--chalk);
   padding: 0.35rem 0.4rem;
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   text-align: center;
   cursor: pointer;
 }
 
 .selection-button span:last-child {
   color: var(--muted);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
+/* The armed pick — "what's next", not a settled outcome — so it takes the
+   sodium chrome. The price inside stays chalk: no sodium on the money. */
 .selection-button-active {
-  border-color: var(--green);
-  background: var(--green-dark);
+  border-color: var(--sodium);
+  background: var(--sodium-dark);
 }
 
 .selection-button-active span:last-child {
-  color: #8ee9b7;
+  color: var(--chalk);
 }
 
 .stake-chips {
@@ -1514,27 +1525,27 @@ sup.brief-reason {
 
 .stake-chips button {
   min-height: 2rem;
-  border: 1px solid var(--line);
-  border-radius: 0.3rem;
-  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--slat-muted);
   color: var(--muted);
   padding: 0 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   cursor: pointer;
 }
 
 .stake-chips button:hover {
-  border-color: var(--line-strong);
-  color: var(--text);
+  border-color: var(--rule-strong);
+  color: var(--chalk);
 }
 
 .side-disclaimer {
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--amber);
-  background: var(--surface-muted);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--sodium);
+  background: var(--slat-muted);
   padding: 0.85rem 1rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .side-disclaimer p {
@@ -1570,19 +1581,20 @@ sup.brief-reason {
 
 .metric-card svg {
   grid-row: 1 / span 2;
-  color: var(--green);
+  color: var(--muted);
 }
 
 .metric-card strong {
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 2rem;
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xl);
   font-variant-numeric: tabular-nums;
   line-height: 0.85;
 }
 
 .metric-card span {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
 }
 
@@ -1675,24 +1687,25 @@ sup.brief-reason {
   left: 50%;
   width: min(calc(100vw - 2rem), 28rem);
   transform: translate(-50%, -50%);
-  border: 1px solid var(--line-strong);
-  border-radius: 0.55rem;
-  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--slat-raised);
   padding: 1.25rem;
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
 
 .alert-title {
   margin: 0;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.45rem;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
 }
 
 .alert-description {
   margin: 0.5rem 0 0;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: var(--text-base);
 }
 
 .alert-actions {
