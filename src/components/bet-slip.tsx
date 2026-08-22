@@ -13,6 +13,7 @@ import {
   type Wager,
 } from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
+import { useMatchdayStore } from "@/lib/store";
 import {
   CLOSED_COPY,
   outcomeTone,
@@ -63,6 +64,7 @@ function clampStake(value: number, balance: number) {
 
 export function BetSlip({ data }: { data: WagerPanelData }) {
   const router = useRouter();
+  const advanceTour = useMatchdayStore((state) => state.advanceTour);
   const openMarkets =
     data.signedIn && data.state.kind === "open" ? data.state.markets : [];
   const balance =
@@ -145,6 +147,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     setArmed(undefined);
     setStake(MIN_STAKE);
     setGroupId("");
+    advanceTour(2);
     router.refresh();
   };
 

@@ -235,6 +235,43 @@ a {
   padding: 1.5rem 1rem 6rem;
 }
 
+.tour-bar {
+  position: fixed;
+  z-index: 35;
+  right: 0;
+  /* Clears .mobile-nav (also bottom-fixed) below the desktop breakpoint,
+     where the sidebar is hidden and the nav takes the real bottom edge. */
+  bottom: 3.85rem;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-raised);
+  padding: 0.65rem 1rem;
+}
+
+.tour-bar-copy {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.tour-bar-count {
+  margin-right: 0.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+  .tour-bar {
+    left: var(--sidebar);
+    bottom: 0;
+  }
+}
+
 .mobile-nav {
   position: fixed;
   z-index: 30;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Gauge, UserCircle, UsersRound } from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
+import { TourBar } from "@/components/tour-bar";
 import { cn } from "@/lib/utils";
 
 // Seven flat items read as equally weighted and gave System — ops telemetry —
@@ -40,6 +41,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       <HydrateStore />
+      <TourBar />
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
