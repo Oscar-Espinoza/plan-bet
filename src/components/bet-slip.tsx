@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ function clampStake(value: number, balance: number) {
 
 export function BetSlip({ data }: { data: WagerPanelData }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const advanceTour = useMatchdayStore((state) => state.advanceTour);
   const openMarkets =
     data.signedIn && data.state.kind === "open" ? data.state.markets : [];
@@ -79,7 +80,19 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
   // marketId/selectionId collapse into one armed selection: tapping a price
   // in the grid *is* the selection, so changing market never resets a pick
   // the way the old market-then-selection dropdown cascade did.
-  const [armed, setArmed] = useState<ArmedSelection | undefined>();
+  //
+  // The lazy initializer also resolves the buddy's "Back this" link, which
+  // arrives as `?pick=<marketId>:<selectionId>` — read once, on mount, and
+  // never trusted outright: an id that doesn't resolve against this game's
+  // real markets is silently ignored, and the price shown here is still
+  // re-read server-side at placement regardless of the querystring.
+  const [armed, setArmed] = useState<ArmedSelection | undefined>(() => {
+    const [marketId, selectionId] = searchParams.get("pick")?.split(":") ?? [];
+    if (!marketId || !selectionId) return undefined;
+    const market = openMarkets.find((m) => m.id === marketId);
+    if (!market?.selections.some((s) => s.id === selectionId)) return undefined;
+    return { marketId, selectionId };
+  });
   const market = openMarkets.find((m) => m.id === armed?.marketId);
   const selection = market?.selections.find((s) => s.id === armed?.selectionId);
   const reaction = byMarket.find((slice) => slice.key === market?.id);

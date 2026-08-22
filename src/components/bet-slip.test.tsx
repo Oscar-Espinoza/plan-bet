@@ -5,9 +5,11 @@ import type { Wager } from "@/lib/contracts";
 import { marketsFor } from "@/lib/markets";
 
 const refresh = vi.fn();
+let searchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh }),
+  useSearchParams: () => searchParams,
 }));
 
 vi.mock("next/link", () => ({
@@ -25,7 +27,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  searchParams = new URLSearchParams();
+});
 
 describe("BetSlip - signed out", () => {
   it("renders a sign-in prompt linking back to this game instead of a disabled form", () => {
@@ -135,6 +140,28 @@ describe("BetSlip - open", () => {
     expect(
       screen.getByRole("button", { name: "Place 1 → returns 2" }),
     ).toBeInTheDocument();
+  });
+
+  it("pre-arms the selection named by ?pick=, resolved against this game's real markets", () => {
+    searchParams = new URLSearchParams({
+      pick: `${soccerMarkets[0]!.id}:${soccerMarkets[0]!.selections[0]!.id}`,
+    });
+    render(<BetSlip data={openData()} />);
+
+    expect(screen.getByRole("button", { name: "Home2.40" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("silently ignores a ?pick= that doesn't resolve to a real market or selection", () => {
+    searchParams = new URLSearchParams({ pick: "not-a-real-market:over" });
+    render(<BetSlip data={openData()} />);
+
+    expect(screen.queryByRole("button", { name: "Home2.40" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("changing market does not silently reset the armed selection's own market/selection pick", () => {
