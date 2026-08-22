@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DashboardLoading() {
-  return <Skeleton label="Loading dashboard" />;
+export default function SlateLoading() {
+  return <Skeleton label="Loading games" variant="list" />;
 }
