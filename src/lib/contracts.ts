@@ -452,3 +452,8 @@ export const groupNotifyRequestSchema = z.object({
   notifyOnActivity: z.boolean(),
 });
 export type GroupNotifyRequestInput = z.infer<typeof groupNotifyRequestSchema>;
+
+export const groupAcceptRequestSchema = z.object({
+  token: z.string().min(1),
+});
+export type GroupAcceptRequestInput = z.infer<typeof groupAcceptRequestSchema>;
