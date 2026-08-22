@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import type { Wager } from "@/lib/contracts";
+import { wagerPlacementResultSchema, type Wager } from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
 import { CLOSED_COPY, type WagerClosedReason } from "@/lib/wager-copy";
+import { cn } from "@/lib/utils";
 
 export type WagerPanelState =
   | { kind: "unavailable" }
@@ -29,35 +30,50 @@ export type WagerPanelData =
       wagers: Wager[];
     };
 
+type ArmedSelection = { marketId: string; selectionId: string };
+
 function lineSuffix(line: number | undefined) {
   return typeof line === "number" ? ` ${line}` : "";
+}
+
+function clampStake(value: number, balance: number) {
+  return Math.min(MAX_STAKE, balance, Math.max(MIN_STAKE, value));
 }
 
 export function BetSlip({ data }: { data: WagerPanelData }) {
   const router = useRouter();
   const openMarkets =
     data.signedIn && data.state.kind === "open" ? data.state.markets : [];
-  const [marketId, setMarketId] = useState(openMarkets[0]?.id ?? "");
-  const market = openMarkets.find((m) => m.id === marketId) ?? openMarkets[0];
-  const [selectionId, setSelectionId] = useState(
-    market?.selections[0]?.id ?? "",
-  );
-  const selection =
-    market?.selections.find((s) => s.id === selectionId) ??
-    market?.selections[0];
-  const [stake, setStake] = useState(MIN_STAKE);
-  const [groupId, setGroupId] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-
   const balance =
     data.signedIn && data.state.kind === "open" ? data.state.balance : 0;
   const groups =
     data.signedIn && data.state.kind === "open" ? data.state.groups : [];
+
+  // marketId/selectionId collapse into one armed selection: tapping a price
+  // in the grid *is* the selection, so changing market never resets a pick
+  // the way the old market-then-selection dropdown cascade did.
+  const [armed, setArmed] = useState<ArmedSelection | undefined>();
+  const market = openMarkets.find((m) => m.id === armed?.marketId);
+  const selection = market?.selections.find((s) => s.id === armed?.selectionId);
+
+  const [stake, setStake] = useState(MIN_STAKE);
+  const [groupId, setGroupId] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
   const potentialReturn = selection ? Math.round(stake * selection.price) : 0;
   const balanceAfter = balance - stake;
   const insufficientCredits = stake > balance;
+
+  const arm = (marketId: string, selectionId: string) => {
+    setArmed({ marketId, selectionId });
+    setConfirmation("");
+    setError("");
+  };
+
+  const addStake = (amount: number) =>
+    setStake((current) => clampStake(current + amount, balance));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -78,8 +94,8 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     }).catch(() => null);
     setPending(false);
 
+    const payload: unknown = await response?.json().catch(() => null);
     if (!response?.ok) {
-      const payload: unknown = await response?.json().catch(() => null);
       const text =
         payload && typeof payload === "object" && "error" in payload
           ? String(
@@ -89,7 +105,16 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
       setError(text || "The wager did not go through. Try again.");
       return;
     }
-    setMessage("Wager placed.");
+
+    const result = wagerPlacementResultSchema.parse(
+      (payload as { data: unknown }).data,
+    );
+    setConfirmation(
+      `Placed ${result.wager.stake} on ${result.wager.selectionLabel}${lineSuffix(
+        result.wager.line,
+      )} → returns ${result.wager.potentialReturn}. New balance: ${result.summary.balance}.`,
+    );
+    setArmed(undefined);
     setStake(MIN_STAKE);
     setGroupId("");
     router.refresh();
@@ -130,43 +155,53 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
         <p className="side-form">{CLOSED_COPY[state.reason]}</p>
       )}
 
+      {confirmation && (
+        <div className="side-form">
+          <Banner tone="positive">{confirmation}</Banner>
+        </div>
+      )}
+
+      {state.kind === "open" && (
+        <div className="selection-grid">
+          {openMarkets.map((m) => (
+            <div className="selection-market" key={m.id}>
+              <h3 className="field-label">{m.label}</h3>
+              <div className="selection-row" role="group" aria-label={m.label}>
+                {m.selections.map((s) => {
+                  const active =
+                    armed?.marketId === m.id && armed.selectionId === s.id;
+                  return (
+                    <button
+                      type="button"
+                      key={s.id}
+                      className={cn(
+                        "selection-button",
+                        active && "selection-button-active",
+                      )}
+                      aria-pressed={active}
+                      onClick={() => arm(m.id, s.id)}
+                    >
+                      {/* s.label already carries the line for a total market
+                          ("Over 2.5"), so no separate lineSuffix here. */}
+                      <span>{s.label}</span>
+                      <span>{s.price.toFixed(2)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {state.kind === "open" && market && selection && (
         <form className="side-form" onSubmit={submit}>
-          <label htmlFor="wager-market" className="field-label">
-            Market
-          </label>
-          <select
-            id="wager-market"
-            className="field"
-            value={market.id}
-            onChange={(event) => {
-              const next = openMarkets.find((m) => m.id === event.target.value);
-              setMarketId(event.target.value);
-              setSelectionId(next?.selections[0]?.id ?? "");
-            }}
-          >
-            {openMarkets.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="wager-selection" className="field-label">
-            Selection
-          </label>
-          <select
-            id="wager-selection"
-            className="field"
-            value={selection.id}
-            onChange={(event) => setSelectionId(event.target.value)}
-          >
-            {market.selections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label} · {s.price.toFixed(2)}
-              </option>
-            ))}
-          </select>
+          <div className="data-pair">
+            <span>{market.label}</span>
+            <span>
+              {selection.label} · {selection.price.toFixed(2)}
+            </span>
+          </div>
 
           <label htmlFor="wager-stake" className="field-label">
             Stake
@@ -179,9 +214,25 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             max={MAX_STAKE}
             step={1}
             value={stake}
-            onChange={(event) => setStake(Number(event.target.value))}
+            onChange={(event) =>
+              setStake(Number(event.target.value) || MIN_STAKE)
+            }
             required
           />
+          <div className="stake-chips">
+            <button type="button" onClick={() => addStake(5)}>
+              +5
+            </button>
+            <button type="button" onClick={() => addStake(25)}>
+              +25
+            </button>
+            <button
+              type="button"
+              onClick={() => setStake(clampStake(MAX_STAKE, balance))}
+            >
+              max
+            </button>
+          </div>
 
           {groups.length > 0 && (
             <>
@@ -205,7 +256,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           )}
 
           <div className="data-pair">
-            <span>Potential return</span>
+            <span>Returns</span>
             <span>{potentialReturn}</span>
           </div>
           <div className="data-pair">
@@ -225,14 +276,12 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             </Banner>
           )}
 
-          {message && <Banner tone="positive">{message}</Banner>}
-
           <Button
             type="submit"
             className="w-full"
             disabled={pending || insufficientCredits}
           >
-            Place wager
+            Place {stake} → returns {potentialReturn}
           </Button>
           <p className="fine-print">
             Fictional credits, house prices. See the{" "}

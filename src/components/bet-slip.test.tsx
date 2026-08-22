@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { marketsFor } from "@/lib/markets";
 
+const refresh = vi.fn();
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh }),
 }));
 
 vi.mock("next/link", () => ({
@@ -33,12 +35,12 @@ describe("BetSlip - signed out", () => {
       "href",
       "/sign-in?callbackUrl=/games/soc-rma-01",
     );
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 
 describe("BetSlip - unavailable and closed", () => {
-  it("shows the unavailable message with no form when the route has no games row", () => {
+  it("shows the unavailable message with no grid", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
@@ -50,12 +52,10 @@ describe("BetSlip - unavailable and closed", () => {
     expect(
       screen.getByText("This game is not available for wagers."),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Place wager" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("shows the specific closed reason with no submit control", () => {
+  it("shows the specific closed reason, naming a next action, with no grid", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
@@ -67,75 +67,119 @@ describe("BetSlip - unavailable and closed", () => {
     expect(
       screen.getByText("This game has finished. Your record is on /you."),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Place wager" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 
 describe("BetSlip - open", () => {
   const soccerMarkets = marketsFor("soccer");
-
-  it("shows a potential return equal to stake times the displayed price", () => {
-    const data: WagerPanelData = {
-      signedIn: true,
-      routeId: "soc-rma-01",
-      state: {
-        kind: "open",
-        markets: soccerMarkets,
-        balance: 1000,
-        groups: [],
-      },
-      wagers: [],
-    };
-    render(<BetSlip data={data} />);
-
-    const matchResult = soccerMarkets.find(
-      (m) => m.id === "soccer-match-result",
-    )!;
-    const homeSelection = matchResult.selections.find((s) => s.id === "home")!;
-
-    const stakeInput = screen.getByLabelText("Stake") as HTMLInputElement;
-    expect(stakeInput.value).toBe("1"); // MIN_STAKE default
-
-    const expected = Math.round(1 * homeSelection.price);
-    expect(
-      screen.getByText("Potential return").nextElementSibling?.textContent,
-    ).toBe(String(expected));
+  const openData = (
+    overrides: Partial<{
+      balance: number;
+      groups: { id: string; name: string }[];
+    }> = {},
+  ): WagerPanelData => ({
+    signedIn: true,
+    routeId: "soc-rma-01",
+    state: {
+      kind: "open",
+      markets: soccerMarkets,
+      balance: 1000,
+      groups: [],
+      ...overrides,
+    },
+    wagers: [],
   });
 
-  it("is fully operable by keyboard: market, selection, and stake are all labelled form controls", () => {
-    const data: WagerPanelData = {
-      signedIn: true,
-      routeId: "soc-rma-01",
-      state: {
-        kind: "open",
-        markets: soccerMarkets,
-        balance: 1000,
-        groups: [],
-      },
-      wagers: [],
-    };
-    render(<BetSlip data={data} />);
+  it("renders every market's selections as priced buttons, with no selection armed yet", () => {
+    render(<BetSlip data={openData()} />);
 
-    expect(screen.getByLabelText("Market")).toBeInTheDocument();
-    expect(screen.getByLabelText("Selection")).toBeInTheDocument();
-    expect(screen.getByLabelText("Stake")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Place wager" }),
+      screen.getByRole("group", { name: "Match Result" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Home2.40" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Stake")).not.toBeInTheDocument();
+  });
+
+  it("arms the slip in one tap and shows the armed selection, stake, and returns", () => {
+    render(<BetSlip data={openData()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+
+    expect(screen.getByRole("button", { name: "Home2.40" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    const stakeInput = screen.getByLabelText("Stake") as HTMLInputElement;
+    expect(stakeInput.value).toBe("1"); // MIN_STAKE default
+    expect(screen.getByText("Returns").nextElementSibling?.textContent).toBe(
+      "2",
+    ); // round(1 * 2.4)
+    expect(
+      screen.getByRole("button", { name: "Place 1 → returns 2" }),
     ).toBeInTheDocument();
   });
 
-  it("renders this account's wagers on this game below the form", () => {
+  it("changing market does not silently reset the armed selection's own market/selection pick", () => {
+    render(<BetSlip data={openData()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    // Tapping a selection in a different market re-arms cleanly rather than
+    // being blocked or losing state — there is no separate market dropdown
+    // left to reset it out from under the user.
+    fireEvent.click(screen.getByRole("button", { name: "Over 2.51.90" }));
+
+    expect(
+      screen.getByRole("button", { name: "Over 2.51.90" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Home2.40" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("quick-add chips move the stake, bounded by balance", () => {
+    render(<BetSlip data={openData({ balance: 20 })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "+5" }));
+    expect((screen.getByLabelText("Stake") as HTMLInputElement).value).toBe(
+      "6",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "max" }));
+    expect((screen.getByLabelText("Stake") as HTMLInputElement).value).toBe(
+      "20",
+    );
+  });
+
+  it("offers no group selector when the account belongs to no groups", () => {
+    render(<BetSlip data={openData()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    expect(screen.queryByLabelText("Place")).not.toBeInTheDocument();
+  });
+
+  it("offers a group selector defaulting to Alone when the account belongs to a group", () => {
+    render(
+      <BetSlip
+        data={openData({ groups: [{ id: "group-1", name: "Sunday League" }] })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+
+    const select = screen.getByLabelText("Place") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(
+      screen.getByRole("option", { name: "With Sunday League" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders this account's wagers on this game below the grid", () => {
+    const base = openData();
+    if (!base.signedIn) throw new Error("unreachable");
     const data: WagerPanelData = {
-      signedIn: true,
-      routeId: "soc-rma-01",
-      state: {
-        kind: "open",
-        markets: soccerMarkets,
-        balance: 1000,
-        groups: [],
-      },
+      ...base,
       wagers: [
         {
           id: "wager-1",
@@ -159,45 +203,9 @@ describe("BetSlip - open", () => {
     };
     render(<BetSlip data={data} />);
 
-    expect(screen.getByText("Your wagers on this game")).toBeInTheDocument();
-    expect(screen.getByText("Home")).toBeInTheDocument();
-  });
-
-  it("offers no group selector when the account belongs to no groups", () => {
-    const data: WagerPanelData = {
-      signedIn: true,
-      routeId: "soc-rma-01",
-      state: {
-        kind: "open",
-        markets: soccerMarkets,
-        balance: 1000,
-        groups: [],
-      },
-      wagers: [],
-    };
-    render(<BetSlip data={data} />);
-
-    expect(screen.queryByLabelText("Place")).not.toBeInTheDocument();
-  });
-
-  it("offers a group selector defaulting to Alone when the account belongs to a group", () => {
-    const data: WagerPanelData = {
-      signedIn: true,
-      routeId: "soc-rma-01",
-      state: {
-        kind: "open",
-        markets: soccerMarkets,
-        balance: 1000,
-        groups: [{ id: "group-1", name: "Sunday League" }],
-      },
-      wagers: [],
-    };
-    render(<BetSlip data={data} />);
-
-    const select = screen.getByLabelText("Place") as HTMLSelectElement;
-    expect(select.value).toBe("");
-    expect(
-      screen.getByRole("option", { name: "With Sunday League" }),
-    ).toBeInTheDocument();
+    const heading = screen.getByText("Your wagers on this game");
+    expect(heading).toBeInTheDocument();
+    expect(heading.parentElement?.textContent).toContain("Home");
+    expect(heading.parentElement?.textContent).toContain("60");
   });
 });
