@@ -286,4 +286,40 @@ describe("BetSlip - open", () => {
     expect(heading.parentElement?.textContent).toContain("Home");
     expect(heading.parentElement?.textContent).toContain("60");
   });
+
+  it("grades a settled wager in the list instead of leaving it looking open (Phase B regression)", () => {
+    const base = openData();
+    if (!base.signedIn) throw new Error("unreachable");
+    const data: WagerPanelData = {
+      ...base,
+      wagers: [
+        {
+          id: "wager-1",
+          routeId: "soc-rma-01",
+          canonicalGameId: "football-data-1",
+          sport: "soccer",
+          marketId: "soccer-match-result",
+          marketLabel: "Match Result",
+          selectionId: "home",
+          selectionLabel: "Home",
+          price: 2.4,
+          stake: 25,
+          potentialReturn: 60,
+          matchup: "Barcelona at Real Madrid",
+          competition: "La Liga",
+          scheduledAt: "2026-01-01T00:00:00.000Z",
+          placedAt: "2026-01-01T12:00:00.000Z",
+          settled: true,
+          settlement: {
+            outcome: "won",
+            returned: 60,
+            settledAt: "2026-01-02T00:00:00.000Z",
+          },
+        },
+      ],
+    };
+    render(<BetSlip data={data} />);
+
+    expect(screen.getByText("won")).toBeInTheDocument();
+  });
 });

@@ -6,13 +6,19 @@ import { useRouter } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
+import { StatusTag } from "@/components/ui/status-tag";
 import {
   wagerPlacementResultSchema,
   type RecordSlice,
   type Wager,
 } from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
-import { CLOSED_COPY, type WagerClosedReason } from "@/lib/wager-copy";
+import {
+  CLOSED_COPY,
+  outcomeTone,
+  settlementLabel,
+  type WagerClosedReason,
+} from "@/lib/wager-copy";
 import { cn } from "@/lib/utils";
 
 export type WagerPanelState =
@@ -344,6 +350,13 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
                 {lineSuffix(wager.line)}
               </span>
               <span>
+                {wager.settlement ? (
+                  <StatusTag tone={outcomeTone(wager.settlement.outcome)}>
+                    {settlementLabel(wager.settlement.outcome)}
+                  </StatusTag>
+                ) : (
+                  <StatusTag tone="neutral">open</StatusTag>
+                )}{" "}
                 {wager.price.toFixed(2)} · {wager.stake} →{" "}
                 {wager.potentialReturn}{" "}
                 <LocalDateTime value={wager.placedAt} short />

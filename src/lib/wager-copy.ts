@@ -1,4 +1,4 @@
-import type { GameStatus } from "@/lib/contracts";
+import type { GameStatus, WagerOutcome } from "@/lib/contracts";
 
 // Mirrors WagerClosedReason in src/data/wagers.ts, which re-exports this
 // type so its callers are unchanged. Duplicated here (rather than imported)
@@ -28,4 +28,18 @@ export const CLOSED_COPY: Record<WagerClosedReason, string> = {
 
 export function priceMovedCopy(price: number) {
   return `The price moved to ${price.toFixed(2)}. Tap the selection again to place at the new price.`;
+}
+
+// Was local to bets-history.tsx; the slip needed the same tone/label pair to
+// grade its own "Your wagers on this game" list (a Phase B regression — the
+// static market table that used to carry grading was deleted without a
+// replacement), so this is the one copy both components import.
+export function outcomeTone(outcome: WagerOutcome) {
+  if (outcome === "won") return "positive" as const;
+  if (outcome === "lost") return "negative" as const;
+  return "warning" as const; // void
+}
+
+export function settlementLabel(outcome: WagerOutcome) {
+  return outcome === "void" ? "voided" : outcome;
 }

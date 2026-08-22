@@ -3,16 +3,11 @@ import { Receipt } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import type { Wager, WagerOutcome, WagerSettlement } from "@/lib/contracts";
+import type { Wager, WagerSettlement } from "@/lib/contracts";
+import { outcomeTone, settlementLabel } from "@/lib/wager-copy";
 
 function lineSuffix(line: number | undefined) {
   return typeof line === "number" ? ` ${line}` : "";
-}
-
-function outcomeTone(outcome: WagerOutcome) {
-  if (outcome === "won") return "positive" as const;
-  if (outcome === "lost") return "negative" as const;
-  return "warning" as const; // void
 }
 
 /**
@@ -101,7 +96,7 @@ export function BetsHistory({
                 <td>
                   {settlement ? (
                     <StatusTag tone={outcomeTone(settlement.outcome)}>
-                      {settlement.outcome}
+                      {settlementLabel(settlement.outcome)}
                     </StatusTag>
                   ) : (
                     <StatusTag tone="neutral">open</StatusTag>
