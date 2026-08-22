@@ -995,3 +995,106 @@ describe("Session 09 settlement", () => {
     expect(row).toEqual({ outcome: null, settlement_run_id: null });
   });
 });
+
+/**
+ * Same shape as claimSlot above (session and IP quotas over rows counted for
+ * the current UTC day, inside advisory locks taken in a fixed order), on the
+ * next classid pair: 6 for the buddy's session quota, 7 for its IP quota —
+ * the next feature after this claims 8.
+ */
+const BUDDY_SESSION_LIMIT = 30;
+const BUDDY_IP_LIMIT = 100;
+
+async function claimBuddyTurn(
+  sessionHash: string,
+  ipHash: string,
+  createdAt = new Date(),
+) {
+  const dayStart = utcDayStart();
+  return sql.begin(async (transaction) => {
+    await transaction`select pg_advisory_xact_lock(6, hashtext(${sessionHash}))`;
+    await transaction`select pg_advisory_xact_lock(7, hashtext(${ipHash}))`;
+    const [session] = await transaction<{ used: number }[]>`
+      select count(*)::int as used from buddy_messages
+      where session_hash = ${sessionHash} and role = 'user' and created_at >= ${dayStart}
+    `;
+    const [ip] = await transaction<{ used: number }[]>`
+      select count(*)::int as used from buddy_messages
+      where ip_hash = ${ipHash} and role = 'user' and created_at >= ${dayStart}
+    `;
+    if (session!.used >= BUDDY_SESSION_LIMIT || ip!.used >= BUDDY_IP_LIMIT) {
+      return false;
+    }
+    await transaction`
+      insert into buddy_messages (
+        conversation, session_hash, ip_hash, role, text, route, status, created_at
+      ) values (
+        ${randomUUID()}, ${sessionHash}, ${ipHash}, 'user', 'who do you like here?',
+        'game:football-data-600002', 'ok', ${createdAt.toISOString()}
+      )
+    `;
+    return true;
+  });
+}
+
+describe("Phase E buddy turns and quotas", () => {
+  it("applies the buddy_messages migration", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    expect(rows.map((row) => row.table_name)).toContain("buddy_messages");
+  });
+
+  it("cannot exceed the session quota under concurrent claims", async () => {
+    const sessionHash = `session-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+
+    const results = await Promise.all(
+      Array.from({ length: BUDDY_SESSION_LIMIT + 5 }, () =>
+        claimBuddyTurn(sessionHash, ipHash),
+      ),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(BUDDY_SESSION_LIMIT);
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from buddy_messages
+      where session_hash = ${sessionHash}
+    `;
+    expect(count).toBe(BUDDY_SESSION_LIMIT);
+  });
+
+  it("does not count rows from a previous UTC day", async () => {
+    const sessionHash = `session-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+    const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000);
+
+    for (let n = 0; n < BUDDY_SESSION_LIMIT; n += 1) {
+      await claimBuddyTurn(sessionHash, ipHash, yesterday);
+    }
+
+    await expect(claimBuddyTurn(sessionHash, ipHash)).resolves.toBe(true);
+  });
+
+  it("stores the resolved context, never a raw route or question text column beyond `text`", async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'buddy_messages'
+    `;
+    const names = columns.map((column) => column.column_name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "conversation",
+        "session_hash",
+        "ip_hash",
+        "route",
+        "fact_ids",
+        "pick_id",
+        "status",
+      ]),
+    );
+    for (const forbidden of ["ip_address", "querystring", "url"]) {
+      expect(names).not.toContain(forbidden);
+    }
+  });
+});

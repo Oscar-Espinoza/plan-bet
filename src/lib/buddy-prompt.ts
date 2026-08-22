@@ -74,7 +74,10 @@ export function buildBuddyInput(options: {
 
   const history = options.history
     .slice(-MAX_HISTORY_TURNS)
-    .map((turn) => `- ${turn.role}: ${neutralize(turn.text)}`)
+    .map(
+      (turn) =>
+        `- ${turn.role}: ${neutralize(turn.text).slice(0, MAX_QUESTION_CHARS)}`,
+    )
     .join("\n");
 
   const input = [

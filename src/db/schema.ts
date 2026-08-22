@@ -293,6 +293,54 @@ export const verificationTokens = pgTable(
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
 );
 
+export const buddyRoleEnum = pgEnum("buddy_role", ["user", "buddy"]);
+export const buddyStatusEnum = pgEnum("buddy_status", [
+  "ok",
+  "rejected",
+  "failed",
+]);
+
+/**
+ * One row per turn, not one row per conversation: a conversation is a
+ * client-held uuid, and a separate conversations table would hold nothing a
+ * `group by` on this one can't answer. `route` is the resolved context kind
+ * and scope ("game", "you", "group"), never a raw URL or querystring.
+ */
+export const buddyMessages = pgTable(
+  "buddy_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversation: uuid("conversation").notNull(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }), // null for signed-out browsing
+    sessionHash: text("session_hash").notNull(),
+    ipHash: text("ip_hash").notNull(),
+    role: buddyRoleEnum("role").notNull(),
+    text: text("text").notNull(),
+    route: text("route").notNull(),
+    factIds: text("fact_ids").array().notNull().default([]),
+    pickId: text("pick_id"),
+    status: buddyStatusEnum("status").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("buddy_messages_conversation_idx").on(
+      table.conversation,
+      table.createdAt,
+    ),
+    index("buddy_messages_session_day_idx")
+      .on(table.sessionHash, table.createdAt)
+      .where(sql`${table.role} = 'user'`),
+    index("buddy_messages_ip_day_idx")
+      .on(table.ipHash, table.createdAt)
+      .where(sql`${table.role} = 'user'`),
+  ],
+);
+
 export const groupMemberRoleEnum = pgEnum("group_member_role", [
   "owner",
   "member",

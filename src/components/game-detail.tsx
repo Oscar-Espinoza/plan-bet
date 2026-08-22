@@ -35,6 +35,7 @@ import { briefingResultSchema } from "@/lib/contracts";
 import { TIME_TOKEN } from "@/lib/briefing-prompt";
 import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { useMatchdayStore } from "@/lib/store";
+import { citedRefs as citedRefsFor } from "@/lib/utils";
 
 function Provided({ value }: { value?: string }) {
   return (
@@ -154,10 +155,7 @@ export function GameDetail({
   const briefOpen = viewed || Boolean(generated);
   // Reference numbers key off the snapshot's own fact order, so a fact keeps the
   // same number whether or not this briefing happens to cite it.
-  const citedRefs = (ids: string[]) =>
-    evidenceFacts
-      .map((fact, index) => (ids.includes(fact.id) ? index + 1 : 0))
-      .filter(Boolean);
+  const citedRefs = (ids: string[]) => citedRefsFor(evidenceFacts, ids);
   const renderItemText = (item: Briefing["items"][number]) => {
     const [before, after] = item.text.split(TIME_TOKEN);
     if (!item.timestamp) return item.text;

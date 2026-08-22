@@ -41,3 +41,14 @@ export function formatRelativeTime(value: string) {
 export function normalizeText(value: string, maxLength = 500) {
   return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
+
+/**
+ * Maps cited evidence IDs to their `[n]` superscript numbers in a fact list's
+ * own order, so a fact keeps the same number across every piece of prose
+ * that cites it — the brief and the buddy both render through this.
+ */
+export function citedRefs(facts: { id: string }[], ids: string[]) {
+  return facts
+    .map((fact, index) => (ids.includes(fact.id) ? index + 1 : 0))
+    .filter(Boolean);
+}

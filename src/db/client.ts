@@ -49,6 +49,7 @@ const EXPECTED_TABLES = [
   "groups",
   "group_members",
   "group_invites",
+  "buddy_messages",
 ] as const;
 
 export async function checkDatabaseConnection() {
