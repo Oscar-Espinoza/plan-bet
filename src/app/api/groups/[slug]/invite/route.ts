@@ -69,9 +69,11 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   // The token reaches the invitee by email only — the response carries the
-  // invite record without it.
+  // invite record without it. This route only ever creates an email-targeted
+  // invite, so the address is the one just validated, not the (nullable, for
+  // a link invite) column on the returned record.
   const emailed = await notifyGroupInvite({
-    email: outcome.invite.email,
+    email: body.data.email,
     token: outcome.token,
     groupName: group.name,
     invitedByName: account.name,

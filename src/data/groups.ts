@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { withDatabaseTransaction } from "@/db/client";
 import { groupInvites, groupMembers, groups, users } from "@/db/schema";
 import {
@@ -147,6 +147,130 @@ export async function inviteToGroup(input: {
   });
 }
 
+export type CreateJoinLinkResult =
+  | { ok: true; invite: GroupInvite; token: string }
+  | { ok: false; reason: "not_a_member" };
+
+/**
+ * A join link is a `group_invites` row with `email` null — nobody in
+ * particular was invited, so accepting one skips the email match entirely.
+ * One live link per group: a pending, unexpired link is reused rather than
+ * minting a second one, so sharing the same URL twice from the Members card
+ * still produces the same URL.
+ */
+export async function createJoinLink(input: {
+  groupId: string;
+  userId: string;
+  now?: Date;
+}): Promise<CreateJoinLinkResult> {
+  const now = input.now ?? new Date();
+  const expiresAt = new Date(
+    now.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  return withDatabaseTransaction(async (transaction) => {
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(5, hashtext(${input.groupId}))`,
+    );
+
+    const [membership] = await transaction
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.groupId, input.groupId),
+          eq(groupMembers.userId, input.userId),
+        ),
+      )
+      .limit(1);
+    if (!membership) return { ok: false, reason: "not_a_member" } as const;
+
+    const [existing] = await transaction
+      .select()
+      .from(groupInvites)
+      .where(
+        and(
+          eq(groupInvites.groupId, input.groupId),
+          isNull(groupInvites.email),
+          eq(groupInvites.status, "pending"),
+          gt(groupInvites.expiresAt, now),
+        ),
+      )
+      .limit(1);
+
+    const inviteRow =
+      existing ??
+      (
+        await transaction
+          .insert(groupInvites)
+          .values({
+            groupId: input.groupId,
+            email: null,
+            token: randomUUID(),
+            invitedByUserId: input.userId,
+            status: "pending",
+            expiresAt,
+          })
+          .returning()
+      )[0];
+
+    return {
+      ok: true,
+      token: inviteRow!.token,
+      invite: groupInviteSchema.parse({
+        id: inviteRow!.id,
+        groupId: inviteRow!.groupId,
+        email: inviteRow!.email,
+        status: inviteRow!.status,
+        createdAt: inviteRow!.createdAt.toISOString(),
+        expiresAt: inviteRow!.expiresAt.toISOString(),
+      }),
+    } as const;
+  });
+}
+
+export type RevokeInviteResult =
+  { ok: true } | { ok: false; reason: "not_a_member" };
+
+/**
+ * Membership re-checked, same as every other group mutation here. Scoping
+ * the update to `status = 'pending'` makes this idempotent by construction —
+ * revoking twice, or revoking an already-accepted invite, is a no-op rather
+ * than an error.
+ */
+export async function revokeInvite(input: {
+  inviteId: string;
+  groupId: string;
+  userId: string;
+}): Promise<RevokeInviteResult> {
+  return withDatabaseTransaction(async (transaction) => {
+    const [membership] = await transaction
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.groupId, input.groupId),
+          eq(groupMembers.userId, input.userId),
+        ),
+      )
+      .limit(1);
+    if (!membership) return { ok: false, reason: "not_a_member" } as const;
+
+    await transaction
+      .update(groupInvites)
+      .set({ status: "revoked" })
+      .where(
+        and(
+          eq(groupInvites.id, input.inviteId),
+          eq(groupInvites.groupId, input.groupId),
+          eq(groupInvites.status, "pending"),
+        ),
+      );
+
+    return { ok: true } as const;
+  });
+}
+
 export type AcceptGroupInviteResult =
   | { ok: true; groupSlug: string }
   | { ok: false; reason: "not_found" }
@@ -185,7 +309,11 @@ export async function acceptGroupInvite(input: {
         .where(eq(groupInvites.id, invite.id));
       return { ok: false, reason: "expired" } as const;
     }
-    if (invite.email.toLowerCase() !== input.userEmail.toLowerCase()) {
+    // A link invite (null email) has no email to mismatch.
+    if (
+      invite.email &&
+      invite.email.toLowerCase() !== input.userEmail.toLowerCase()
+    ) {
       return { ok: false, reason: "email_mismatch" } as const;
     }
 

@@ -8,8 +8,13 @@ vi.mock("@/db/client", () => ({
   withDatabaseTransaction: withDatabaseTransactionMock,
 }));
 
-const { createGroup, inviteToGroup, acceptGroupInvite } =
-  await import("@/data/groups");
+const {
+  createGroup,
+  inviteToGroup,
+  createJoinLink,
+  revokeInvite,
+  acceptGroupInvite,
+} = await import("@/data/groups");
 
 // Same minimal thenable-chain Proxy as src/data/wagers.test.ts.
 function chain(rows: unknown[] = []) {
@@ -216,6 +221,163 @@ describe("inviteToGroup", () => {
   });
 });
 
+describe("createJoinLink", () => {
+  function mockTransaction({
+    isMember,
+    existingInvite,
+    insertedInvite,
+  }: {
+    isMember: boolean;
+    existingInvite?: Record<string, unknown>;
+    insertedInvite?: Record<string, unknown>;
+  }) {
+    const insertReturning = vi
+      .fn()
+      .mockReturnValue(chain(insertedInvite ? [insertedInvite] : []));
+    const transaction = {
+      execute: vi.fn().mockResolvedValue(undefined),
+      select: vi
+        .fn()
+        .mockReturnValueOnce(
+          chain(
+            isMember
+              ? [{ userId: "55555555-5555-4555-8555-555555555555" }]
+              : [],
+          ),
+        )
+        .mockReturnValueOnce(chain(existingInvite ? [existingInvite] : [])),
+      insert: vi.fn(() => ({ values: () => ({ returning: insertReturning }) })),
+    };
+    withDatabaseTransactionMock.mockImplementation(
+      (work: (transaction: unknown) => unknown) => work(transaction),
+    );
+    return { transaction, insertReturning };
+  }
+
+  it("rejects a caller who is not a member, without inserting anything", async () => {
+    const { transaction } = mockTransaction({ isMember: false });
+
+    const result = await createJoinLink({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      userId: "55555555-5555-4555-8555-555555555555",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_a_member" });
+    expect(transaction.insert).not.toHaveBeenCalled();
+  });
+
+  it("creates a link invite with a null email when none is pending", async () => {
+    const insertedInvite = {
+      id: "88888888-8888-4888-8888-888888888888",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      email: null,
+      token: "new-token",
+      status: "pending",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      expiresAt: new Date("2026-01-08T00:00:00.000Z"),
+    };
+    const { transaction, insertReturning } = mockTransaction({
+      isMember: true,
+      insertedInvite,
+    });
+
+    const result = await createJoinLink({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      userId: "55555555-5555-4555-8555-555555555555",
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      token: "new-token",
+      invite: {
+        id: "88888888-8888-4888-8888-888888888888",
+        groupId: "11111111-1111-4111-8111-111111111111",
+        email: null,
+        status: "pending",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        expiresAt: "2026-01-08T00:00:00.000Z",
+      },
+    });
+    expect(insertReturning).toHaveBeenCalledTimes(1);
+    expect(transaction.insert).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses a pending, unexpired link invite instead of minting a second one", async () => {
+    const existingInvite = {
+      id: "99999999-9999-4999-8999-999999999999",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      email: null,
+      token: "existing-token",
+      status: "pending",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      expiresAt: new Date("2026-01-08T00:00:00.000Z"),
+    };
+    const { transaction } = mockTransaction({
+      isMember: true,
+      existingInvite,
+    });
+
+    const result = await createJoinLink({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      userId: "55555555-5555-4555-8555-555555555555",
+      now: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      token: "existing-token",
+      invite: expect.objectContaining({ id: existingInvite.id }),
+    });
+    expect(transaction.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("revokeInvite", () => {
+  it("rejects a caller who is not a member, without updating anything", async () => {
+    const transaction = {
+      select: vi.fn().mockReturnValue(chain([])),
+      update: vi.fn(),
+    };
+    withDatabaseTransactionMock.mockImplementation(
+      (work: (transaction: unknown) => unknown) => work(transaction),
+    );
+
+    const result = await revokeInvite({
+      inviteId: "77777777-7777-4777-8777-777777777777",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      userId: "55555555-5555-4555-8555-555555555555",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_a_member" });
+    expect(transaction.update).not.toHaveBeenCalled();
+  });
+
+  it("marks a pending invite revoked for a member", async () => {
+    const updateWhere = vi.fn().mockReturnValue(chain([]));
+    const transaction = {
+      select: vi
+        .fn()
+        .mockReturnValue(
+          chain([{ userId: "55555555-5555-4555-8555-555555555555" }]),
+        ),
+      update: vi.fn(() => ({ set: () => ({ where: updateWhere }) })),
+    };
+    withDatabaseTransactionMock.mockImplementation(
+      (work: (transaction: unknown) => unknown) => work(transaction),
+    );
+
+    const result = await revokeInvite({
+      inviteId: "77777777-7777-4777-8777-777777777777",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      userId: "55555555-5555-4555-8555-555555555555",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(updateWhere).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("acceptGroupInvite", () => {
   function mockTransaction(invite: Record<string, unknown> | undefined) {
     const updateWhere = vi.fn().mockReturnValue(chain([]));
@@ -286,6 +448,50 @@ describe("acceptGroupInvite", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: "email_mismatch" });
+  });
+
+  it("accepts a link invite (null email) regardless of the signed-in email", async () => {
+    const { insertValues, transaction } = mockTransaction({
+      id: "77777777-7777-4777-8777-777777777777",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      email: null,
+      status: "pending",
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+
+    const result = await acceptGroupInvite({
+      token: "tok",
+      userId: "44444444-4444-4444-8444-444444444444",
+      userEmail: "anyone@example.com",
+    });
+
+    expect(result).toEqual({ ok: true, groupSlug: "sunday-league" });
+    expect(insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupId: "11111111-1111-4111-8111-111111111111",
+        userId: "44444444-4444-4444-8444-444444444444",
+        role: "member",
+      }),
+    );
+    expect(transaction.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a revoked invite the same as not found", async () => {
+    mockTransaction({
+      id: "77777777-7777-4777-8777-777777777777",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      email: null,
+      status: "revoked",
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+
+    const result = await acceptGroupInvite({
+      token: "tok",
+      userId: "44444444-4444-4444-8444-444444444444",
+      userEmail: "anyone@example.com",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 
   it("adds the member and marks the invite accepted on a match, case-insensitively", async () => {

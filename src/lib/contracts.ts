@@ -409,13 +409,15 @@ export const groupInviteStatusSchema = z.enum([
   "pending",
   "accepted",
   "expired",
+  "revoked",
 ]);
 export type GroupInviteStatus = z.infer<typeof groupInviteStatusSchema>;
 
+// A NULL email is a shareable join link, not a targeted invite (Phase C).
 export const groupInviteSchema = z.object({
   id: z.uuid(),
   groupId: z.uuid(),
-  email: z.email(),
+  email: z.email().nullable(),
   status: groupInviteStatusSchema,
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
