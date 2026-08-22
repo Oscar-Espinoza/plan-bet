@@ -793,33 +793,6 @@ a {
   font-size: 0.78rem;
 }
 
-.form-strip {
-  display: flex;
-  gap: 0.28rem;
-}
-
-.form-result {
-  display: grid;
-  width: 1.55rem;
-  height: 1.55rem;
-  place-items: center;
-  border-radius: 0.25rem;
-  background: #27313c;
-  color: var(--text);
-  font-size: 0.64rem;
-  font-weight: 800;
-}
-
-.form-w {
-  background: var(--green-dark);
-  color: #8ee9b7;
-}
-
-.form-l {
-  background: #361b20;
-  color: #ff9da2;
-}
-
 .mini-empty {
   padding: 1rem;
   color: var(--muted);
