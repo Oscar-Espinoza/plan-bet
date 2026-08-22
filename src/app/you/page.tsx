@@ -250,7 +250,9 @@ export default async function Page({ searchParams }: Props) {
             ))
           ) : (
             <div className="panel-body">
-              <p className="not-provided">No settled wagers yet.</p>
+              <p className="not-provided">
+                No settled wagers yet. <Link href="/">Browse the board</Link>.
+              </p>
             </div>
           )}
           <p className="stat-group-label">By market</p>
@@ -260,7 +262,9 @@ export default async function Page({ searchParams }: Props) {
             ))
           ) : (
             <div className="panel-body">
-              <p className="not-provided">No settled wagers yet.</p>
+              <p className="not-provided">
+                No settled wagers yet. <Link href="/">Browse the board</Link>.
+              </p>
             </div>
           )}
         </Card>

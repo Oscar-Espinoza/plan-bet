@@ -12,11 +12,11 @@ export default function NotFound() {
         <p className="eyebrow">404 · Off the schedule</p>
         <h1 className="display-title">Matchup not found</h1>
         <p className="empty-copy">
-          That game is not part of this date-relative demo slate. Return to the
-          desk to choose one of the next five.
+          That page does not exist. The games board has every upcoming fixture
+          across soccer and baseball.
         </p>
         <Button asChild className="mt-5">
-          <Link href="/">Return to dashboard</Link>
+          <Link href="/">Back to the games board</Link>
         </Button>
       </div>
     </div>

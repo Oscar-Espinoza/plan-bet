@@ -9,14 +9,14 @@ export default function GameNotFound() {
         <span className="empty-icon">
           <CalendarX2 aria-hidden="true" />
         </span>
-        <p className="eyebrow">Demo schedule</p>
+        <p className="eyebrow">Games board</p>
         <h1 className="display-title">Game not found</h1>
         <p className="empty-copy">
-          This matchup is not on the current demo slate. The dashboard always
-          has five upcoming games for each team.
+          This matchup is not on the current slate. Every upcoming fixture is on
+          the games board.
         </p>
         <Button asChild className="mt-5">
-          <Link href="/">View upcoming games</Link>
+          <Link href="/">Back to the games board</Link>
         </Button>
       </div>
     </div>

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s · Matchday Plan",
   },
   description:
-    "A planning workspace for upcoming Real Madrid, Barcelona, Yankees, and Red Sox games: source-backed context, cited briefings, and a browser-local watchlist. Browsing needs no account. Not a sportsbook.",
+    "Practice your calls on real upcoming Real Madrid, Barcelona, Yankees, and Red Sox fixtures: source-backed context, cited briefings, and a free-to-play wager simulator on fictional credits. Browsing needs no account. Not a sportsbook.",
   applicationName: "Matchday Plan",
   authors: [{ name: "Matchday Plan" }],
   keywords: ["sports", "matchday", "soccer", "baseball", "portfolio"],

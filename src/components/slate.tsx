@@ -198,7 +198,10 @@ export function Slate({
       ) : (
         <div className="panel">
           <div className="mini-empty">
-            <p>No upcoming games were provided for this filter.</p>
+            <p>
+              No upcoming games were provided for this filter.{" "}
+              {sport !== "all" && <Link href="/">Show all sports</Link>}
+            </p>
           </div>
         </div>
       )}
