@@ -41,7 +41,6 @@ export function AppShell({
   return (
     <div className="app-shell">
       <HydrateStore />
-      <TourBar />
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -140,6 +139,7 @@ export function AppShell({
           );
         })}
       </nav>
+      <TourBar />
     </div>
   );
 }
