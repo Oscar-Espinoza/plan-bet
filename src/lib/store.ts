@@ -39,6 +39,7 @@ function dataFromStore(state: MatchdayStore): StoredState {
     anonymousId: state.anonymousId,
     tourStep: state.tourStep,
     introDismissed: state.introDismissed,
+    buddyConversation: state.buddyConversation,
   };
 }
 

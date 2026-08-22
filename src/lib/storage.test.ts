@@ -89,6 +89,21 @@ describe("browser storage", () => {
     expect(result.savedBriefings).toEqual(["game-a"]);
   });
 
+  it("mints a fresh buddyConversation for a v3 payload that predates it, never the SSR placeholder", () => {
+    const v3 = {
+      version: 3,
+      savedBriefings: [],
+      viewedBriefings: [],
+      generatedBriefings: {},
+      anonymousId: "40000000-0000-4000-8000-000000000004",
+    };
+    const result = parseStoredState(JSON.stringify(v3), fallbackId);
+    expect(result.buddyConversation).not.toBe(
+      "00000000-0000-4000-8000-000000000000",
+    );
+    expect(result.buddyConversation).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it("round-trips a stored tour step", () => {
     const stored = { ...createDefaultState(fallbackId), tourStep: 2 };
     const result = parseStoredState(JSON.stringify(stored), fallbackId);

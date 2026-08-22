@@ -1799,6 +1799,108 @@ sup.brief-reason {
   margin-top: 1.25rem;
 }
 
+.buddy-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  background: rgba(2, 5, 8, 0.8);
+}
+
+/* Full-height sheet below 1024px; a right sheet above it, see the media
+   query further down. Not a floating launcher: CLAUDE.md's own audit ruled
+   that out as the one shape this app can't cheaply afford to add to the
+   existing bottom-fixed tour bar and mobile nav. */
+.buddy-panel {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  border-left: 1px solid var(--rule-strong);
+  background: var(--slat-raised);
+  padding: var(--space-4);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+}
+
+.buddy-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buddy-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+}
+
+.buddy-transcript {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  border-top: 1px solid var(--rule);
+}
+
+/* Plain blocks, not chat bubbles: a mono speaker eyebrow above the text and
+   a hairline rule between turns, the .stat-row idiom applied to prose. */
+.buddy-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-3) 0;
+}
+
+.buddy-turn .eyebrow {
+  font-family: var(--font-mono);
+}
+
+.buddy-turn-text {
+  margin: 0;
+  color: var(--chalk);
+  font-size: var(--text-base);
+}
+
+/* Provisional until the terminal frame confirms it — dimmed with a caret,
+   never left standing at full opacity as though it were already settled. */
+.buddy-turn-streaming {
+  color: var(--muted);
+}
+
+.buddy-turn-streaming::after {
+  content: "▍";
+  margin-left: 0.15rem;
+  animation: buddy-caret 1s step-end infinite;
+}
+
+@keyframes buddy-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.buddy-form {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.buddy-form .field {
+  flex: 1;
+}
+
+@media (min-width: 1024px) {
+  .buddy-panel {
+    inset-block: 0;
+    inset-inline-start: auto;
+    width: min(24rem, 100vw);
+  }
+}
+
 @media (min-width: 640px) {
   .main-content {
     padding: 2rem 1.5rem 6rem;

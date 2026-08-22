@@ -19,11 +19,20 @@ export const storedStateSchema = z.object({
   // and no migrateLegacy arm.
   tourStep: z.number().int().min(0).max(4).catch(0).default(0),
   introDismissed: z.boolean().catch(false).default(false),
+  // Added after v3 shipped, same `.catch().default()` trick: the uuid every
+  // buddy turn in one browsing session groups under. A corrupt or missing
+  // value mints a fresh conversation rather than failing the workspace — never
+  // the SSR placeholder uuid, which the API route treats as unhydrated.
+  buddyConversation: z
+    .uuid()
+    .catch(() => crypto.randomUUID())
+    .default(() => crypto.randomUUID()),
 });
 export type StoredState = z.infer<typeof storedStateSchema>;
 
 export function createDefaultState(
   anonymousId = "00000000-0000-4000-8000-000000000000",
+  buddyConversation = anonymousId,
 ): StoredState {
   return {
     version: 3,
@@ -33,6 +42,7 @@ export function createDefaultState(
     anonymousId,
     tourStep: 0,
     introDismissed: false,
+    buddyConversation,
   };
 }
 

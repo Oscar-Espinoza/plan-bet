@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Gauge, UserCircle, UsersRound } from "lucide-react";
+import { Buddy } from "@/components/buddy";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,12 @@ function WorkspaceControls({
 }: {
   accountControl?: React.ReactNode;
 }) {
-  return <div className="topbar-controls">{accountControl}</div>;
+  return (
+    <div className="topbar-controls">
+      <Buddy />
+      {accountControl}
+    </div>
+  );
 }
 
 export function AppShell({
