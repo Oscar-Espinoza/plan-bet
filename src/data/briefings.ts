@@ -245,7 +245,7 @@ export async function generateBriefing(
     attemptCount += 1;
     let completion;
     try {
-      completion = await client.createBriefing({
+      completion = await client.createStructured({
         operation: "briefing_generation",
         instructions: repair
           ? `${prompt.instructions}\n\nYour previous answer was rejected by the check "${lastReason}". Fix only that problem. Cite exclusively these evidence IDs: ${evidenceIds.join(", ")}.`

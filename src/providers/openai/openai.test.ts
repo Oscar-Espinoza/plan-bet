@@ -15,7 +15,7 @@ const clientFor = (fetcher: typeof fetch) =>
 describe("openai client", () => {
   it("returns the assistant text and usage from a completed response", async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify(fixture)));
-    const completion = await clientFor(fetcher).createBriefing(request);
+    const completion = await clientFor(fetcher).createStructured(request);
 
     expect(completion).toMatchObject({
       model: "gpt-5.6-luna",
@@ -31,7 +31,9 @@ describe("openai client", () => {
       sent = String(init?.body);
       return new Response(JSON.stringify(fixture));
     });
-    await clientFor(fetcher as unknown as typeof fetch).createBriefing(request);
+    await clientFor(fetcher as unknown as typeof fetch).createStructured(
+      request,
+    );
 
     const body = JSON.parse(sent);
     expect(body).toMatchObject({
@@ -57,7 +59,7 @@ describe("openai client", () => {
   ] as const)("maps HTTP %s to %s", async (status, code) => {
     const fetcher = vi.fn(async () => new Response("{}", { status }));
     await expect(
-      clientFor(fetcher).createBriefing(request),
+      clientFor(fetcher).createStructured(request),
     ).rejects.toMatchObject({
       code,
     });
@@ -68,7 +70,7 @@ describe("openai client", () => {
       throw new DOMException("timed out", "TimeoutError");
     });
     await expect(
-      clientFor(fetcher).createBriefing(request),
+      clientFor(fetcher).createStructured(request),
     ).rejects.toMatchObject({
       code: "timeout",
     });
@@ -80,7 +82,7 @@ describe("openai client", () => {
         new Response("{}", { headers: { "content-length": "200001" } }),
     );
     await expect(
-      clientFor(fetcher).createBriefing(request),
+      clientFor(fetcher).createStructured(request),
     ).rejects.toMatchObject({
       code: "invalid_payload",
     });
@@ -89,7 +91,7 @@ describe("openai client", () => {
   it("rejects malformed JSON, refusals, and incomplete responses", async () => {
     const malformed = vi.fn(async () => new Response("not-json"));
     await expect(
-      clientFor(malformed).createBriefing(request),
+      clientFor(malformed).createStructured(request),
     ).rejects.toMatchObject({ code: "invalid_payload" });
 
     const refused = vi.fn(
@@ -108,7 +110,7 @@ describe("openai client", () => {
         ),
     );
     await expect(
-      clientFor(refused).createBriefing(request),
+      clientFor(refused).createStructured(request),
     ).rejects.toMatchObject({ code: "invalid_payload" });
 
     const incomplete = vi.fn(
@@ -122,16 +124,133 @@ describe("openai client", () => {
         ),
     );
     await expect(
-      clientFor(incomplete).createBriefing(request),
+      clientFor(incomplete).createStructured(request),
     ).rejects.toMatchObject({ code: "invalid_payload" });
   });
 
   it("never leaks the credential through an error", async () => {
     const fetcher = vi.fn(async () => new Response("{}", { status: 401 }));
     const error = await clientFor(fetcher)
-      .createBriefing(request)
+      .createStructured(request)
       .catch((reason: unknown) => reason);
 
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(String(error)).not.toContain("test-key");
+  });
+});
+
+const streamRequest = {
+  operation: "buddy_turn",
+  instructions: "instructions",
+  input: "input",
+};
+
+function sseResponse(frames: string[], init: ResponseInit = {}) {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const frame of frames) controller.enqueue(encoder.encode(frame));
+      controller.close();
+    },
+  });
+  return new Response(stream, init);
+}
+
+function frame(payload: unknown) {
+  return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
+async function collect(client: OpenAiClient) {
+  const events = [];
+  for await (const event of client.createStreaming(streamRequest)) {
+    events.push(event);
+  }
+  return events;
+}
+
+describe("openai client streaming", () => {
+  it("forwards deltas in order and terminates on response.completed", async () => {
+    const fetcher = vi.fn(async () =>
+      sseResponse([
+        frame({ type: "response.output_text.delta", delta: "Real " }),
+        frame({ type: "response.output_text.delta", delta: "Madrid." }),
+        frame({
+          type: "response.completed",
+          response: {
+            model: "test-model",
+            usage: { input_tokens: 10, output_tokens: 5 },
+          },
+        }),
+      ]),
+    );
+
+    const events = await collect(clientFor(fetcher));
+    expect(events).toEqual([
+      { type: "delta", text: "Real " },
+      { type: "delta", text: "Madrid." },
+      {
+        type: "done",
+        model: "test-model",
+        inputTokens: 10,
+        outputTokens: 5,
+      },
+    ]);
+  });
+
+  it("streams without a json_schema format", async () => {
+    let sent = "";
+    const fetcher = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      sent = String(init?.body);
+      return sseResponse([frame({ type: "response.completed", response: {} })]);
+    });
+    await collect(clientFor(fetcher as unknown as typeof fetch));
+
+    const body = JSON.parse(sent);
+    expect(body.stream).toBe(true);
+    expect(body.text).toBeUndefined();
+    expect(body.tools).toEqual([]);
+    expect(body.store).toBe(false);
+  });
+
+  it("maps a refusal-shaped failure event to invalid_payload", async () => {
+    const fetcher = vi.fn(async () =>
+      sseResponse([frame({ type: "response.failed" })]),
+    );
+    await expect(collect(clientFor(fetcher))).rejects.toMatchObject({
+      code: "invalid_payload",
+    });
+  });
+
+  it("throws when the connection tears down before response.completed", async () => {
+    const fetcher = vi.fn(async () =>
+      sseResponse([
+        frame({ type: "response.output_text.delta", delta: "partial" }),
+      ]),
+    );
+    await expect(collect(clientFor(fetcher))).rejects.toMatchObject({
+      code: "unavailable",
+    });
+  });
+
+  it("enforces the response byte cap on the accumulated stream", async () => {
+    const fetcher = vi.fn(async () =>
+      sseResponse([
+        frame({
+          type: "response.output_text.delta",
+          delta: "x".repeat(210_000),
+        }),
+      ]),
+    );
+    await expect(collect(clientFor(fetcher))).rejects.toMatchObject({
+      code: "invalid_payload",
+    });
+  });
+
+  it("never leaks the credential through a streaming error", async () => {
+    const fetcher = vi.fn(async () => new Response("", { status: 401 }));
+    const error = await collect(clientFor(fetcher)).catch(
+      (reason: unknown) => reason,
+    );
     expect(error).toBeInstanceOf(ProviderError);
     expect(String(error)).not.toContain("test-key");
   });
