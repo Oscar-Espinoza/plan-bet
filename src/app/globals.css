@@ -644,6 +644,53 @@ a {
   font-size: 0.82rem;
 }
 
+.slate-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.5rem;
+}
+
+.slate-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.slate-filters {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.slate-chip {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  background: var(--surface-muted);
+  color: var(--muted);
+  padding: 0 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.slate-chip-active {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.slate-groups {
+  display: grid;
+  gap: 1rem;
+}
+
 .dashboard-hero {
   display: flex;
   flex-wrap: wrap;
