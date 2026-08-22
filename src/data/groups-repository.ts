@@ -4,16 +4,20 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
 import {
   creditEntries,
+  groupInvites,
   groupMembers,
   groups,
   users,
   wagers,
 } from "@/db/schema";
 import {
+  groupInviteSchema,
   groupLeaderboardEntrySchema,
   groupMemberSchema,
   groupSchema,
   type Group,
+  type GroupInvite,
+  type GroupInviteStatus,
   type GroupLeaderboardEntry,
   type GroupMember,
   type GroupMemberRole,
@@ -152,6 +156,70 @@ export async function listGroupsByIds(
   return new Map(
     rows.map((row) => [row.id, { name: row.name, slug: row.slug }]),
   );
+}
+
+export type InvitePreview = {
+  groupId: string;
+  groupName: string;
+  groupSlug: string;
+  invitedByName: string | null;
+  status: GroupInviteStatus;
+  expiresAt: string;
+};
+
+/**
+ * Read-only, deliberately: the accept screen (C3) previews an invite before
+ * anyone presses Join, so nothing here mutates a status even when the
+ * invite has expired — that transition still happens only inside
+ * `acceptGroupInvite`.
+ */
+export async function previewInvite(
+  token: string,
+): Promise<InvitePreview | undefined> {
+  const [row] = await getDatabase()
+    .select({
+      groupId: groups.id,
+      groupName: groups.name,
+      groupSlug: groups.slug,
+      invitedByName: users.name,
+      status: groupInvites.status,
+      expiresAt: groupInvites.expiresAt,
+    })
+    .from(groupInvites)
+    .innerJoin(groups, eq(groups.id, groupInvites.groupId))
+    .innerJoin(users, eq(users.id, groupInvites.invitedByUserId))
+    .where(eq(groupInvites.token, token))
+    .limit(1);
+  if (!row) return undefined;
+  return { ...row, expiresAt: row.expiresAt.toISOString() };
+}
+
+function rowToInvite(row: typeof groupInvites.$inferSelect): GroupInvite {
+  return groupInviteSchema.parse({
+    id: row.id,
+    groupId: row.groupId,
+    email: row.email,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+    expiresAt: row.expiresAt.toISOString(),
+  });
+}
+
+/** So the owner can see, and revoke, what is outstanding. */
+export async function listPendingInvites(
+  groupId: string,
+): Promise<GroupInvite[]> {
+  const rows = await getDatabase()
+    .select()
+    .from(groupInvites)
+    .where(
+      and(
+        eq(groupInvites.groupId, groupId),
+        eq(groupInvites.status, "pending"),
+      ),
+    )
+    .orderBy(desc(groupInvites.createdAt));
+  return rows.map(rowToInvite);
 }
 
 /**

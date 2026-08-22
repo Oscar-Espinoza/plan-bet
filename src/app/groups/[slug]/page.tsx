@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { Receipt, Trophy, Users } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { InviteMemberForm } from "@/components/invite-member-form";
+import { JoinLink } from "@/components/join-link";
 import { NotifyToggle } from "@/components/notify-toggle";
+import { RevokeInviteButton } from "@/components/revoke-invite-button";
 import { Card } from "@/components/ui/card";
 import { StatusTag } from "@/components/ui/status-tag";
 import {
@@ -11,6 +13,7 @@ import {
   getGroupLeaderboard,
   isGroupMember,
   listGroupMembers,
+  listPendingInvites,
 } from "@/data/groups-repository";
 import { listWagersForGroup } from "@/data/wagers-repository";
 import { requireAccount } from "@/lib/auth";
@@ -50,13 +53,21 @@ export default async function Page({ params }: Props) {
   // exist — membership is never disclosed to a non-member.
   if (!group || !(await isGroupMember(group.id, account.userId))) notFound();
 
-  const [members, leaderboard, wagerActivity] = await Promise.all([
-    listGroupMembers(group.id),
-    getGroupLeaderboard(group.id),
-    listWagersForGroup(group.id, 20),
-  ]);
+  const [members, leaderboard, wagerActivity, pendingInvites] =
+    await Promise.all([
+      listGroupMembers(group.id),
+      getGroupLeaderboard(group.id),
+      listWagersForGroup(group.id, 20),
+      listPendingInvites(group.id),
+    ]);
   const nameByUserId = new Map(
     members.map((member) => [member.userId, member.name ?? member.email]),
+  );
+  // Only email-targeted invites here — the one live join-link invite is
+  // entirely self-managed by <JoinLink>, which never needs to expose its
+  // token through this list-shaped read.
+  const pendingEmailInvites = pendingInvites.filter(
+    (invite) => invite.email !== null,
   );
 
   return (
@@ -99,8 +110,22 @@ export default async function Page({ params }: Props) {
             />
           </div>
           <div className="form-block">
+            <JoinLink slug={group.slug} />
+          </div>
+          <div className="form-block">
             <InviteMemberForm slug={group.slug} />
           </div>
+          {pendingEmailInvites.length > 0 && (
+            <div className="form-block">
+              <span className="field-label">Outstanding invites</span>
+              {pendingEmailInvites.map((invite) => (
+                <div className="stat-row" key={invite.id}>
+                  <span>{invite.email}</span>
+                  <RevokeInviteButton slug={group.slug} inviteId={invite.id} />
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card title="Leaderboard" titleId="leaderboard-heading">
