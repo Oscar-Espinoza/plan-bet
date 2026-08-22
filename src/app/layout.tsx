@@ -13,7 +13,7 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Matchday Plan — Sports prep workspace",
+    default: "Matchday Plan — Practice your calls",
     template: "%s · Matchday Plan",
   },
   description:
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#090d12",
+  themeColor: "#0c1210",
   colorScheme: "dark",
 };
 
