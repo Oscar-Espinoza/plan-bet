@@ -4,20 +4,68 @@
 @import "@fontsource/barlow-condensed/700.css";
 
 :root {
-  --bg: #090d12;
-  --surface: #10161e;
-  --surface-raised: #151d27;
-  --surface-muted: #0d131a;
-  --line: #26313d;
-  --line-strong: #374554;
-  --text: #f0f2ee;
-  --muted: #98a4b2;
-  --faint: #8b97a5;
-  --green: #61d095;
-  --green-dark: #132c22;
-  --amber: #e4ae55;
-  --red: #ee6a70;
+  /* Palette — the manual scoreboard. Ground shifts off blue-black into a
+     deep bottle green; the lit accent goes from acid to sodium. Sodium is
+     reserved for time (kickoff, countdowns, "next") and never for money —
+     balances, stakes, prices and returns stay chalk, with field/clay only on
+     a settled outcome. */
+  --ink: #0c1210;
+  --slat: #141c18;
+  --slat-raised: #1a231e;
+  --slat-muted: #0f1512;
+  --rule: #263029;
+  --rule-strong: #384539;
+  --chalk: #efede4;
+  --muted: #9aa79c;
+  --faint: #8b9689;
+  --sodium: #e8a33d;
+  --sodium-dark: #3a2c14;
+  --field: #4fa97a;
+  --field-dark: #16281f;
+  --clay: #d4685f;
+  --clay-dark: #2e1917;
   --sidebar: 15rem;
+
+  /* Semantic tone tokens — one source for the six-way status/banner hex
+     duplication (positive/warning/negative × border/bg/text). */
+  --tone-positive-border: #285e45;
+  --tone-positive-bg: var(--field-dark);
+  --tone-positive-text: #8ee9b7;
+  --tone-warning-border: #6f552a;
+  --tone-warning-bg: var(--sodium-dark);
+  --tone-warning-text: #f0c476;
+  --tone-negative-border: #6f3035;
+  --tone-negative-bg: var(--clay-dark);
+  --tone-negative-text: #ffb8bc;
+
+  /* Type scale — 8 steps, replaces 29 ad-hoc rem literals. */
+  --text-2xs: 0.65rem;
+  --text-xs: 0.7rem;
+  --text-sm: 0.76rem;
+  --text-base: 0.85rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.5rem;
+  --text-display: clamp(2.1rem, 5vw, 3.4rem);
+
+  /* Weight scale — 4 steps, replaces 8 hand-picked values. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing — 6 steps. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Radii — 3 steps. */
+  --radius-sm: 0.3rem;
+  --radius-md: 0.45rem;
+  --radius-full: 99px;
 }
 
 * {
@@ -25,7 +73,7 @@
 }
 
 html {
-  background: var(--bg);
+  background: var(--ink);
   color-scheme: dark;
   scroll-behavior: smooth;
 }
@@ -59,13 +107,13 @@ summary {
 }
 
 :focus-visible {
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--sodium);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: var(--green);
-  color: #07120c;
+  background: var(--sodium);
+  color: var(--ink);
 }
 
 a {
@@ -100,8 +148,8 @@ a {
   z-index: 30;
   display: none;
   width: var(--sidebar);
-  border-right: 1px solid var(--line);
-  background: #0b1016;
+  border-right: 1px solid var(--rule);
+  background: var(--ink);
   padding: 1.4rem 1rem;
 }
 
@@ -181,7 +229,7 @@ a {
   position: sticky;
   z-index: 20;
   top: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   background: rgba(9, 13, 18, 0.96);
 }
 
@@ -279,9 +327,11 @@ a {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--line);
-  background: #0b1016;
+  /* Three nav items (Games / You / Groups) — a fourth dead column left the
+     nav sitting left-of-centre on every phone. */
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--rule);
+  background: var(--ink);
   padding: 0.35rem max(0.35rem, env(safe-area-inset-right))
     max(0.35rem, env(safe-area-inset-bottom))
     max(0.35rem, env(safe-area-inset-left));
@@ -323,7 +373,7 @@ a {
 }
 
 .app-footer a:hover {
-  color: var(--text);
+  color: var(--chalk);
 }
 
 .page-heading {
@@ -394,9 +444,9 @@ a {
 
 .panel {
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--slat);
 }
 
 .loading-panel {
@@ -412,8 +462,8 @@ a {
 
 .skeleton-bar {
   height: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
 }
 
 .skeleton-bar-header {
@@ -426,10 +476,10 @@ a {
 
 @keyframes loading-pulse {
   from {
-    background: var(--surface);
+    background: var(--slat);
   }
   to {
-    background: var(--surface-muted);
+    background: var(--slat-muted);
   }
 }
 
@@ -492,14 +542,15 @@ a {
 }
 
 .button-secondary {
-  border-color: var(--line-strong);
-  background: var(--surface-raised);
-  color: var(--text);
+  border-color: var(--rule-strong);
+  background: var(--slat-raised);
+  color: var(--chalk);
 }
 
 .button-secondary:hover:not(:disabled),
 .button-ghost:hover:not(:disabled) {
-  background: #202b37;
+  background: var(--rule-strong);
+  color: var(--chalk);
 }
 
 .button-ghost {
@@ -695,7 +746,7 @@ a {
   justify-content: space-between;
   gap: 1.25rem;
   margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding-bottom: 1.5rem;
 }
 
@@ -892,15 +943,15 @@ a {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: var(--green);
+  background: var(--field);
 }
 
 .freshness-panel[data-mode="stale"] {
-  border-left-color: var(--amber);
+  border-left-color: var(--sodium);
 }
 
 .freshness-panel[data-mode="stale"] .freshness-dot {
-  background: var(--amber);
+  background: var(--sodium);
 }
 
 .freshness-panel[data-mode="demo"] {
@@ -940,7 +991,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.7rem 1rem;
 }
 
@@ -1038,16 +1089,16 @@ a {
 .context-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
 }
 
 .context-stats > div {
   display: grid;
   min-width: 0;
   gap: 0.2rem;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
   padding: 0.75rem;
 }
 
@@ -1319,14 +1370,14 @@ sup.brief-reason {
 
 .limitations p {
   margin: 0.2rem 0 0;
-  color: #bbaa8a;
+  color: var(--muted);
 }
 
 .source-list > div {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr);
   gap: 0.6rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.8rem 1rem;
 }
 
@@ -1496,8 +1547,8 @@ sup.brief-reason {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.6rem;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-muted);
+  border-bottom: 1px solid var(--rule);
+  background: var(--slat-muted);
   padding: 0.75rem 1rem;
 }
 
@@ -1548,7 +1599,7 @@ sup.brief-reason {
 
   .context-stats > div,
   .context-stats > div:nth-child(2n) {
-    border-right: 1px solid var(--line);
+    border-right: 1px solid var(--rule);
     border-bottom: 0;
   }
 
