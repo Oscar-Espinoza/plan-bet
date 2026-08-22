@@ -36,7 +36,7 @@ export type BriefingInput = {
 };
 
 /** Keeps user text from closing the delimiter it is wrapped in. */
-function neutralize(text: string) {
+export function neutralize(text: string) {
   return text.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
 }
 
