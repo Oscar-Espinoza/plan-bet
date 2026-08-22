@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { wagerPlacementResultSchema, type Wager } from "@/lib/contracts";
+import {
+  wagerPlacementResultSchema,
+  type RecordSlice,
+  type Wager,
+} from "@/lib/contracts";
 import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
 import { CLOSED_COPY, type WagerClosedReason } from "@/lib/wager-copy";
 import { cn } from "@/lib/utils";
@@ -19,6 +23,10 @@ export type WagerPanelState =
       markets: Market[];
       balance: number;
       groups: { id: string; name: string }[];
+      // Settled record for each market, keyed on market.id — getRecordSlices()
+      // exactly as it already exists for /you, reused rather than a new
+      // query. Empty when the account has no settled history at all.
+      byMarket: RecordSlice[];
     };
 
 export type WagerPanelData =
@@ -48,6 +56,8 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     data.signedIn && data.state.kind === "open" ? data.state.balance : 0;
   const groups =
     data.signedIn && data.state.kind === "open" ? data.state.groups : [];
+  const byMarket =
+    data.signedIn && data.state.kind === "open" ? data.state.byMarket : [];
 
   // marketId/selectionId collapse into one armed selection: tapping a price
   // in the grid *is* the selection, so changing market never resets a pick
@@ -55,6 +65,9 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
   const [armed, setArmed] = useState<ArmedSelection | undefined>();
   const market = openMarkets.find((m) => m.id === armed?.marketId);
   const selection = market?.selections.find((s) => s.id === armed?.selectionId);
+  const reaction = byMarket.find((slice) => slice.key === market?.id);
+  const hasReaction =
+    reaction && reaction.won + reaction.lost + reaction.voided > 0;
 
   const [stake, setStake] = useState(MIN_STAKE);
   const [groupId, setGroupId] = useState("");
@@ -202,6 +215,13 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
               {selection.label} · {selection.price.toFixed(2)}
             </span>
           </div>
+
+          {hasReaction && (
+            <p className="fine-print">
+              You&rsquo;re {reaction!.won}-{reaction!.lost} on {reaction!.label}
+              .
+            </p>
+          )}
 
           <label htmlFor="wager-stake" className="field-label">
             Stake

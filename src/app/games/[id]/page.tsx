@@ -8,7 +8,11 @@ import { getCreditSummary } from "@/data/credits";
 import { listGroupsForUser } from "@/data/groups-repository";
 import { getGameDetail } from "@/data/sports-data";
 import { evaluateWagerAvailability } from "@/data/wagers";
-import { listWagersForGame, readGameForWager } from "@/data/wagers-repository";
+import {
+  getRecordSlices,
+  listWagersForGame,
+  readGameForWager,
+} from "@/data/wagers-repository";
 import { requireAccount } from "@/lib/auth";
 import { marketsFor } from "@/lib/markets";
 import { getTeam } from "@/lib/seed";
@@ -61,10 +65,11 @@ async function loadWagering(
     };
   }
 
-  const [summary, gameWagers, groups] = await Promise.all([
+  const [summary, gameWagers, groups, record] = await Promise.all([
     getCreditSummary(account.userId),
     listWagersForGame(account.userId, game.canonicalId),
     listGroupsForUser(account.userId),
+    getRecordSlices(account.userId),
   ]);
   const availability = evaluateWagerAvailability(game.summary);
   const state: WagerPanelState = availability.open
@@ -73,6 +78,7 @@ async function loadWagering(
         markets: marketsFor(game.sport),
         balance: summary.balance,
         groups: groups.map((group) => ({ id: group.id, name: group.name })),
+        byMarket: record.byMarket,
       }
     : { kind: "closed", reason: availability.reason };
 

@@ -77,6 +77,13 @@ describe("BetSlip - open", () => {
     overrides: Partial<{
       balance: number;
       groups: { id: string; name: string }[];
+      byMarket: {
+        key: string;
+        label: string;
+        won: number;
+        lost: number;
+        voided: number;
+      }[];
     }> = {},
   ): WagerPanelData => ({
     signedIn: true,
@@ -86,6 +93,7 @@ describe("BetSlip - open", () => {
       markets: soccerMarkets,
       balance: 1000,
       groups: [],
+      byMarket: [],
       ...overrides,
     },
     wagers: [],
@@ -152,6 +160,30 @@ describe("BetSlip - open", () => {
     expect((screen.getByLabelText("Stake") as HTMLInputElement).value).toBe(
       "20",
     );
+  });
+
+  it("shows the record reaction line only for a market with settled history", () => {
+    render(
+      <BetSlip
+        data={openData({
+          byMarket: [
+            {
+              key: "soccer-match-result",
+              label: "Match Result",
+              won: 3,
+              lost: 6,
+              voided: 0,
+            },
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    expect(screen.getByText("You’re 3-6 on Match Result.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Over 2.51.90" }));
+    expect(screen.queryByText(/You’re \d+-\d+ on/)).not.toBeInTheDocument();
   });
 
   it("offers no group selector when the account belongs to no groups", () => {
