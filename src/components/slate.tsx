@@ -105,8 +105,15 @@ export function Slate({
           </p>
         </div>
         <div className="slate-freshness">
-          <DemoStamp compact freshness={data["real-madrid"].freshness} />
-          <DemoStamp compact freshness={data["new-york-yankees"].freshness} />
+          {/* One stamp per sport actually on the board — under a sport
+              filter, showing both would claim freshness for data that
+              isn't on the page. */}
+          {sport !== "baseball" && (
+            <DemoStamp compact freshness={data["real-madrid"].freshness} />
+          )}
+          {sport !== "soccer" && (
+            <DemoStamp compact freshness={data["new-york-yankees"].freshness} />
+          )}
         </div>
       </header>
 
