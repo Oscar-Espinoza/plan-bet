@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Gauge, UserCircle, UsersRound } from "lucide-react";
 import { HydrateStore } from "@/components/hydrate-store";
-import { getTeamsBySport, teams } from "@/lib/seed";
-import { useMatchdayStore } from "@/lib/store";
-import type { Sport } from "@/lib/contracts";
 import { cn } from "@/lib/utils";
 
 // Seven flat items read as equally weighted and gave System — ops telemetry —
@@ -29,81 +26,7 @@ function WorkspaceControls({
 }: {
   accountControl?: React.ReactNode;
 }) {
-  const selectedSport = useMatchdayStore((state) => state.selectedSport);
-  const selectedTeamSlug = useMatchdayStore((state) => state.selectedTeamSlug);
-  const selectSport = useMatchdayStore((state) => state.selectSport);
-  const selectTeam = useMatchdayStore((state) => state.selectTeam);
-  const router = useRouter();
-  const pathname = usePathname();
-  const sportTeams = getTeamsBySport(selectedSport);
-  // A game page is pinned to one matchup, so a new selection has nowhere to
-  // land there—send it to that team's upcoming games instead.
-  const showsSelection = !pathname.startsWith("/games/");
-
-  const handleSport = (sport: Sport) => {
-    if (sport === selectedSport) return;
-    selectSport(sport);
-    if (!showsSelection) router.push("/");
-  };
-
-  const handleTeam = (value: string) => {
-    const team = teams.find((candidate) => candidate.slug === value);
-    if (!team) return;
-    selectTeam(team.slug);
-    if (!showsSelection) router.push("/");
-  };
-
-  return (
-    <div className="topbar-controls">
-      <div className="sport-toggle" role="group" aria-label="Select sport">
-        {(["soccer", "baseball"] as Sport[]).map((sport) => (
-          <button
-            className={cn(
-              "sport-button",
-              selectedSport === sport && "sport-button-active",
-            )}
-            key={sport}
-            onClick={() => handleSport(sport)}
-            aria-pressed={selectedSport === sport}
-          >
-            {sport === "soccer" ? "Soccer" : "Baseball"}
-          </button>
-        ))}
-      </div>
-      <select
-        className="control-select"
-        aria-label="Selected team"
-        value={selectedTeamSlug}
-        onChange={(event) => handleTeam(event.target.value)}
-      >
-        <optgroup
-          label={selectedSport === "soccer" ? "Soccer teams" : "Baseball teams"}
-        >
-          {sportTeams.map((team) => (
-            <option value={team.slug} key={team.slug}>
-              {team.name}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup
-          label={
-            selectedSport === "soccer"
-              ? "Switch to baseball"
-              : "Switch to soccer"
-          }
-        >
-          {teams
-            .filter((team) => team.sport !== selectedSport)
-            .map((team) => (
-              <option value={team.slug} key={team.slug}>
-                {team.name}
-              </option>
-            ))}
-        </optgroup>
-      </select>
-      {accountControl}
-    </div>
-  );
+  return <div className="topbar-controls">{accountControl}</div>;
 }
 
 export function AppShell({

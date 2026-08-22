@@ -13,20 +13,19 @@ describe("browser storage", () => {
     ).toEqual(createDefaultState(fallbackId));
   });
 
-  it("migrates the legacy selectedTeam field through v0 and v1 to v2", () => {
+  it("migrates a legacy v0 payload all the way through to v3, keeping only what still has a home", () => {
     const legacy = {
       version: 0,
       selectedTeam: "barcelona",
     };
     const result = parseStoredState(JSON.stringify(legacy), fallbackId);
-    expect(result.version).toBe(2);
-    expect(result.selectedTeamSlug).toBe("barcelona");
+    expect(result).toEqual(createDefaultState(fallbackId));
   });
 
   // Phase A dropped watchlist/activity/recap entirely. A returning browser's
-  // v1 payload should still keep what has a home in v2 — sport/team
-  // selection and saved briefings — rather than being discarded outright.
-  it("upgrades a v1 payload, keeping selection and briefings and dropping watchlist state", () => {
+  // v1 payload should still keep what has a home in v3 — saved and generated
+  // briefings, anonymousId — rather than being discarded outright.
+  it("upgrades a v1 payload, keeping briefings and dropping watchlist state", () => {
     const v1 = {
       version: 1,
       selectedSport: "baseball",
@@ -40,14 +39,36 @@ describe("browser storage", () => {
       anonymousId: "20000000-0000-4000-8000-000000000002",
     };
     const result = parseStoredState(JSON.stringify(v1), fallbackId);
-    expect(result.version).toBe(2);
-    expect(result.selectedSport).toBe("baseball");
-    expect(result.selectedTeamSlug).toBe("new-york-yankees");
+    expect(result.version).toBe(3);
     expect(result.savedBriefings).toEqual(["game-a"]);
     expect(result.viewedBriefings).toEqual(["game-a", "game-b"]);
     expect(result.anonymousId).toBe("20000000-0000-4000-8000-000000000002");
     expect(result).not.toHaveProperty("watchlistItems");
     expect(result).not.toHaveProperty("recapNotes");
     expect(result).not.toHaveProperty("activityEvents");
+    expect(result).not.toHaveProperty("selectedSport");
+    expect(result).not.toHaveProperty("selectedTeamSlug");
+  });
+
+  // Phase B removed the topbar sport toggle and team select the v2 fields
+  // drove. A returning browser's v2 payload keeps its briefings and
+  // anonymousId; the dead selection is silently stripped by the schema.
+  it("upgrades a v2 payload, dropping the sport/team selection and keeping briefings", () => {
+    const v2 = {
+      version: 2,
+      selectedSport: "soccer",
+      selectedTeamSlug: "real-madrid",
+      savedBriefings: ["game-a"],
+      viewedBriefings: ["game-a"],
+      generatedBriefings: {},
+      anonymousId: "30000000-0000-4000-8000-000000000003",
+    };
+    const result = parseStoredState(JSON.stringify(v2), fallbackId);
+    expect(result.version).toBe(3);
+    expect(result.savedBriefings).toEqual(["game-a"]);
+    expect(result.viewedBriefings).toEqual(["game-a"]);
+    expect(result.anonymousId).toBe("30000000-0000-4000-8000-000000000003");
+    expect(result).not.toHaveProperty("selectedSport");
+    expect(result).not.toHaveProperty("selectedTeamSlug");
   });
 });

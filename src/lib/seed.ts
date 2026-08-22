@@ -8,7 +8,6 @@ import {
   type GameSnapshot,
   type GameSummary,
   type SoccerContext,
-  type Sport,
   type Team,
   type TeamSlug,
 } from "@/lib/contracts";
@@ -670,10 +669,6 @@ export function getDemoBriefing(id: string, now = new Date()) {
 
 export function getTeam(slug: TeamSlug | string) {
   return teams.find((team) => team.slug === slug);
-}
-
-export function getTeamsBySport(sport: Sport) {
-  return teams.filter((team) => team.sport === sport);
 }
 
 export function getGame(id: string, now = new Date()) {

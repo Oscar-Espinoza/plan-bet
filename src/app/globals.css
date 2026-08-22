@@ -228,31 +228,6 @@ a {
   font-weight: 650;
 }
 
-.sport-toggle {
-  display: none;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 0.4rem;
-  padding: 0.15rem;
-}
-
-.sport-button {
-  min-height: 2rem;
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: var(--muted);
-  padding: 0 0.65rem;
-  font-size: 0.73rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.sport-button-active {
-  background: var(--surface-raised);
-  color: var(--text);
-}
-
 .main-content {
   width: 100%;
   max-width: 100rem;
@@ -691,63 +666,9 @@ a {
   gap: 1rem;
 }
 
-.dashboard-hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 1.5rem;
-}
-
 .hero-main {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.mobile-workspace-switcher {
-  display: grid;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  padding: 0.8rem;
-}
-
-.dashboard-sport-toggle,
-.team-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem;
-}
-
-.dashboard-sport-button,
-.team-tab {
-  display: flex;
-  min-height: 2.7rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: 0.77rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.dashboard-sport-active,
-.team-tab-active {
-  border-color: var(--line-strong);
-  background: var(--surface-raised);
-  color: var(--text);
-}
-
-.dashboard-grid {
-  display: grid;
-  min-width: 0;
   gap: 1rem;
 }
 
@@ -826,12 +747,6 @@ a {
   grid-row: 1 / span 2;
   grid-column: 3;
   color: var(--faint);
-}
-
-.dashboard-side {
-  display: grid;
-  align-content: start;
-  gap: 1rem;
 }
 
 .stat-stack {
@@ -1625,10 +1540,6 @@ sup.brief-reason {
 }
 
 @media (min-width: 640px) {
-  .mobile-workspace-switcher {
-    grid-template-columns: 0.7fr 1.3fr;
-  }
-
   .game-row {
     grid-template-columns: 2rem minmax(9rem, 0.75fr) minmax(10rem, 1.2fr) auto;
     padding: 1rem;
@@ -1654,16 +1565,6 @@ sup.brief-reason {
 
   .game-venue {
     display: flex;
-  }
-}
-
-@media (min-width: 1180px) {
-  .dashboard-grid {
-    grid-template-columns: minmax(0, 1.8fr) minmax(16rem, 0.7fr);
-  }
-
-  .mobile-workspace-switcher {
-    display: none;
   }
 }
 
@@ -1709,10 +1610,6 @@ sup.brief-reason {
 }
 
 @media (min-width: 640px) {
-  .sport-toggle {
-    display: flex;
-  }
-
   .main-content {
     padding: 2rem 1.5rem 6rem;
   }

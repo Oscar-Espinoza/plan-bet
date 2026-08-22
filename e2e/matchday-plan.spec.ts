@@ -8,13 +8,12 @@ test("Barcelona demo brief view persists across reload", async ({ page }) => {
   await page.evaluate(() =>
     localStorage.setItem("portfolio:e2e-sentinel", "keep"),
   );
-  await page.getByLabel("Selected team").selectOption("barcelona");
+  // The slate lists every tracked team's games together — find Barcelona's
+  // row by matchup text rather than a per-team page.
   await expect(
-    page.getByRole("heading", { level: 1, name: "FC Barcelona" }),
+    page.locator(".game-row", { hasText: "FC Barcelona" }).first(),
   ).toBeVisible();
-
-  await expect(page.locator(".game-row").first()).toBeVisible();
-  await page.locator(".game-row").first().click();
+  await page.locator(".game-row", { hasText: "FC Barcelona" }).first().click();
   await expect(
     page.locator(".matchup-team-name").filter({ hasText: "FC Barcelona" }),
   ).toBeVisible();
@@ -103,18 +102,17 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("Yankees detail, sport switching, and archived routes remain deterministic", async ({
+test("Yankees detail and archived routes remain deterministic", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
   await page.goto("/");
-  await page.getByLabel("Selected team").selectOption("new-york-yankees");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
-  ).toBeVisible();
-  await page.locator(".game-row").first().click();
+  await page
+    .locator(".game-row", { hasText: "New York Yankees" })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/games\/mlb-(?:nyy-01|\d+-new-york-yankees)$/);
 
   await page.reload();
@@ -135,50 +133,43 @@ test("Yankees detail, sport switching, and archived routes remain deterministic"
     page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "Games" }).click();
-  await page
-    .getByLabel("Select sport")
-    .getByRole("button", { name: "Soccer" })
-    .click();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Real Madrid" }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Select sport")
-    .getByRole("button", { name: "Baseball" })
-    .click();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "Games", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
   expect(browserErrors).toEqual([]);
 });
 
-test("switching team or sport from a game page opens that team's games", async ({
+test("the slate's sport chips scope the board, and the game page returns to it", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
+  const filters = () =>
+    page.getByRole("navigation", { name: "Filter by sport" });
+
   await page.goto("/");
+  await filters().getByRole("link", { name: "Soccer" }).click();
+  await expect(page).toHaveURL(/\?sport=soccer$/);
+  await expect(
+    page.locator(".game-row", { hasText: "FC Barcelona" }).first(),
+  ).toBeVisible();
+  await expect(
+    page.locator(".game-row", { hasText: "New York Yankees" }),
+  ).toHaveCount(0);
+
+  await filters().getByRole("link", { name: "Baseball" }).click();
+  await expect(page).toHaveURL(/\?sport=baseball$/);
+  await expect(
+    page.locator(".game-row", { hasText: "New York Yankees" }).first(),
+  ).toBeVisible();
+  await expect(
+    page.locator(".game-row", { hasText: "FC Barcelona" }),
+  ).toHaveCount(0);
+
   await page.locator(".game-row").first().click();
   await expect(page).toHaveURL(/\/games\//);
-
-  await page.getByLabel("Selected team").selectOption("barcelona");
+  await page.getByRole("link", { name: "Back to games" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "FC Barcelona" }),
-  ).toBeVisible();
-
-  await page.locator(".game-row").first().click();
-  await expect(page).toHaveURL(/\/games\//);
-  await page
-    .getByLabel("Select sport")
-    .getByRole("button", { name: "Baseball" })
-    .click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "New York Yankees" }),
-  ).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 

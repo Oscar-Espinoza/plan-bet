@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { getTeam } from "@/lib/seed";
 import {
   STORAGE_KEY,
   createDefaultState,
@@ -9,13 +8,11 @@ import {
   storedStateSchema,
   type StoredState,
 } from "@/lib/storage";
-import type { Briefing, Sport, TeamSlug } from "@/lib/contracts";
+import type { Briefing } from "@/lib/contracts";
 
 type MatchdayActions = {
   hydrated: boolean;
   hydrate: () => void;
-  selectSport: (sport: Sport) => void;
-  selectTeam: (teamSlug: TeamSlug) => void;
   viewBriefing: (gameId: string) => void;
   saveGeneratedBriefing: (gameId: string, briefing: Briefing) => void;
   toggleSavedBriefing: (gameId: string) => void;
@@ -32,9 +29,7 @@ function makeId() {
 
 function dataFromStore(state: MatchdayStore): StoredState {
   return {
-    version: 2,
-    selectedSport: state.selectedSport,
-    selectedTeamSlug: state.selectedTeamSlug,
+    version: 3,
     savedBriefings: state.savedBriefings,
     viewedBriefings: state.viewedBriefings,
     generatedBriefings: state.generatedBriefings,
@@ -68,18 +63,6 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
       );
       set({ ...state, hydrated: true });
       persist(get());
-    },
-    selectSport: (sport) => {
-      if (get().selectedSport === sport) return;
-      const selectedTeamSlug: TeamSlug =
-        sport === "soccer" ? "real-madrid" : "new-york-yankees";
-      commit({ selectedSport: sport, selectedTeamSlug });
-    },
-    selectTeam: (teamSlug) => {
-      if (get().selectedTeamSlug === teamSlug) return;
-      const team = getTeam(teamSlug);
-      if (!team) return;
-      commit({ selectedSport: team.sport, selectedTeamSlug: teamSlug });
     },
     viewBriefing: (gameId) => {
       if (get().viewedBriefings.includes(gameId)) return;

@@ -1,14 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { AppShell } from "@/components/app-shell";
-import { createDefaultState } from "@/lib/storage";
-import { useMatchdayStore } from "@/lib/store";
-
-const nav = vi.hoisted(() => ({ push: vi.fn(), pathname: "/" }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: nav.push }),
-  usePathname: () => nav.pathname,
+  usePathname: () => "/",
 }));
 
 vi.mock("next/link", () => ({
@@ -26,59 +21,21 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function renderShell(pathname: string) {
-  nav.pathname = pathname;
-  return render(
-    <AppShell>
-      <div />
-    </AppShell>,
-  );
-}
+afterEach(cleanup);
 
-describe("workspace controls on a game route", () => {
-  beforeEach(() => {
-    nav.push.mockClear();
-    useMatchdayStore.setState({ ...createDefaultState(), hydrated: true });
-  });
+// Phase B removed the topbar sport toggle and team select once the slate
+// replaced them as the one way to find a game — WorkspaceControls now only
+// carries whatever the caller passes as accountControl.
+describe("workspace controls", () => {
+  it("renders only the account control, with no sport toggle or team select", () => {
+    render(
+      <AppShell accountControl={<button type="button">Account</button>}>
+        <div />
+      </AppShell>,
+    );
 
-  afterEach(cleanup);
-
-  it("sends a team change back to that team's games", () => {
-    renderShell("/games/football-data-564630-barcelona");
-
-    fireEvent.change(screen.getByLabelText("Selected team"), {
-      target: { value: "barcelona" },
-    });
-
-    expect(useMatchdayStore.getState().selectedTeamSlug).toBe("barcelona");
-    expect(nav.push).toHaveBeenCalledWith("/");
-  });
-
-  it("sends a sport change back to that sport's games", () => {
-    renderShell("/games/football-data-564630-barcelona");
-
-    fireEvent.click(screen.getByRole("button", { name: "Baseball" }));
-
-    expect(useMatchdayStore.getState().selectedSport).toBe("baseball");
-    expect(nav.push).toHaveBeenCalledWith("/");
-  });
-
-  it("leaves navigation alone when the current page already follows the selection", () => {
-    renderShell("/groups");
-
-    fireEvent.change(screen.getByLabelText("Selected team"), {
-      target: { value: "barcelona" },
-    });
-
-    expect(useMatchdayStore.getState().selectedTeamSlug).toBe("barcelona");
-    expect(nav.push).not.toHaveBeenCalled();
-  });
-
-  it("does not navigate when the active sport is re-selected", () => {
-    renderShell("/games/football-data-564630-barcelona");
-
-    fireEvent.click(screen.getByRole("button", { name: "Soccer" }));
-
-    expect(nav.push).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Account" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Selected team")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Select sport")).not.toBeInTheDocument();
   });
 });

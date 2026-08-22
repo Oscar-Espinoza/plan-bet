@@ -75,9 +75,11 @@ test("the game page renders with no wager form and no page error on the keyless 
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
   await page.goto("/games/soc-rma-01");
-  await expect(page.getByRole("button", { name: "Place wager" })).toHaveCount(
-    0,
-  );
+  // Unconfigured sign-in means loadWagering() returns undefined and the slip
+  // panel never renders at all — not even the sign-in prompt, which is the
+  // *configured*-but-signed-out branch. Assert the whole panel is absent
+  // rather than a submit button whose name the slip no longer uses.
+  await expect(page.getByRole("heading", { name: "Wager" })).toHaveCount(0);
   expect(browserErrors).toEqual([]);
 });
 
@@ -147,7 +149,7 @@ test("POST /api/cron/settle never returns 200 without a valid bearer secret", as
   expect([401, 503]).toContain(response.status());
 });
 
-test("anonymous evidence-brief state survives reload and matchday-plan:v1 stays version 2", async ({
+test("anonymous evidence-brief state survives reload and matchday-plan:v1 stays version 3", async ({
   page,
 }) => {
   await page.goto("/games/soc-rma-01");
@@ -163,5 +165,5 @@ test("anonymous evidence-brief state survives reload and matchday-plan:v1 stays 
     localStorage.getItem("matchday-plan:v1"),
   );
   expect(stored).not.toBeNull();
-  expect(JSON.parse(stored!).version).toBe(2);
+  expect(JSON.parse(stored!).version).toBe(3);
 });
