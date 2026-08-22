@@ -37,3 +37,16 @@ export function RelativeKickoff({ value }: { value: string }) {
     </time>
   );
 }
+
+/** The slate row's fixed mono time column — just the clock, no date. The day
+ * group heading above the row already carries the date. */
+export function KickoffTime({ value }: { value: string }) {
+  return (
+    <time dateTime={value} suppressHydrationWarning>
+      {new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(value))}
+    </time>
+  );
+}

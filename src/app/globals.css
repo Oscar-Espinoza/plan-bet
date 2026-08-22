@@ -779,6 +779,76 @@ a {
   gap: 0.5rem;
 }
 
+.slate-freshness-standalone {
+  margin-bottom: 1.25rem;
+}
+
+/* The one lit plate on the page — the nearest upcoming fixture. A solid
+   sodium left rule and a sodium countdown; everything else on the board
+   stays chalk on slat. */
+.next-up {
+  position: relative;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--sodium);
+  border-radius: var(--radius-md);
+  background: var(--slat);
+  padding: 1.1rem 1.25rem;
+}
+
+.next-up-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.next-up-eyebrow {
+  color: var(--sodium);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.next-up-countdown {
+  color: var(--sodium);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.next-up-teams {
+  overflow: hidden;
+  margin: 0.5rem 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: var(--weight-semibold);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.next-up-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.next-up-meta time {
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .slate-filters {
   display: flex;
   gap: 0.4rem;
@@ -822,10 +892,12 @@ a {
 .game-row {
   display: grid;
   min-width: 0;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  /* A fixed-width mono time column is the structure — a ruled column of
+     kickoff times, not a row number restating order. */
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.65rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--rule);
   padding: 0.9rem 0.8rem;
 }
 
@@ -834,61 +906,55 @@ a {
 }
 
 .game-row:hover {
-  background: var(--surface-raised);
+  background: var(--slat-raised);
 }
 
-.game-index {
-  color: var(--faint);
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
+/* The nearest upcoming fixture also carries a quiet version of the hero's
+   lit rule — the same game, not a second lit thing. */
+.slate-row-live {
+  border-left: 2px solid var(--sodium);
+  padding-left: calc(0.8rem - 2px);
 }
 
-.game-date {
-  display: flex;
-  grid-column: 2;
-  align-items: center;
-  gap: 0.4rem;
+.game-time {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
+}
+
+.slate-row-live .game-time {
+  color: var(--sodium);
 }
 
 .game-matchup {
   min-width: 0;
-  grid-column: 2;
 }
 
 .game-opponent {
   overflow: hidden;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.18rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.game-site {
-  color: var(--green);
-  font-size: 0.72em;
-}
-
 .game-meta,
 .game-venue {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
 }
 
 .game-venue {
   display: none;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .game-chevron {
-  grid-row: 1 / span 2;
-  grid-column: 3;
   color: var(--faint);
 }
 
@@ -1673,26 +1739,15 @@ sup.brief-reason {
 
 @media (min-width: 640px) {
   .game-row {
-    grid-template-columns: 2rem minmax(9rem, 0.75fr) minmax(10rem, 1.2fr) auto;
     padding: 1rem;
-  }
-
-  .game-date,
-  .game-matchup {
-    grid-column: auto;
-  }
-
-  .game-chevron {
-    grid-row: auto;
-    grid-column: auto;
   }
 }
 
 @media (min-width: 768px) {
   .game-row {
-    grid-template-columns:
-      2rem minmax(9rem, 0.8fr) minmax(10rem, 1.1fr) minmax(8rem, 0.7fr)
-      auto;
+    /* The time column stays the same fixed width as mobile — that column is
+       the structure kickoff times line up in, at every breakpoint. */
+    grid-template-columns: 3.5rem minmax(0, 1fr) minmax(8rem, 0.7fr) auto;
   }
 
   .game-venue {

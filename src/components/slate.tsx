@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight, MapPin } from "lucide-react";
 import { DemoStamp } from "@/components/demo-stamp";
-import { LocalDateTime, RelativeKickoff } from "@/components/local-date-time";
+import { KickoffTime, RelativeKickoff } from "@/components/local-date-time";
 import { StatusTag } from "@/components/ui/status-tag";
 import type { DashboardData } from "@/data/sports-data";
 import type { GameSummary, Sport } from "@/lib/contracts";
@@ -93,29 +93,67 @@ export function Slate({
     }
   }
 
+  const nextUp = games[0];
+
   return (
     <>
-      <header className="slate-hero">
-        <div>
-          <p className="eyebrow">Slate</p>
-          <h1 className="display-title">Upcoming games</h1>
-          <p className="page-description">
-            Every tracked fixture across soccer and baseball, nearest kickoff
-            first.
-          </p>
-        </div>
-        <div className="slate-freshness">
-          {/* One stamp per sport actually on the board — under a sport
-              filter, showing both would claim freshness for data that
-              isn't on the page. */}
-          {sport !== "baseball" && (
-            <DemoStamp compact freshness={data["real-madrid"].freshness} />
-          )}
-          {sport !== "soccer" && (
-            <DemoStamp compact freshness={data["new-york-yankees"].freshness} />
-          )}
-        </div>
-      </header>
+      {nextUp ? (
+        <>
+          <div className="next-up" aria-labelledby="next-up-heading">
+            <div className="next-up-header">
+              <p className="next-up-eyebrow" id="next-up-heading">
+                Next up
+              </p>
+              <RelativeKickoff value={nextUp.scheduledAt} />
+            </div>
+            <h1 className="next-up-teams">
+              {nextUp.homeTeam} vs {nextUp.awayTeam}
+            </h1>
+            <div className="next-up-meta">
+              <span>
+                {nextUp.competition} · {nextUp.venue ?? "Not provided"}
+              </span>
+              <KickoffTime value={nextUp.scheduledAt} />
+            </div>
+          </div>
+          <div className="slate-freshness slate-freshness-standalone">
+            {/* One stamp per sport actually on the board — under a sport
+                filter, showing both would claim freshness for data that
+                isn't on the page. */}
+            {sport !== "baseball" && (
+              <DemoStamp compact freshness={data["real-madrid"].freshness} />
+            )}
+            {sport !== "soccer" && (
+              <DemoStamp
+                compact
+                freshness={data["new-york-yankees"].freshness}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <header className="slate-hero">
+          <div>
+            <p className="eyebrow">Slate</p>
+            <h1 className="display-title">Upcoming games</h1>
+            <p className="page-description">
+              Every tracked fixture across soccer and baseball, nearest kickoff
+              first.
+            </p>
+          </div>
+          <div className="slate-freshness">
+            {sport !== "baseball" && (
+              <DemoStamp compact freshness={data["real-madrid"].freshness} />
+            )}
+            {sport !== "soccer" && (
+              <DemoStamp
+                compact
+                freshness={data["new-york-yankees"].freshness}
+              />
+            )}
+          </div>
+        </header>
+      )}
 
       <nav className="slate-filters" aria-label="Filter by sport">
         {FILTERS.map((filter) => (
@@ -151,19 +189,18 @@ export function Slate({
                 </StatusTag>
               </div>
               <div className="game-list">
-                {group.games.map((game, index) => (
+                {group.games.map((game) => (
                   <Link
-                    className="game-row"
+                    className={cn(
+                      "game-row",
+                      game.id === nextUp?.id && "slate-row-live",
+                    )}
                     href={`/games/${game.id}`}
                     key={game.id}
                     aria-label={`Open ${game.homeTeam} versus ${game.awayTeam}`}
                   >
-                    <div className="game-index">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-                    <div className="game-date">
-                      <CalendarDays aria-hidden="true" size={15} />
-                      <LocalDateTime value={game.scheduledAt} />
+                    <div className="game-time">
+                      <KickoffTime value={game.scheduledAt} />
                     </div>
                     <div className="game-matchup">
                       <div className="game-opponent">
