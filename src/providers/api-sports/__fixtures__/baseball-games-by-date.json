@@ -1,0 +1,229 @@
+{
+  "get": "games",
+  "parameters": {
+    "date": "2026-08-23"
+  },
+  "errors": [],
+  "results": 3,
+  "response": [
+    {
+      "id": 179970,
+      "date": "2026-08-23T17:35:00+00:00",
+      "time": "17:35",
+      "timestamp": 1787506500,
+      "timezone": "UTC",
+      "week": null,
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 1,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 1,
+        "name": "MLB",
+        "type": "League",
+        "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+        "season": 2026
+      },
+      "teams": {
+        "home": {
+          "id": 25,
+          "name": "New York Yankees",
+          "logo": "https://media.api-sports.io/baseball/teams/25.png"
+        },
+        "away": {
+          "id": 36,
+          "name": "Toronto Blue Jays",
+          "logo": "https://media.api-sports.io/baseball/teams/36.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        },
+        "away": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        }
+      }
+    },
+    {
+      "id": 179977,
+      "date": "2026-08-23T19:15:00+00:00",
+      "time": "19:15",
+      "timestamp": 1787512500,
+      "timezone": "UTC",
+      "week": null,
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 1,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 1,
+        "name": "MLB",
+        "type": "League",
+        "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+        "season": 2026
+      },
+      "teams": {
+        "home": {
+          "id": 5,
+          "name": "Boston Red Sox",
+          "logo": "https://media.api-sports.io/baseball/teams/5.png"
+        },
+        "away": {
+          "id": 31,
+          "name": "San Francisco Giants",
+          "logo": "https://media.api-sports.io/baseball/teams/31.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        },
+        "away": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        }
+      }
+    },
+    {
+      "id": 179971,
+      "date": "2026-08-23T20:50:00+00:00",
+      "time": "20:50",
+      "timestamp": 1787518200,
+      "timezone": "UTC",
+      "week": null,
+      "status": {
+        "long": "Not Started",
+        "short": "NS"
+      },
+      "country": {
+        "id": 1,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 1,
+        "name": "MLB",
+        "type": "League",
+        "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+        "season": 2026
+      },
+      "teams": {
+        "home": {
+          "id": 25,
+          "name": "New York Yankees",
+          "logo": "https://media.api-sports.io/baseball/teams/25.png"
+        },
+        "away": {
+          "id": 36,
+          "name": "Toronto Blue Jays",
+          "logo": "https://media.api-sports.io/baseball/teams/36.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        },
+        "away": {
+          "hits": null,
+          "errors": null,
+          "innings": {
+            "1": null,
+            "2": null,
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": null,
+            "9": null,
+            "extra": null
+          },
+          "total": null
+        }
+      }
+    }
+  ]
+}
