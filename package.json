@@ -28,7 +28,8 @@
     "data:refresh:soccer": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/refresh-soccer.ts",
     "data:apisports:teams": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-teams.ts",
     "data:apisports:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-probe.ts",
-    "data:mcp:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/mcp-probe.ts"
+    "data:mcp:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/mcp-probe.ts",
+    "data:enrich": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/enrich.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",
