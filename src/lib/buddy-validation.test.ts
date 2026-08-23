@@ -43,4 +43,14 @@ describe("parseBuddyReply", () => {
     });
     expect(result).toMatchObject({ ok: true, factIds: [] });
   });
+
+  it("strips fact markers from prose but keeps them in factIds", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const result = parseBuddyReply(`Madrid, easy [${id}].`, buddyEvalContext);
+    expect(result).toMatchObject({
+      ok: true,
+      prose: "Madrid, easy.",
+      factIds: [id],
+    });
+  });
 });

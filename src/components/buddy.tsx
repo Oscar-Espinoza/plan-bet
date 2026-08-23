@@ -198,11 +198,6 @@ export function Buddy() {
                   }
                 >
                   {turn.text}
-                  {turn.factIds &&
-                    turn.factIds.length > 0 &&
-                    turn.factIds.map((id, index) => (
-                      <sup key={id}> [{index + 1}]</sup>
-                    ))}
                 </p>
                 {turn.ok && turn.pickId && routeId && (
                   <Link

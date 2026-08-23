@@ -1,12 +1,15 @@
-import { findWrittenDate } from "@/lib/briefing-validation";
-
 /** A chat turn, not a report — the briefing's 8,000-byte cap would be absurd here. */
 export const MAX_REPLY_CHARS = 700;
 
 /**
  * Narrower than the briefing's ban: the buddy is allowed to lean and predict,
  * CLAUDE.md's rule change is what permits that. What it may never do is talk
- * like a sportsbook or invent a number it has no basis for.
+ * like a sportsbook, invent a number it has no basis for, or turn on the
+ * reader personally.
+ *
+ * ponytail: the identity-insult list below is a short set of the clearest
+ * slurs, not a moderation model — expand the list or swap in a moderation
+ * API if this proves too narrow.
  */
 const BUDDY_PROHIBITED_PATTERNS = [
   /\b(real money|deposit|deposits|withdraw|withdrawal|withdrawals)\b/i,
@@ -14,6 +17,9 @@ const BUDDY_PROHIBITED_PATTERNS = [
   /\b(guarantee|guaranteed|\block\b|sure thing)\b/i,
   /\d{1,3}\s?%/,
   /\bprobability\b/i,
+  // Mocking the pick is the job; mocking the person never is.
+  /\b(you'?re|you are|ur)\s+(an?\s+)?(idiot|moron|stupid|dumb|pathetic|loser|trash|worthless|retard(ed)?)\b/i,
+  /\b(retard(ed)?|f[a4]gg?ot|sp[i1]c|k[i1]ke|ch[i1]nk|n[i1]gg?(er|a)|tr[a4]nn(y|ie)|wetback)\b/i,
 ];
 
 export function findBuddyProhibitedLanguage(text: string) {
@@ -26,7 +32,6 @@ export const buddyReasonCodes = [
   "no_citation",
   "unknown_fact",
   "prohibited_language",
-  "date_in_prose",
 ] as const;
 export type BuddyReplyReason = (typeof buddyReasonCodes)[number];
 
@@ -73,9 +78,15 @@ export function parseBuddyReply(
   if (findBuddyProhibitedLanguage(withoutPick)) {
     return { ok: false, reason: "prohibited_language" };
   }
-  if (findWrittenDate(withoutPick)) {
-    return { ok: false, reason: "date_in_prose" };
-  }
 
-  return { ok: true, prose: withoutPick, factIds, pickId };
+  // The markers are the proof the reply is grounded, not part of the voice
+  // — factIds above already carries them into the audit trail, so the
+  // reader never has to see a bracket.
+  const prose = withoutPick
+    .replace(FACT_MARKER, "")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return { ok: true, prose, factIds, pickId };
 }
