@@ -36,14 +36,24 @@ export const buddyReasonCodes = [
 export type BuddyReplyReason = (typeof buddyReasonCodes)[number];
 
 export type BuddyReplyParse =
-  | { ok: true; prose: string; factIds: string[]; pickId?: string }
+  | {
+      ok: true;
+      prose: string;
+      factIds: string[];
+      pickId?: string;
+      note?: string;
+    }
   | { ok: false; reason: BuddyReplyReason };
 
-// Fact markers are bare ids in brackets ("[abc-1]"); the pick marker is
-// distinguished by its "pick:" prefix and is stripped first so it never
-// parses as a stray fact citation.
+// Fact markers are bare ids in brackets ("[abc-1]"); the pick and note
+// markers are distinguished by their prefix. The note trails everything
+// else — it's a note-to-self about the reader, not part of the pick or the
+// take — so it's stripped first, then the pick, so neither parses as a
+// stray fact citation.
 const PICK_MARKER = /\s*\[pick:\s*([a-zA-Z0-9_:-]+)\]\s*$/i;
+const NOTE_MARKER = /\s*\[note:\s*([^[\]]*)\]\s*$/i;
 const FACT_MARKER = /\[([a-zA-Z0-9_-]+)\]/g;
+const MAX_NOTE_CHARS = 120;
 
 export function parseBuddyReply(
   text: string,
@@ -55,10 +65,19 @@ export function parseBuddyReply(
     return { ok: false, reason: "oversized" };
   }
 
-  const pickMatch = trimmed.match(PICK_MARKER);
-  const withoutPick = pickMatch
-    ? trimmed.slice(0, pickMatch.index).trim()
+  const noteMatch = trimmed.match(NOTE_MARKER);
+  const withoutNote = noteMatch
+    ? trimmed.slice(0, noteMatch.index).trim()
     : trimmed;
+  // A blank or malformed marker is dropped silently — it's a bonus, never a
+  // reason to reject an otherwise fine reply.
+  const rawNote = noteMatch?.[1]?.trim();
+  const note = rawNote ? rawNote.slice(0, MAX_NOTE_CHARS) : undefined;
+
+  const pickMatch = withoutNote.match(PICK_MARKER);
+  const withoutPick = pickMatch
+    ? withoutNote.slice(0, pickMatch.index).trim()
+    : withoutNote;
   // An invalid or unoffered pick is dropped, not a rejection of the whole
   // reply — the reply itself may still be a perfectly grounded lean.
   const pickId =
@@ -88,5 +107,5 @@ export function parseBuddyReply(
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  return { ok: true, prose, factIds, pickId };
+  return { ok: true, prose, factIds, pickId, note };
 }

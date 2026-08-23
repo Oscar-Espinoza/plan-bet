@@ -341,6 +341,35 @@ export const buddyMessages = pgTable(
   ],
 );
 
+/**
+ * What the buddy has picked up about how this reader talks — the register,
+ * the club, the running joke — not personal details it was never handed.
+ * Append-only like every other table in this file: no update path, no
+ * advisory lock, nothing here is a quota or a balance. The read caps at six
+ * rows (`listBuddyNotes`), so old notes fall off the end without a delete
+ * job of their own.
+ */
+export const buddyNotes = pgTable(
+  "buddy_notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }), // null for signed-out browsing
+    sessionHash: text("session_hash").notNull(),
+    note: text("note").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("buddy_notes_session_created_idx").on(
+      table.sessionHash,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const groupMemberRoleEnum = pgEnum("group_member_role", [
   "owner",
   "member",

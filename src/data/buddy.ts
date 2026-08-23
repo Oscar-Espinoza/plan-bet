@@ -1,7 +1,13 @@
 import "server-only";
 
 import { hashSessionId } from "@/data/briefings-repository";
-import { claimBuddyTurn, recordBuddyReply } from "@/data/buddy-repository";
+import {
+  claimBuddyTurn,
+  deleteBuddyNotes,
+  listBuddyNotes,
+  recordBuddyReply,
+  saveBuddyNote,
+} from "@/data/buddy-repository";
 import {
   getGroupBySlug,
   getGroupLeaderboard,
@@ -28,6 +34,12 @@ export {
   BUDDY_IP_DAILY_LIMIT,
   BUDDY_SESSION_DAILY_LIMIT,
 } from "@/data/buddy-repository";
+
+/** "Forget what you know about me" — clears every note for this session. */
+export async function forgetBuddySession(sessionId: string) {
+  if (!isDatabaseConfigured()) return;
+  await deleteBuddyNotes(hashSessionId(sessionId));
+}
 
 const MAX_OUTPUT_TOKENS = 500;
 
@@ -190,13 +202,17 @@ export async function prepareBuddyTurn(
   const { context, routeLabel } = await resolveContext(input.route, {
     userId: input.userId,
   });
+  const dbConfigured = isDatabaseConfigured();
+  const sessionHash = hashSessionId(input.sessionId);
+  const notes = dbConfigured
+    ? await listBuddyNotes(sessionHash).catch(() => [] as string[])
+    : [];
   const prompt = buildBuddyInput({
     context,
     history: input.history,
     question: input.question,
+    notes,
   });
-  const dbConfigured = isDatabaseConfigured();
-  const sessionHash = hashSessionId(input.sessionId);
 
   const persistReply = async (row: {
     text: string;
@@ -224,6 +240,22 @@ export async function prepareBuddyTurn(
     });
   };
 
+  const saveNote = async (note: string) => {
+    if (!dbConfigured) return;
+    await saveBuddyNote({ userId: input.userId, sessionHash, note }).catch(
+      (error) => {
+        logEvent("warn", "buddy_audit_failed", {
+          requestId: input.requestId,
+          operation: "save_note",
+          errorCode:
+            error instanceof Error && "code" in error
+              ? String((error as { code: unknown }).code)
+              : "persistence_error",
+        });
+      },
+    );
+  };
+
   if (!isOpenAiConfigured()) {
     return {
       status: "ready",
@@ -234,7 +266,15 @@ export async function prepareBuddyTurn(
   if (!dbConfigured) {
     return {
       status: "ready",
-      run: () => streamLive(prompt, routeLabel, input, persistReply, undefined),
+      run: () =>
+        streamLive(
+          prompt,
+          routeLabel,
+          input,
+          persistReply,
+          undefined,
+          saveNote,
+        ),
     };
   }
 
@@ -272,7 +312,8 @@ export async function prepareBuddyTurn(
 
   return {
     status: "ready",
-    run: () => streamLive(prompt, routeLabel, input, persistReply, claim),
+    run: () =>
+      streamLive(prompt, routeLabel, input, persistReply, claim, saveNote),
   };
 }
 
@@ -322,6 +363,7 @@ async function* streamLive(
     reason?: string;
   }) => Promise<void>,
   claim: Awaited<ReturnType<typeof claimBuddyTurn>> | undefined,
+  saveNote: (note: string) => Promise<void>,
 ): AsyncGenerator<BuddyStreamEvent> {
   const startedAt = Date.now();
   const client = new OpenAiClient({ fetch: input.fetch });
@@ -384,6 +426,10 @@ async function* streamLive(
           reason: parsed.reason,
         },
   );
+
+  if (parsed.ok && parsed.note) {
+    await saveNote(parsed.note);
+  }
 
   logEvent("info", "buddy_turn", {
     requestId: input.requestId,

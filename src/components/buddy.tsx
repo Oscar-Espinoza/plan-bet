@@ -41,6 +41,8 @@ export function Buddy() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
+  const [forgetting, setForgetting] = useState(false);
+  const [forgotten, setForgotten] = useState(false);
   const inFlight = useRef(false);
 
   const gameMatch = pathname.match(/^\/games\/([^/?#]+)\/?$/);
@@ -157,6 +159,22 @@ export function Buddy() {
     }
   };
 
+  const forget = async () => {
+    setForgetting(true);
+    try {
+      await fetch("/api/buddy", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: anonymousId }),
+      });
+      setForgotten(true);
+    } catch {
+      // Quiet control — a failed clear just leaves the notes in place.
+    } finally {
+      setForgetting(false);
+    }
+  };
+
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
@@ -242,6 +260,15 @@ export function Buddy() {
               Ask
             </Button>
           </form>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={forgetting}
+            onClick={forget}
+          >
+            {forgotten ? "Forgotten" : "Forget what you know about me"}
+          </Button>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

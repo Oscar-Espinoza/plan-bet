@@ -1098,3 +1098,35 @@ describe("Phase E buddy turns and quotas", () => {
     }
   });
 });
+
+describe("Phase E.1 buddy notes", () => {
+  it("applies the buddy_notes migration", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    expect(rows.map((row) => row.table_name)).toContain("buddy_notes");
+  });
+
+  it("keys a note on session_hash, not a stored personal detail", async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'buddy_notes'
+    `;
+    expect(columns.map((column) => column.column_name)).toEqual(
+      expect.arrayContaining(["session_hash", "note", "created_at"]),
+    );
+  });
+
+  it("can insert and read back a note for a session", async () => {
+    const sessionHash = `session-${randomUUID()}`;
+    await sql`
+      insert into buddy_notes (session_hash, note) values (${sessionHash}, 'swears a lot, roots for Madrid')
+    `;
+    const rows = await sql<{ note: string }[]>`
+      select note from buddy_notes where session_hash = ${sessionHash}
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.note).toBe("swears a lot, roots for Madrid");
+  });
+});

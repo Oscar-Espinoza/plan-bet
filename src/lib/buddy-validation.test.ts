@@ -53,4 +53,17 @@ describe("parseBuddyReply", () => {
       factIds: [id],
     });
   });
+
+  it("extracts a trailing note marker and strips it from prose", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const result = parseBuddyReply(
+      `Madrid, easy [${id}]. [note: swears a lot, root for Madrid]`,
+      buddyEvalContext,
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      prose: "Madrid, easy.",
+      note: "swears a lot, root for Madrid",
+    });
+  });
 });

@@ -57,6 +57,13 @@
       "when": 1787439374655,
       "tag": "0007_quiet_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787443600183,
+      "tag": "0008_brief_kid_colt",
+      "breakpoints": true
     }
   ]
 }

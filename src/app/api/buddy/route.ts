@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { hashClientAddress } from "@/data/briefings-repository";
-import { prepareBuddyTurn } from "@/data/buddy";
+import { forgetBuddySession, prepareBuddyTurn } from "@/data/buddy";
 import { requireAccount } from "@/lib/auth";
 import { isSameOrigin, readJsonBody } from "@/lib/api-request";
-import { apiFailure, createRouteContext } from "@/lib/api-response";
+import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/api-response";
 import { MAX_QUESTION_CHARS } from "@/lib/buddy-prompt";
 import { MAX_REPLY_CHARS } from "@/lib/buddy-validation";
@@ -116,4 +116,33 @@ export async function POST(request: NextRequest) {
       Connection: "keep-alive",
     },
   });
+}
+
+const forgetSchema = z.object({
+  sessionId: z.uuid().refine((id) => id !== SSR_PLACEHOLDER_ID),
+});
+
+/** "Forget what you know about me" — clears every note stored for this session. */
+export async function DELETE(request: NextRequest) {
+  const context = createRouteContext("DELETE /api/buddy");
+
+  if (!isSameOrigin(request)) {
+    return apiFailure(
+      "forbidden",
+      "Cross-origin requests are not allowed.",
+      context,
+    );
+  }
+
+  const body = await readJsonBody(request, forgetSchema);
+  if (!body.ok) {
+    return apiFailure(
+      "invalid_request",
+      "Send a session ID to forget.",
+      context,
+    );
+  }
+
+  await forgetBuddySession(body.data.sessionId);
+  return apiSuccess({ forgotten: true }, context);
 }

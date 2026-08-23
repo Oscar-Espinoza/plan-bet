@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { utcDayEnd, utcDayStart } from "@/data/briefings-repository";
 import { withDatabaseTransaction, getDatabase } from "@/db/client";
-import { buddyMessages } from "@/db/schema";
+import { buddyMessages, buddyNotes } from "@/db/schema";
 
 export const BUDDY_SESSION_DAILY_LIMIT = 30;
 export const BUDDY_IP_DAILY_LIMIT = 100;
@@ -119,4 +119,45 @@ export async function recordBuddyReply(input: {
     status: input.status,
     reason: input.reason,
   });
+}
+
+/** Most recent first, so the freshest six are what carries into the prompt. */
+export async function listBuddyNotes(sessionHash: string, limit = 6) {
+  const rows = await getDatabase()
+    .select({ note: buddyNotes.note })
+    .from(buddyNotes)
+    .where(eq(buddyNotes.sessionHash, sessionHash))
+    .orderBy(desc(buddyNotes.createdAt))
+    .limit(limit);
+  return rows.map((row) => row.note);
+}
+
+export async function saveBuddyNote(input: {
+  userId?: string;
+  sessionHash: string;
+  note: string;
+}) {
+  const existing = await getDatabase()
+    .select({ id: buddyNotes.id })
+    .from(buddyNotes)
+    .where(
+      and(
+        eq(buddyNotes.sessionHash, input.sessionHash),
+        eq(buddyNotes.note, input.note),
+      ),
+    )
+    .limit(1);
+  if (existing.length > 0) return;
+
+  await getDatabase().insert(buddyNotes).values({
+    userId: input.userId,
+    sessionHash: input.sessionHash,
+    note: input.note,
+  });
+}
+
+export async function deleteBuddyNotes(sessionHash: string) {
+  await getDatabase()
+    .delete(buddyNotes)
+    .where(eq(buddyNotes.sessionHash, sessionHash));
 }
