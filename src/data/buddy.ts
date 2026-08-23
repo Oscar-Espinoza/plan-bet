@@ -8,6 +8,7 @@ import {
   recordBuddyReply,
   saveBuddyNote,
 } from "@/data/buddy-repository";
+import { readFixtureContext } from "@/data/fixture-context-repository";
 import {
   getGroupBySlug,
   getGroupLeaderboard,
@@ -42,6 +43,14 @@ export async function forgetBuddySession(sessionId: string) {
 }
 
 const MAX_OUTPUT_TOKENS = 500;
+
+/**
+ * A soccer fixture's stored context can run past twenty facts, and the prompt
+ * already carries the conversation and the reader's notes. `buildFacts` emits
+ * in signal order — injuries, form, head-to-head, the lean, the table — so a
+ * plain cut keeps the strongest and needs no comparator.
+ */
+const MAX_CONTEXT_FACTS = 12;
 
 function fact(id: string, label: string, value: string) {
   return {
@@ -94,10 +103,19 @@ export async function resolveContext(
   if (gameMatch) {
     const detail = await getGameDetail(gameMatch[1]!);
     if (!detail) return none;
+    // Enrichment is a bonus, never a dependency: no database, no stored row,
+    // or a row written in a shape the contract has since moved past all leave
+    // the buddy with exactly the snapshot facts it had before.
+    const stored = isDatabaseConfigured()
+      ? await readFixtureContext(gameMatch[1]!).catch(() => undefined)
+      : undefined;
     return {
       context: {
         kind: "game",
-        facts: detail.snapshot.evidenceFacts,
+        facts: [
+          ...detail.snapshot.evidenceFacts,
+          ...(stored?.facts ?? []),
+        ].slice(0, MAX_CONTEXT_FACTS),
         allowedPickIds: marketsFor(detail.snapshot.game.sport).flatMap(
           (market) =>
             market.selections.map(

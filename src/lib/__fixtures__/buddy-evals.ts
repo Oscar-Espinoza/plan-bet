@@ -7,7 +7,18 @@ const snapshot = evaluationSnapshots[0]!; // eval-soc-1, Real Madrid vs Sevilla
 const [, formId, standingId, venueId, availabilityId, matchupId] =
   snapshot.evidenceFacts.map((fact) => fact.id);
 
-const allowedFactIds = snapshot.evidenceFacts.map((fact) => fact.id);
+/**
+ * Phase G2 put stored fixture context beside the snapshot's own evidence, in
+ * the `{canonicalGameId}-ctx-{slug}` id shape `buildFacts` emits. That the
+ * shape validates is pinned in `fixture-facts.test.ts`; what is pinned here is
+ * the voice — a reply that leans on an injury without reading the list back.
+ */
+const injuryId = "football-data-564645-ctx-injuries-Sevilla";
+
+const allowedFactIds = [
+  ...snapshot.evidenceFacts.map((fact) => fact.id),
+  injuryId,
+];
 const allowedPickIds = marketsFor("soccer").flatMap((market) =>
   market.selections.map((selection) => `${market.id}:${selection.id}`),
 );
@@ -34,6 +45,8 @@ export const buddySampleReplies: string[] = [
   `Hard to hate this pick [${availabilityId}] [${formId}], squad's healthy and rolling. [pick: ${realPick}]`,
   `Madrid, no debate [${formId}]. If you want to fade them go ahead, I'll take the credits.`,
   `Because they've won four of their last five and the squad's fully available [${formId}] [${availabilityId}] — that's the whole case, nothing fancy.`,
+  `Madrid, and it's not close [${injuryId}]. Sevilla are missing someone they really can't spare.`,
+  `Fair question — Sevilla have a man out who matters [${injuryId}] and Madrid have been rolling [${formId}]. That's the whole of it.`,
 ];
 
 /** Each case exercises exactly the guard its name says. */
