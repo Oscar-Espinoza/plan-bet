@@ -110,6 +110,8 @@ export type DueGame = {
   sport: "soccer" | "baseball";
   scheduledAt: Date;
   builtAt: Date | null;
+  /** The stored `GameSummary`, re-parsed by the caller before it is read. */
+  summary: unknown;
 };
 
 /**
@@ -135,6 +137,7 @@ export async function dueWork(input: {
       sport: games.sport,
       scheduledAt: games.scheduledAt,
       builtAt: fixtureContext.builtAt,
+      summary: games.summary,
     })
     .from(games)
     .leftJoin(fixtureContext, eq(fixtureContext.gameId, games.id))

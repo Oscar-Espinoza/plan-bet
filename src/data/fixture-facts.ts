@@ -40,12 +40,26 @@ function factId(canonicalGameId: string, slug: string) {
 const MAX_INJURIES_PER_TEAM = 4;
 const FORM_LENGTH = 5;
 
+/**
+ * The stored summary says "Real Madrid CF" where apifootball says "Real Madrid",
+ * and neither vendor shares an identifier with the other, so a standings row is
+ * found by name with the suffixes forgiven.
+ *
+ * ponytail: naive containment match. Pin a per-team id map if a third vendor
+ * ever disagrees in a way this cannot bridge.
+ */
+function sameTeam(a: string, b: string) {
+  const left = a.toLowerCase().trim();
+  const right = b.toLowerCase().trim();
+  return left === right || left.includes(right) || right.includes(left);
+}
+
 /** W/D/L from one team's perspective; undefined when the match has no score. */
 function resultFor(match: ApiFootballMatch | BigBallsMatch, team: string) {
   if (match.homeScore === undefined || match.awayScore === undefined) {
     return undefined;
   }
-  const isHome = match.homeTeam === team;
+  const isHome = sameTeam(match.homeTeam, team);
   const mine = isHome ? match.homeScore : match.awayScore;
   const theirs = isHome ? match.awayScore : match.homeScore;
   return mine > theirs ? "W" : mine < theirs ? "L" : "D";
@@ -89,8 +103,8 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
   const sourceId = soccer ? "apifootball" : "bigballs";
 
   for (const team of [bundle.homeTeam, bundle.awayTeam]) {
-    const out = (bundle.injuries ?? []).filter(
-      (injury) => injury.team === team,
+    const out = (bundle.injuries ?? []).filter((injury) =>
+      sameTeam(injury.team, team),
     );
     if (out.length === 0) continue;
     const named = out
@@ -175,7 +189,7 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
   }
 
   for (const team of [bundle.homeTeam, bundle.awayTeam]) {
-    const row = bundle.soccerTable?.find((entry) => entry.team === team);
+    const row = bundle.soccerTable?.find((entry) => sameTeam(entry.team, team));
     if (row) {
       facts.push({
         id: factId(bundle.canonicalGameId, `table-${team}`),
@@ -187,7 +201,9 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
       });
       continue;
     }
-    const baseball = bundle.baseballTable?.find((entry) => entry.team === team);
+    const baseball = bundle.baseballTable?.find((entry) =>
+      sameTeam(entry.team, team),
+    );
     if (!baseball) continue;
     const diff = baseball.runsFor - baseball.runsAgainst;
     const streak = baseball.streak
