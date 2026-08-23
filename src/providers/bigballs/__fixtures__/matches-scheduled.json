@@ -1,0 +1,420 @@
+[
+  {
+    "id": "45f51fa0-7d08-4581-a385-1357824f82cd",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "New York Yankees",
+      "short_name": "NYY",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/wqwwxx1423478766.png"
+    },
+    "away": {
+      "name": "Toronto Blue Jays",
+      "short_name": "TOR",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/f9zk3l1617527686.png"
+    },
+    "kickoff_utc": "2026-08-23T17:35:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "c1f37138-76d3-4aba-9ce2-e6f5a56492c3",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Philadelphia Phillies",
+      "short_name": "PHI",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/3xrldf1617528682.png"
+    },
+    "away": {
+      "name": "St. Louis Cardinals",
+      "short_name": "STL",
+      "logo_url": null
+    },
+    "kickoff_utc": "2026-08-23T17:35:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "ff661c23-2007-4d01-9ea3-aa02dc0cd515",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Baltimore Orioles",
+      "short_name": "BAL",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/ytywvu1431257088.png"
+    },
+    "away": {
+      "name": "Tampa Bay Rays",
+      "short_name": "TB",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/littyt1554031623.png"
+    },
+    "kickoff_utc": "2026-08-23T17:35:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "ESPN Unlmtd",
+    "has_odds": true
+  },
+  {
+    "id": "fb2ad868-4a3e-4212-a3cc-d4fa891a3621",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Miami Marlins",
+      "short_name": "MIA",
+      "logo_url": null
+    },
+    "away": {
+      "name": "Washington Nationals",
+      "short_name": "WSH",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/wpqrut1423694764.png"
+    },
+    "kickoff_utc": "2026-08-23T17:40:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "25041691-3e6f-407e-a08e-c60d132d5467",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Kansas City Royals",
+      "short_name": "KC",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/ii3rz81554031260.png"
+    },
+    "away": {
+      "name": "Detroit Tigers",
+      "short_name": "DET",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/9dib6o1554032173.png"
+    },
+    "kickoff_utc": "2026-08-23T18:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "6829ef01-71b9-40b5-9fc7-bf13208d8c21",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Houston Astros",
+      "short_name": "HOU",
+      "logo_url": null
+    },
+    "away": {
+      "name": "Athletics",
+      "short_name": "ATH",
+      "logo_url": null
+    },
+    "kickoff_utc": "2026-08-23T18:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "9674d022-4038-45bd-8790-1187258bc6b7",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Chicago White Sox",
+      "short_name": "CWS",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/yyz5dh1554140884.png"
+    },
+    "away": {
+      "name": "New York Mets",
+      "short_name": "NYM",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/rxqspq1431540337.png"
+    },
+    "kickoff_utc": "2026-08-23T18:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "69235778-bc32-4f6f-a0b3-f54bc2a31083",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Texas Rangers",
+      "short_name": "TEX",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/qt9qki1521893151.png"
+    },
+    "away": {
+      "name": "Los Angeles Angels",
+      "short_name": "LAA",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/vswsvx1432577476.png"
+    },
+    "kickoff_utc": "2026-08-23T18:35:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "422fc19a-41f6-4f23-ad9f-8a47b3756e0a",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Colorado Rockies",
+      "short_name": "COL",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/r7q6ko1687608395.png"
+    },
+    "away": {
+      "name": "Cleveland Guardians",
+      "short_name": "CLE",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/3zvzao1640964590.png"
+    },
+    "kickoff_utc": "2026-08-23T19:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "704bf026-703e-4cc7-a4a5-b06d75385f85",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Boston Red Sox",
+      "short_name": "BOS",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/stpsus1425120215.png"
+    },
+    "away": {
+      "name": "San Francisco Giants",
+      "short_name": "SF",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/mq81yb1521896622.png"
+    },
+    "kickoff_utc": "2026-08-23T19:15:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "NBC",
+    "has_odds": true
+  },
+  {
+    "id": "7ae9c5db-7e2e-418b-8963-a447bf24aa59",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Los Angeles Dodgers",
+      "short_name": "LAD",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/p2oj631663889783.png"
+    },
+    "away": {
+      "name": "Pittsburgh Pirates",
+      "short_name": "PIT",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/kw6uqr1617527138.png"
+    },
+    "kickoff_utc": "2026-08-23T20:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "b246f9ff-2e35-4ab7-ac44-e3643afc1193",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Seattle Mariners",
+      "short_name": "SEA",
+      "logo_url": null
+    },
+    "away": {
+      "name": "Chicago Cubs",
+      "short_name": "CHC",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/wxbe071521892391.png"
+    },
+    "kickoff_utc": "2026-08-23T20:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "ce9cf221-35c4-4fd3-afa8-f7d58957a7ff",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "San Diego Padres",
+      "short_name": "SD",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/6wt1cn1617527530.png"
+    },
+    "away": {
+      "name": "Minnesota Twins",
+      "short_name": "MIN",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/necd5v1521905719.png"
+    },
+    "kickoff_utc": "2026-08-23T20:10:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "858d6449-1f59-41fd-b124-57c480ac994f",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Arizona Diamondbacks",
+      "short_name": "ARI",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/xe5wlo1713861863.png"
+    },
+    "away": {
+      "name": "Cincinnati Reds",
+      "short_name": "CIN",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/wspusr1431538832.png"
+    },
+    "kickoff_utc": "2026-08-23T20:15:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "Peacock",
+    "has_odds": true
+  },
+  {
+    "id": "468a9a58-bace-4319-b8ed-bd2e21f8da76",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Milwaukee Brewers",
+      "short_name": "MIL",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/08kh2a1595775193.png"
+    },
+    "away": {
+      "name": "Atlanta Braves",
+      "short_name": "ATL",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/yjs76e1617811496.png"
+    },
+    "kickoff_utc": "2026-08-23T23:00:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "ESPN",
+    "has_odds": true
+  },
+  {
+    "id": "49ac6575-f6e3-4990-a945-773483ef32fd",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Miami Marlins",
+      "short_name": "MIA",
+      "logo_url": null
+    },
+    "away": {
+      "name": "Boston Red Sox",
+      "short_name": "BOS",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/stpsus1425120215.png"
+    },
+    "kickoff_utc": "2026-08-24T22:40:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "64d011bf-c464-4c12-af33-0c9853978818",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Detroit Tigers",
+      "short_name": "DET",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/9dib6o1554032173.png"
+    },
+    "away": {
+      "name": "Tampa Bay Rays",
+      "short_name": "TB",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/littyt1554031623.png"
+    },
+    "kickoff_utc": "2026-08-24T22:40:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "c37a9c86-aa60-400e-a467-5c49d550196b",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Washington Nationals",
+      "short_name": "WSH",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/wpqrut1423694764.png"
+    },
+    "away": {
+      "name": "Colorado Rockies",
+      "short_name": "COL",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/r7q6ko1687608395.png"
+    },
+    "kickoff_utc": "2026-08-24T22:45:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  },
+  {
+    "id": "5821c764-7189-43b1-a85f-e933647b028a",
+    "sport": "baseball",
+    "league": "MLB",
+    "home": {
+      "name": "Chicago White Sox",
+      "short_name": "CWS",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/yyz5dh1554140884.png"
+    },
+    "away": {
+      "name": "Texas Rangers",
+      "short_name": "TEX",
+      "logo_url": "https://r2.thesportsdb.com/images/media/team/badge/qt9qki1521893151.png"
+    },
+    "kickoff_utc": "2026-08-24T23:40:00.000Z",
+    "status": "scheduled",
+    "score": null,
+    "linescore": null,
+    "attendance": null,
+    "broadcast": "MLB.TV",
+    "has_odds": true
+  }
+]

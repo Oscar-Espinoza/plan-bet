@@ -16,6 +16,7 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   Briefing,
+  EvidenceFact,
   GameSchedule,
   GameSnapshot,
   GameSummary,
@@ -552,3 +553,54 @@ export const creditEntries = pgTable(
       .where(sql`${table.kind} = 'return'`),
   ],
 );
+
+/**
+ * Raw tool results from the context sources (apifootball, BigBalls, API-Sports),
+ * one row per keyed request. Kept separate from `fixture_context` so rebuilding
+ * a fact never means refetching its input, and so a vendor outage leaves the
+ * last-known-good payload standing.
+ *
+ * Freshness is derived from `expires_at` at read time, exactly as
+ * `cache-policy.ts` derives it for schedules and snapshots — never a status
+ * column, and never a queue table, which would also need reconciling every time
+ * a fixture is postponed.
+ */
+export const providerCache = pgTable(
+  "provider_cache",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    provider: text("provider").notNull(), // apifootball | bigballs | api-sports
+    kind: text("kind").notNull(), // discovery | h2h | predictions | standings | injuries
+    scope: text("scope").notNull(), // league, team pair, match id — per kind
+    payload: jsonb("payload").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("provider_cache_key_uidx").on(
+      table.provider,
+      table.kind,
+      table.scope,
+    ),
+    index("provider_cache_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+/**
+ * The derived evidence facts the buddy reads, one row per real game.
+ *
+ * Keyed on `games.id` rather than a route id on purpose: a Clásico is visible
+ * under two team-perspective routes but is one fixture, and enriching it twice
+ * would double every fact the buddy sees. Reads join
+ * `game_snapshots.route_id → games.id`, the join `readStoredSnapshot` already walks.
+ */
+export const fixtureContext = pgTable("fixture_context", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  gameId: uuid("game_id")
+    .notNull()
+    .unique()
+    .references(() => games.id, { onDelete: "cascade" }),
+  facts: jsonb("facts").$type<EvidenceFact[]>().notNull(),
+  summary: text("summary").notNull(),
+  builtAt: timestamp("built_at", { withTimezone: true }).notNull(),
+});

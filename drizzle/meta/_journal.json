@@ -64,6 +64,13 @@
       "when": 1787443600183,
       "tag": "0008_brief_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787461107770,
+      "tag": "0009_unknown_weapon_omega",
+      "breakpoints": true
     }
   ]
 }

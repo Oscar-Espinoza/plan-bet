@@ -2,23 +2,24 @@ import type { ApiSportsFixture } from "@/providers/api-sports/schemas";
 
 /**
  * The bridge. There is no shared fixture identifier between football-data.org /
- * MLB StatsAPI and API-Sports, so a stored game is matched to a vendor fixture
- * by team id plus kickoff. Candidates are already filtered to one team, so this
- * compares time only — a name comparison would just re-derive that, badly.
+ * MLB StatsAPI and the context vendors, so a stored game is matched to a vendor
+ * fixture by team id plus kickoff. Candidates are already filtered to one team,
+ * so this compares time only — a name comparison would just re-derive that,
+ * badly. Generic over the candidate row because three vendors now feed it.
  *
  * A baseball doubleheader is resolved by taking the nearest kickoff. Anything
  * outside the window is left unmatched, never guessed at.
  */
 export const KICKOFF_WINDOW_MS = 3 * 60 * 60 * 1000;
 
-export function matchFixture(
+export function matchFixture<T extends { kickoff: string }>(
   storedGame: { scheduledAt: string },
-  candidates: readonly ApiSportsFixture[],
-): ApiSportsFixture | undefined {
+  candidates: readonly T[],
+): T | undefined {
   const scheduledAt = Date.parse(storedGame.scheduledAt);
   if (Number.isNaN(scheduledAt)) return undefined;
 
-  let best: ApiSportsFixture | undefined;
+  let best: T | undefined;
   let bestDelta = Number.POSITIVE_INFINITY;
   for (const candidate of candidates) {
     const kickoff = Date.parse(candidate.kickoff);

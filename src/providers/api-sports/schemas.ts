@@ -128,3 +128,30 @@ export const baseballTeamsSchema = z.array(
 
 export const footballFixturesSchema = z.array(footballFixtureSchema);
 export const baseballGamesSchema = z.array(baseballGameSchema);
+
+/**
+ * Injuries are the one thing API-Sports carries that no other source does, and
+ * the reason its adapter survives Phase G2 at all. Football-only; the baseball
+ * host has no such endpoint.
+ */
+export type ApiSportsInjury = {
+  team: string;
+  player: string;
+  reason: string;
+};
+
+export const apiSportsInjuriesSchema = z.array(
+  z
+    .object({
+      player: z.object({
+        name: z.string().min(1),
+        reason: z.string().min(1).nullish(),
+      }),
+      team: z.object({ name: z.string().min(1) }),
+    })
+    .transform((row): ApiSportsInjury => ({
+      team: row.team.name,
+      player: row.player.name,
+      reason: row.player.reason ?? "Unavailable",
+    })),
+);

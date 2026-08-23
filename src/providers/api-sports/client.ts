@@ -5,6 +5,7 @@ import type { Sport } from "@/lib/contracts";
 import { logEvent } from "@/lib/logger";
 import {
   apiSportsEnvelopeSchema,
+  apiSportsInjuriesSchema,
   apiSportsStatusSchema,
   baseballGamesSchema,
   baseballTeamsSchema,
@@ -12,6 +13,7 @@ import {
   footballFixturesSchema,
   footballTeamsSchema,
   type ApiSportsFixture,
+  type ApiSportsInjury,
   type ApiSportsTeamMatch,
 } from "@/providers/api-sports/schemas";
 import { ProviderError } from "@/providers/provider-error";
@@ -284,6 +286,20 @@ export class ApiSportsClient {
       FIXTURES_PATH[sport],
       sport === "soccer" ? footballFixturesSchema : baseballGamesSchema,
       { date },
+    );
+  }
+
+  /**
+   * Missing players for one fixture, with the reason. Football only, and only
+   * reachable while the fixture itself is inside the free plan's ±1 day window.
+   */
+  getInjuries(fixtureId: number): Promise<ApiSportsInjury[]> {
+    return this.request(
+      "soccer",
+      "injuries_by_fixture",
+      "/injuries",
+      apiSportsInjuriesSchema,
+      { fixture: String(fixtureId) },
     );
   }
 }
