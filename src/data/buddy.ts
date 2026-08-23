@@ -45,12 +45,14 @@ export async function forgetBuddySession(sessionId: string) {
 const MAX_OUTPUT_TOKENS = 500;
 
 /**
- * A soccer fixture's stored context can run past twenty facts, and the prompt
- * already carries the conversation and the reader's notes. `buildFacts` emits
- * in signal order — injuries, form, head-to-head, the lean, the table — so a
- * plain cut keeps the strongest and needs no comparator.
+ * The cap applies to the stored context alone, not to the merged list: the
+ * snapshot's own facts are already bounded, and capping the total would let
+ * them crowd out the very material this context was fetched for.
+ * `buildFacts` emits in signal order — injuries, form, head-to-head, the lean,
+ * the table — so a plain cut keeps the strongest and needs no comparator, and
+ * the table rows it drops are what the snapshot already carries anyway.
  */
-const MAX_CONTEXT_FACTS = 12;
+const MAX_CONTEXT_FACTS = 6;
 
 function fact(id: string, label: string, value: string) {
   return {
@@ -114,8 +116,8 @@ export async function resolveContext(
         kind: "game",
         facts: [
           ...detail.snapshot.evidenceFacts,
-          ...(stored?.facts ?? []),
-        ].slice(0, MAX_CONTEXT_FACTS),
+          ...(stored?.facts ?? []).slice(0, MAX_CONTEXT_FACTS),
+        ],
         allowedPickIds: marketsFor(detail.snapshot.game.sport).flatMap(
           (market) =>
             market.selections.map(

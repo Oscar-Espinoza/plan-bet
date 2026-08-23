@@ -41,6 +41,14 @@ const MAX_INJURIES_PER_TEAM = 4;
 const FORM_LENGTH = 5;
 
 /**
+ * A table position off one or two matchdays is noise dressed as a fact —
+ * "14th on 0 points from 0 played" reads as a slump when it only means the
+ * season just started. Below this, the standing is left out entirely rather
+ * than qualified in prose nobody would trust anyway.
+ */
+const MIN_GAMES_FOR_STANDING = 3;
+
+/**
  * The stored summary says "Real Madrid CF" where apifootball says "Real Madrid",
  * and neither vendor shares an identifier with the other, so a standings row is
  * found by name with the suffixes forgiven.
@@ -103,9 +111,17 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
   const sourceId = soccer ? "apifootball" : "bigballs";
 
   for (const team of [bundle.homeTeam, bundle.awayTeam]) {
-    const out = (bundle.injuries ?? []).filter((injury) =>
-      sameTeam(injury.team, team),
-    );
+    // API-Sports reports a player once per injury record, so the same name can
+    // arrive several times for one fixture; the reader wants the squad list,
+    // not the paperwork.
+    const seen = new Set<string>();
+    const out = (bundle.injuries ?? []).filter((injury) => {
+      if (!sameTeam(injury.team, team)) return false;
+      const key = injury.player.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (out.length === 0) continue;
     const named = out
       .slice(0, MAX_INJURIES_PER_TEAM)
@@ -190,7 +206,7 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
 
   for (const team of [bundle.homeTeam, bundle.awayTeam]) {
     const row = bundle.soccerTable?.find((entry) => sameTeam(entry.team, team));
-    if (row) {
+    if (row && row.played >= MIN_GAMES_FOR_STANDING) {
       facts.push({
         id: factId(bundle.canonicalGameId, `table-${team}`),
         label: `${team} in the table`,
@@ -204,7 +220,7 @@ export function buildFacts(bundle: ContextBundle): EvidenceFact[] {
     const baseball = bundle.baseballTable?.find((entry) =>
       sameTeam(entry.team, team),
     );
-    if (!baseball) continue;
+    if (!baseball || baseball.gamesPlayed < MIN_GAMES_FOR_STANDING) continue;
     const diff = baseball.runsFor - baseball.runsAgainst;
     const streak = baseball.streak
       ? `, on a ${baseball.streak.startsWith("W") ? "win" : "losing"} streak of ${baseball.streak.slice(1)}`

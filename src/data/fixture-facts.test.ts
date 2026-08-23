@@ -74,19 +74,48 @@ describe("buildFacts", () => {
     expect(buildSummary(base, [])).toContain("no additional context");
   });
 
+  it("names one player once however many times the feed reports them", () => {
+    // API-Sports carries a row per injury record, so the same name arrives
+    // several times for one fixture.
+    const facts = buildFacts({
+      ...base,
+      injuries: [
+        { team: "Barcelona", player: "Gavi", reason: "Knee Injury" },
+        { team: "Barcelona", player: "Gavi", reason: "Knee Injury" },
+        { team: "Barcelona", player: "Ter Stegen", reason: "Back Injury" },
+      ],
+    });
+    expect(facts[0]!.value).toMatch(/^2 out:/);
+  });
+
   it("finds the table row across the vendors' different team names", () => {
     // The stored summary says "Real Madrid CF"; apifootball's table says
     // "Real Madrid".
+    const played = soccerTable.map((row) => ({ ...row, played: 20 }));
     const facts = buildFacts({
       ...base,
       homeTeam: "Real Madrid CF",
       awayTeam: "Sevilla FC",
-      soccerTable,
+      soccerTable: played,
     });
     expect(facts.map((fact) => fact.label)).toEqual([
       "Real Madrid CF in the table",
       "Sevilla FC in the table",
     ]);
+  });
+
+  it("leaves out a standing drawn from a season two matchdays old", () => {
+    // The captured table is a real opening-week table: "14th on 0 points from
+    // 0 played" reads as a slump when it only means nothing has happened yet.
+    expect(soccerTable[0]!.played).toBeLessThan(3);
+    expect(
+      buildFacts({
+        ...base,
+        homeTeam: "Real Madrid",
+        awayTeam: "Sevilla",
+        soccerTable,
+      }),
+    ).toEqual([]);
   });
 
   it("reads a baseball record off the standings alone", () => {
