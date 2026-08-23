@@ -47,46 +47,19 @@ export function createDefaultState(
 }
 
 /**
- * Chains version 0 -> 1 -> 2 -> 3 rather than jumping straight to current:
- * each step only needs to know the shift immediately before it. Phase A
- * dropped watchlist/activity/recap entirely (v1 -> v2); Phase B dropped the
- * sport/team selection the topbar mode switcher used to drive (v2 -> v3),
- * once the slate replaced it as the one way to find a game. Spreading a
- * returning browser's payload over the current default keeps what still has
- * a home (saved and generated briefings, anonymousId) and lets
- * `storedStateSchema` silently strip the rest, rather than discarding a
- * returning browser's whole workspace.
+ * Phase B dropped the sport/team selection the topbar mode switcher used to
+ * drive (v2 -> v3), once the slate replaced it as the one way to find a game.
+ * Spreading a returning browser's payload over the current default keeps what
+ * still has a home (saved and generated briefings, anonymousId) and lets
+ * `storedStateSchema` silently strip the rest. Anything older than v2 predates
+ * Phase A and falls through to `parseStoredState`'s default — browser-local
+ * demo state, not data worth three migration arms.
  */
 function migrateLegacy(input: unknown, fallbackId: string): unknown {
   if (!input || typeof input !== "object") return input;
   const value = input as Record<string, unknown>;
-  if (value.version === 0) {
-    return migrateLegacy(
-      {
-        ...createDefaultState(fallbackId),
-        ...value,
-        version: 1,
-        anonymousId: value.anonymousId ?? fallbackId,
-      },
-      fallbackId,
-    );
-  }
-  if (value.version === 1) {
-    return migrateLegacy(
-      {
-        ...createDefaultState(fallbackId),
-        ...value,
-        version: 2,
-      },
-      fallbackId,
-    );
-  }
   if (value.version === 2) {
-    return {
-      ...createDefaultState(fallbackId),
-      ...value,
-      version: 3,
-    };
+    return { ...createDefaultState(fallbackId), ...value, version: 3 };
   }
   return input;
 }

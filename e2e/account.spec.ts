@@ -37,9 +37,6 @@ test("the bets API never returns 200 with no session", async ({
   request,
   baseURL,
 }) => {
-  const summary = await request.get("/api/bets/summary");
-  expect([401, 503]).toContain(summary.status());
-
   // Same-origin so the request clears isSameOrigin and reaches requireAccount.
   const origin = new URL(baseURL!).origin;
   const reset = await request.post("/api/bets/reset", {

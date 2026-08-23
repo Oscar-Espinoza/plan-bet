@@ -9,7 +9,7 @@ import { withDatabaseTransaction } from "@/db/client";
 import { creditEntries, wagers } from "@/db/schema";
 import type { CreditSummary, GameSummary, Wager } from "@/lib/contracts";
 import { HOUSE_PRICES_VERSION, resolveSelection } from "@/lib/markets";
-import { RULES_VERSION } from "@/lib/rules";
+import { RULES_VERSION } from "@/lib/utils";
 // Declared in wager-copy.ts, which is not `server-only` so the client slip
 // can import it too — re-exported here so this file's own callers (the
 // placement route, wagers-repository) are unchanged.

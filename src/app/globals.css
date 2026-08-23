@@ -395,8 +395,7 @@ a {
 }
 
 /* Neutral by default — one accent doing thirteen jobs meant nothing could be
-   emphasised. The slate's "Next up" hero is the one place this gets lit;
-   see .slate-hero-live .eyebrow below. */
+   emphasised. */
 .eyebrow {
   color: var(--faint);
   font-size: var(--text-xs);
@@ -814,14 +813,6 @@ a {
   text-transform: uppercase;
 }
 
-.next-up-countdown {
-  color: var(--sodium);
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
 .next-up-teams {
   overflow: hidden;
   margin: 0.5rem 0 0;
@@ -878,12 +869,6 @@ a {
 
 .slate-groups {
   display: grid;
-  gap: 1rem;
-}
-
-.hero-main {
-  display: flex;
-  align-items: center;
   gap: 1rem;
 }
 
@@ -1009,53 +994,6 @@ a {
   padding: 1rem;
   color: var(--muted);
   font-size: var(--text-sm);
-}
-
-.freshness-panel {
-  border-left: 2px solid var(--field);
-  background: var(--slat-muted);
-  padding: 0.85rem 1rem;
-}
-
-.freshness-panel > div {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: var(--text-sm);
-}
-
-.freshness-panel p {
-  margin: 0.4rem 0 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: 1.55;
-}
-
-.freshness-dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--field);
-}
-
-.freshness-panel[data-mode="stale"] {
-  border-left-color: var(--sodium);
-}
-
-.freshness-panel[data-mode="stale"] .freshness-dot {
-  background: var(--sodium);
-}
-
-.freshness-panel[data-mode="demo"] {
-  border-left-color: var(--muted);
-}
-
-.freshness-panel[data-mode="demo"] .freshness-dot {
-  background: var(--muted);
-}
-
-.freshness-panel .button {
-  margin-top: 0.65rem;
 }
 
 .back-link {

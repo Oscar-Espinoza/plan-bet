@@ -16,10 +16,6 @@ export function getSportsProvider(sport: Sport): SportsProvider {
   return providers[sport];
 }
 
-export function getSportsProviders() {
-  return providers;
-}
-
 export function getProviderHealthDefinitions() {
   return {
     footballData: {

@@ -35,7 +35,7 @@ export function toSummary(row?: {
   const balance = row?.balance ?? 0;
   const lifetimeStaked = row?.lifetimeStaked ?? 0;
   const lifetimeReturned = row?.lifetimeReturned ?? 0;
-  // Parsed at the data-layer boundary, so the route, /account, and the topbar
+  // Parsed at the data-layer boundary, so the route, /you, and the topbar
   // control all inherit it rather than each re-validating.
   return creditSummarySchema.parse({
     balance,

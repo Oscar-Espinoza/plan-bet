@@ -1,6 +1,14 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/** Bumped whenever the published house rules change; frozen into every wager. */
+export const RULES_VERSION = "2026-08-21";
+
+/** Session 01 demo route IDs, kept readable so browser-local links still work. */
+export function isLegacyBaseballGameId(gameId: string) {
+  return /^mlb-(nyy|bos)-\d{2}$/.test(gameId);
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -27,19 +35,6 @@ export function formatShortDate(value: string) {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
-}
-
-export function formatRelativeTime(value: string) {
-  const elapsed = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(0, Math.round(elapsed / 60_000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
-
-export function normalizeText(value: string, maxLength = 500) {
-  return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
 /**

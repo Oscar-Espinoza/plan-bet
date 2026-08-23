@@ -1,11 +1,9 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import {
   claimBriefingSlot,
   completeBriefingRun,
   hashSessionId,
-  utcDayEnd,
 } from "@/data/briefings-repository";
 import { getGameDetail } from "@/data/sports-data";
 import {
@@ -361,12 +359,4 @@ export async function generateBriefing(
       quota,
     },
   };
-}
-
-export function nextQuotaReset(now = new Date()) {
-  return utcDayEnd(now).toISOString();
-}
-
-export function newRequestId() {
-  return randomUUID();
 }

@@ -37,7 +37,7 @@ import {
 } from "../src/db/schema";
 import { withDatabaseTransaction } from "../src/db/client";
 import { HOUSE_PRICES_VERSION, resolveSelection } from "../src/lib/markets";
-import { RULES_VERSION } from "../src/lib/rules";
+import { RULES_VERSION } from "../src/lib/utils";
 import type { Grade } from "../src/lib/markets";
 import type { Sport } from "../src/lib/contracts";
 

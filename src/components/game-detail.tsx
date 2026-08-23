@@ -33,9 +33,8 @@ import type {
 } from "@/lib/contracts";
 import { briefingResultSchema } from "@/lib/contracts";
 import { TIME_TOKEN } from "@/lib/briefing-prompt";
-import { isLegacyBaseballGameId } from "@/lib/game-ids";
 import { useMatchdayStore } from "@/lib/store";
-import { citedRefs as citedRefsFor } from "@/lib/utils";
+import { citedRefs as citedRefsFor, isLegacyBaseballGameId } from "@/lib/utils";
 
 function Provided({ value }: { value?: string }) {
   return (

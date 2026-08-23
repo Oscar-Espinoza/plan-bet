@@ -3,15 +3,15 @@ import { safeCallbackUrl } from "@/lib/api-request";
 
 describe("safeCallbackUrl", () => {
   it("accepts an on-site path", () => {
-    expect(safeCallbackUrl("/account")).toBe("/account");
+    expect(safeCallbackUrl("/you")).toBe("/you");
   });
 
   it("rejects a protocol-relative URL", () => {
-    expect(safeCallbackUrl("//evil.com")).toBe("/account");
+    expect(safeCallbackUrl("//evil.com")).toBe("/you");
   });
 
   it("rejects an absolute URL", () => {
-    expect(safeCallbackUrl("https://evil.com")).toBe("/account");
+    expect(safeCallbackUrl("https://evil.com")).toBe("/you");
   });
 
   // Regression: a startsWith("//") check let all of these through, and the
@@ -22,7 +22,7 @@ describe("safeCallbackUrl", () => {
     ["embedded carriage return", "/\r/evil.com"],
     ["embedded newline", "/\n/evil.com"],
   ])("rejects an off-site URL disguised by a %s", (_label, value) => {
-    expect(safeCallbackUrl(value)).toBe("/account");
+    expect(safeCallbackUrl(value)).toBe("/you");
   });
 
   it("keeps the query and fragment of an on-site path", () => {
@@ -31,8 +31,8 @@ describe("safeCallbackUrl", () => {
     );
   });
 
-  it("falls back to /account when the value is missing or empty", () => {
-    expect(safeCallbackUrl(undefined)).toBe("/account");
-    expect(safeCallbackUrl("")).toBe("/account");
+  it("falls back to /you when the value is missing or empty", () => {
+    expect(safeCallbackUrl(undefined)).toBe("/you");
+    expect(safeCallbackUrl("")).toBe("/you");
   });
 });

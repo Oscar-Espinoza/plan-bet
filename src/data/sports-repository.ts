@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
 import { stableHash } from "@/data/stable-hash";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
@@ -304,15 +304,4 @@ export async function getLastBriefingGenerationAt() {
     })
     .from(briefingRuns);
   return row?.lastGenerationAt ? new Date(row.lastGenerationAt) : undefined;
-}
-
-export async function listStoredGames(sport?: "soccer" | "baseball") {
-  const base = getDatabase()
-    .select({ routeId: gameSnapshots.routeId, scheduledAt: games.scheduledAt })
-    .from(gameSnapshots)
-    .innerJoin(games, eq(gameSnapshots.gameId, games.id));
-  if (sport) {
-    return base.where(eq(games.sport, sport)).orderBy(asc(games.scheduledAt));
-  }
-  return base.orderBy(asc(games.scheduledAt));
 }

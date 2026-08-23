@@ -13,41 +13,17 @@ describe("browser storage", () => {
     ).toEqual(createDefaultState(fallbackId));
   });
 
-  it("migrates a legacy v0 payload all the way through to v3, keeping only what still has a home", () => {
-    const legacy = {
-      version: 0,
-      selectedTeam: "barcelona",
-    };
-    const result = parseStoredState(JSON.stringify(legacy), fallbackId);
-    expect(result).toEqual(createDefaultState(fallbackId));
-  });
-
-  // Phase A dropped watchlist/activity/recap entirely. A returning browser's
-  // v1 payload should still keep what has a home in v3 — saved and generated
-  // briefings, anonymousId — rather than being discarded outright.
-  it("upgrades a v1 payload, keeping briefings and dropping watchlist state", () => {
+  // Anything older than v2 predates Phase A and has no migration arm: it
+  // falls through to the defaults rather than being carried forward.
+  it("falls back to defaults for a pre-v2 payload", () => {
     const v1 = {
       version: 1,
-      selectedSport: "baseball",
-      selectedTeamSlug: "new-york-yankees",
-      watchlistItems: [{ id: "item-1", text: "stale watchlist item" }],
-      recapNotes: { "game-a": "stale recap" },
       savedBriefings: ["game-a"],
-      viewedBriefings: ["game-a", "game-b"],
-      generatedBriefings: {},
-      activityEvents: [{ id: "event-1", type: "team_selected" }],
       anonymousId: "20000000-0000-4000-8000-000000000002",
     };
-    const result = parseStoredState(JSON.stringify(v1), fallbackId);
-    expect(result.version).toBe(3);
-    expect(result.savedBriefings).toEqual(["game-a"]);
-    expect(result.viewedBriefings).toEqual(["game-a", "game-b"]);
-    expect(result.anonymousId).toBe("20000000-0000-4000-8000-000000000002");
-    expect(result).not.toHaveProperty("watchlistItems");
-    expect(result).not.toHaveProperty("recapNotes");
-    expect(result).not.toHaveProperty("activityEvents");
-    expect(result).not.toHaveProperty("selectedSport");
-    expect(result).not.toHaveProperty("selectedTeamSlug");
+    expect(parseStoredState(JSON.stringify(v1), fallbackId)).toEqual(
+      createDefaultState(fallbackId),
+    );
   });
 
   // Phase B removed the topbar sport toggle and team select the v2 fields

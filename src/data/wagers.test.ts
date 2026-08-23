@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GameSummary } from "@/lib/contracts";
 import { HOUSE_PRICES_VERSION } from "@/lib/markets";
-import { RULES_VERSION } from "@/lib/rules";
+import { RULES_VERSION } from "@/lib/utils";
 
 const { withDatabaseTransactionMock, readGameForWagerMock } = vi.hoisted(
   () => ({

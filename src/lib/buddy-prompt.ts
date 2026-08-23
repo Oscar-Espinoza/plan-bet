@@ -4,10 +4,6 @@ import type { EvidenceFact } from "@/lib/contracts";
 export const MAX_QUESTION_CHARS = 500;
 const MAX_HISTORY_TURNS = 6;
 
-export function getBuddyPromptVersion() {
-  return process.env.BUDDY_PROMPT_VERSION?.trim() || "2026-08-22.1";
-}
-
 /**
  * A discriminated union on `kind`, mirroring how `Sport` forces exhaustive
  * handling in contracts.ts. The server derives every fact here from the

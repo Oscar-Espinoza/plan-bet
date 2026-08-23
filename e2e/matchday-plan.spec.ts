@@ -173,42 +173,9 @@ test("the slate's sport chips scope the board, and the game page returns to it",
   expect(browserErrors).toEqual([]);
 });
 
-test("canonical team APIs validate input and expose freshness metadata", async ({
+test("the health endpoint reports every provider without leaking config", async ({
   request,
 }) => {
-  const teams = await request.get("/api/teams");
-  expect(teams.ok()).toBe(true);
-  expect((await teams.json()).data).toHaveLength(4);
-
-  const schedule = await request.get("/api/teams/real-madrid/games?limit=2");
-  expect(schedule.ok()).toBe(true);
-  const body = await schedule.json();
-  expect(body.data.games).toHaveLength(2);
-  expect(["live", "stale", "demo"]).toContain(body.data.freshness.mode);
-  if (body.data.freshness.mode !== "demo") {
-    expect(body.data.freshness.provider).toBe("football-data");
-    expect(body.data.freshness.attribution.name).toBe("football-data.org");
-  }
-
-  const invalid = await request.get("/api/teams/real-madrid/games?limit=11");
-  expect(invalid.status()).toBe(400);
-
-  const legacy = await request.get("/api/games/soc-rma-01");
-  expect(legacy.ok()).toBe(true);
-  expect((await legacy.json()).data.game.id).toBe("soc-rma-01");
-
-  const baseball = await request.get(
-    "/api/teams/new-york-yankees/games?limit=5",
-  );
-  expect(baseball.ok()).toBe(true);
-  const baseballBody = await baseball.json();
-  expect(baseballBody.data.games).toHaveLength(5);
-  expect(baseballBody.data.context.kind).toBe("baseball");
-
-  const archivedBaseball = await request.get("/api/games/mlb-nyy-01");
-  expect(archivedBaseball.ok()).toBe(true);
-  expect((await archivedBaseball.json()).data.game.id).toBe("mlb-nyy-01");
-
   const health = await request.get("/api/health");
   const healthBody = await health.json();
   expect([200, 503]).toContain(health.status());

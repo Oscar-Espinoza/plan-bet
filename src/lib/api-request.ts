@@ -1,6 +1,6 @@
 import type { ZodType } from "zod";
 
-const DEFAULT_CALLBACK_URL = "/account";
+const DEFAULT_CALLBACK_URL = "/you";
 // Any origin works; it exists only so a relative path can be resolved and its
 // origin compared. It is never rendered or navigated to.
 const CALLBACK_BASE = "https://matchday.invalid";

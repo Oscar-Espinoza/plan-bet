@@ -23,29 +23,12 @@ type MatchdayActions = {
 
 export type MatchdayStore = StoredState & MatchdayActions;
 
-function makeId() {
-  return (
-    globalThis.crypto?.randomUUID?.() ??
-    `local-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  );
-}
-
-function dataFromStore(state: MatchdayStore): StoredState {
-  return {
-    version: 3,
-    savedBriefings: state.savedBriefings,
-    viewedBriefings: state.viewedBriefings,
-    generatedBriefings: state.generatedBriefings,
-    anonymousId: state.anonymousId,
-    tourStep: state.tourStep,
-    introDismissed: state.introDismissed,
-    buddyConversation: state.buddyConversation,
-  };
-}
-
+// `storedStateSchema` strips the action functions and `hydrated` on its own,
+// so the persisted shape follows the schema without a field list to keep in
+// sync every time one is added.
 function persist(state: MatchdayStore) {
   if (typeof window === "undefined") return;
-  const data = storedStateSchema.parse(dataFromStore(state));
+  const data = storedStateSchema.parse(state);
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
@@ -62,7 +45,7 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
     hydrated: false,
     hydrate: () => {
       if (get().hydrated || typeof window === "undefined") return;
-      const fallbackId = makeId();
+      const fallbackId = crypto.randomUUID();
       const state = parseStoredState(
         window.localStorage.getItem(STORAGE_KEY),
         fallbackId,

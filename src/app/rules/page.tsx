@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RULES_VERSION } from "@/lib/rules";
+import { RULES_VERSION } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Rules" };
 
