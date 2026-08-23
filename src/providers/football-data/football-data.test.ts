@@ -88,6 +88,35 @@ describe("football-data normalization", () => {
     expect(opponent?.value).toMatch(/^(#\d+ · |Not provided$)/);
   });
 
+  it("hides the table position before either team has played enough games", () => {
+    const seasonStart = {
+      ...standings,
+      standings: standings.standings.map((entry) => ({
+        ...entry,
+        table: entry.table.map((row) => ({ ...row, playedGames: 0 })),
+      })),
+    };
+    const data = normalizeSoccerTeamData({
+      slug: "real-madrid",
+      team,
+      upcoming,
+      recent,
+      standings: seasonStart,
+      fetchedAt: new Date("2026-08-17T10:00:00Z"),
+    });
+    const facts = data.snapshots[0]!.snapshot.evidenceFacts;
+
+    expect(
+      facts.find((fact) => fact.id.endsWith("-fact-standing"))?.value,
+    ).toBe("Not provided");
+    expect(
+      facts.find((fact) => fact.id.endsWith("-fact-opponent-standing"))?.value,
+    ).toBe("Not provided");
+    if (data.schedule.context.kind === "soccer") {
+      expect(data.schedule.context.tablePosition).toBeUndefined();
+    }
+  });
+
   it("marks the scheduled time as a datetime instead of prose", () => {
     const data = normalizeSoccerTeamData({
       slug: "real-madrid",

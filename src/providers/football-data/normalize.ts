@@ -16,6 +16,7 @@ import type {
   FootballDataTeam,
 } from "@/providers/football-data/schemas";
 import {
+  MIN_GAMES_FOR_STANDING,
   RESULT_RETENTION_DAYS,
   type ProviderSnapshot,
 } from "@/providers/contracts";
@@ -126,7 +127,12 @@ export function normalizeSoccerTeamData(input: {
     input.standings.standings.find((entry) => entry.type === "TOTAL")?.table ??
     input.standings.standings[0]?.table ??
     [];
-  const standing = standingsTable.find((row) => row.team.id === teamId);
+  // A row from a table nobody has played in yet is not a fact about form.
+  const tableRow = (id: number) => {
+    const row = standingsTable.find((entry) => entry.team.id === id);
+    return row && row.playedGames >= MIN_GAMES_FOR_STANDING ? row : undefined;
+  };
+  const standing = tableRow(teamId);
   const recent = [...input.recent]
     .filter((match) => normalizeFootballStatus(match.status) === "finished")
     .sort((a, b) => b.utcDate.localeCompare(a.utcDate))
@@ -251,9 +257,7 @@ export function normalizeSoccerTeamData(input: {
     const opponentSide = trackedIsHome ? raw.awayTeam : raw.homeTeam;
     // The standings payload already holds the whole table, so the opponent's row
     // is a sourced fact rather than a second request.
-    const opponentStanding = standingsTable.find(
-      (row) => row.team.id === opponentSide.id,
-    );
+    const opponentStanding = tableRow(opponentSide.id);
     const facts = [
       {
         id: `${factPrefix}-schedule`,

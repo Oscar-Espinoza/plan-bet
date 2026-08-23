@@ -75,3 +75,11 @@ export type SportsProvider = {
  * window ever exceeds a week.
  */
 export const RESULT_RETENTION_DAYS = 7;
+
+/**
+ * A table position off one or two matchdays is noise dressed as a fact —
+ * "15th on 0 points from 0 played" reads as a slump when it only means the
+ * season just started. Below this the standing is left out entirely rather
+ * than qualified in prose nobody would trust anyway.
+ */
+export const MIN_GAMES_FOR_STANDING = 3;

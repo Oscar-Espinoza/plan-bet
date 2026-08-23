@@ -112,6 +112,40 @@ describe("MLB and Savant normalization", () => {
     });
   });
 
+  it("hides the standing before either team has played enough games", async () => {
+    const seasonStart = {
+      ...standings,
+      records: standings.records.map((record) => ({
+        ...record,
+        teamRecords: record.teamRecords.map((row) => ({
+          ...row,
+          wins: 1,
+          losses: 1,
+        })),
+      })),
+    };
+    const data = normalizeBaseballTeamData({
+      slug: "new-york-yankees",
+      team,
+      upcoming,
+      recent,
+      standings: seasonStart,
+      pitchers,
+      statcastRows: await statcastRows(),
+      fetchedAt: new Date("2026-08-18T12:00:00Z"),
+    });
+
+    expect(data.schedule.context).toMatchObject({
+      divisionRank: undefined,
+      lastTen: undefined,
+    });
+    expect(
+      data.snapshots[0]?.snapshot.evidenceFacts.find((fact) =>
+        fact.id.endsWith("-fact-standing"),
+      )?.value,
+    ).toBe("Not provided");
+  });
+
   it("keeps shared provider and evidence IDs stable under reordered input", async () => {
     const normalize = (games: typeof upcoming) =>
       normalizeBaseballTeamData({

@@ -12,6 +12,7 @@ import {
 } from "@/lib/contracts";
 import { getTeam } from "@/lib/seed";
 import {
+  MIN_GAMES_FOR_STANDING,
   RESULT_RETENTION_DAYS,
   type ProviderSnapshot,
 } from "@/providers/contracts";
@@ -174,9 +175,13 @@ export function normalizeBaseballTeamData(input: {
 }): NormalizedBaseballTeamData {
   const teamId = MLB_PROVIDER_IDS[input.slug];
   const team = normalizeTeam(input.slug, input.team);
-  const standing = flattenStandings(input.standings).find(
+  const standingRow = flattenStandings(input.standings).find(
     (row) => row.team.id === teamId,
   );
+  const played =
+    (standingRow?.wins ?? standingRow?.leagueRecord?.wins ?? 0) +
+    (standingRow?.losses ?? standingRow?.leagueRecord?.losses ?? 0);
+  const standing = played >= MIN_GAMES_FOR_STANDING ? standingRow : undefined;
   const lastTen = standing?.records?.splitRecords?.find(
     (record) => record.type === "lastTen",
   );

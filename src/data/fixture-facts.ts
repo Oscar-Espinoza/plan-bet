@@ -13,6 +13,7 @@ import type {
   BigBallsMatch,
   BigBallsStandingRow,
 } from "@/providers/bigballs/schemas";
+import { MIN_GAMES_FOR_STANDING } from "@/providers/contracts";
 
 /**
  * Everything gathered for one fixture, before it becomes evidence. Every field
@@ -44,14 +45,6 @@ function factId(canonicalGameId: string, slug: string) {
 
 const MAX_INJURIES_PER_TEAM = 4;
 const FORM_LENGTH = 5;
-
-/**
- * A table position off one or two matchdays is noise dressed as a fact —
- * "14th on 0 points from 0 played" reads as a slump when it only means the
- * season just started. Below this, the standing is left out entirely rather
- * than qualified in prose nobody would trust anyway.
- */
-const MIN_GAMES_FOR_STANDING = 3;
 
 /**
  * The stored summary says "Real Madrid CF" where apifootball says "Real Madrid",
