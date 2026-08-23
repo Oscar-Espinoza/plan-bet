@@ -1,4 +1,9 @@
-import type { EvidenceFact, Sport } from "@/lib/contracts";
+import type {
+  EvidenceFact,
+  GameSnapshot,
+  SourceReference,
+  Sport,
+} from "@/lib/contracts";
 import type {
   ApiFootballMatch,
   ApiFootballPrediction,
@@ -250,4 +255,75 @@ export function buildSummary(bundle: ContextBundle, facts: EvidenceFact[]) {
   return `${bundle.homeTeam} vs ${bundle.awayTeam}. ${facts
     .map((fact) => `${fact.label}: ${fact.value}`)
     .join(". ")}.`;
+}
+
+/**
+ * The cap applies to the stored context alone, not to the merged list: the
+ * snapshot's own facts are already bounded, and capping the total would let
+ * them crowd out the very material this context was fetched for. `buildFacts`
+ * emits in signal order — injuries, form, head-to-head, the lean, the table —
+ * so a plain cut keeps the strongest and needs no comparator, and the table
+ * rows it drops are what the snapshot already carries anyway.
+ */
+const MAX_CONTEXT_FACTS = 6;
+
+/**
+ * One entry per `sourceId` `buildFacts` can emit, so a merged fact never cites
+ * a reference the Sources panel does not list. No `url`: both context vendors
+ * are MCP endpoints, not pages a reader can open.
+ */
+const CONTEXT_SOURCES: Record<string, Omit<SourceReference, "observedAt">> = {
+  apifootball: {
+    id: "apifootball",
+    name: "apifootball fixtures, form and standings",
+    description:
+      "Recent form, head-to-head meetings, the league table, and the model's lean.",
+    provider: "apifootball",
+    operation: "fixture_context",
+  },
+  bigballs: {
+    id: "bigballs",
+    name: "BigBalls MLB standings",
+    description: "Record, run differential, and the current streak.",
+    provider: "bigballs",
+    operation: "fixture_context",
+  },
+  "api-sports": {
+    id: "api-sports",
+    name: "API-Sports injury report",
+    description: "Players unavailable for this fixture, with the reason given.",
+    provider: "api-sports",
+    operation: "fixture_context",
+  },
+};
+
+/**
+ * Appends stored fixture context to a snapshot, so the page's evidence panel,
+ * the briefing and the buddy all read one fact list rather than the buddy
+ * reasoning from material the reader cannot see.
+ *
+ * Appended, never merged in place: every fact already there keeps the `[n]`
+ * number `citedRefs` gives it. Only the sources the surviving facts actually
+ * cite are added — a fixture with nobody out must not list an injury report.
+ */
+export function withContextFacts(
+  snapshot: GameSnapshot,
+  stored: EvidenceFact[],
+): GameSnapshot {
+  const facts = stored.slice(0, MAX_CONTEXT_FACTS);
+  if (facts.length === 0) return snapshot;
+
+  const cited = new Map<string, SourceReference>();
+  for (const fact of facts) {
+    const source = CONTEXT_SOURCES[fact.sourceId];
+    if (source && !cited.has(source.id)) {
+      cited.set(source.id, { ...source, observedAt: fact.observedAt });
+    }
+  }
+
+  return {
+    ...snapshot,
+    sources: [...snapshot.sources, ...cited.values()],
+    evidenceFacts: [...snapshot.evidenceFacts, ...facts],
+  };
 }

@@ -8,7 +8,6 @@ import {
   recordBuddyReply,
   saveBuddyNote,
 } from "@/data/buddy-repository";
-import { readFixtureContext } from "@/data/fixture-context-repository";
 import {
   getGroupBySlug,
   getGroupLeaderboard,
@@ -43,16 +42,6 @@ export async function forgetBuddySession(sessionId: string) {
 }
 
 const MAX_OUTPUT_TOKENS = 500;
-
-/**
- * The cap applies to the stored context alone, not to the merged list: the
- * snapshot's own facts are already bounded, and capping the total would let
- * them crowd out the very material this context was fetched for.
- * `buildFacts` emits in signal order — injuries, form, head-to-head, the lean,
- * the table — so a plain cut keeps the strongest and needs no comparator, and
- * the table rows it drops are what the snapshot already carries anyway.
- */
-const MAX_CONTEXT_FACTS = 6;
 
 function fact(id: string, label: string, value: string) {
   return {
@@ -105,19 +94,12 @@ export async function resolveContext(
   if (gameMatch) {
     const detail = await getGameDetail(gameMatch[1]!);
     if (!detail) return none;
-    // Enrichment is a bonus, never a dependency: no database, no stored row,
-    // or a row written in a shape the contract has since moved past all leave
-    // the buddy with exactly the snapshot facts it had before.
-    const stored = isDatabaseConfigured()
-      ? await readFixtureContext(gameMatch[1]!).catch(() => undefined)
-      : undefined;
+    // Stored fixture context already reached the snapshot in `getGameDetail`,
+    // so the buddy cites exactly what the page displays beside it.
     return {
       context: {
         kind: "game",
-        facts: [
-          ...detail.snapshot.evidenceFacts,
-          ...(stored?.facts ?? []).slice(0, MAX_CONTEXT_FACTS),
-        ],
+        facts: detail.snapshot.evidenceFacts,
         allowedPickIds: marketsFor(detail.snapshot.game.sport).flatMap(
           (market) =>
             market.selections.map(

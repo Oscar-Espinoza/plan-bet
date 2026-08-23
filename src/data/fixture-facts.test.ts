@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFacts, buildSummary } from "@/data/fixture-facts";
+import {
+  buildFacts,
+  buildSummary,
+  withContextFacts,
+} from "@/data/fixture-facts";
+import { evaluationSnapshots } from "@/lib/__fixtures__/briefing-evals";
+import { gameSnapshotSchema } from "@/lib/contracts";
 import apiFootballHeadToHead from "@/providers/apifootball/__fixtures__/head-to-head.json";
 import apiFootballPredictions from "@/providers/apifootball/__fixtures__/predictions.json";
 import apiFootballStandings from "@/providers/apifootball/__fixtures__/standings.json";
@@ -129,5 +135,72 @@ describe("buildFacts", () => {
     expect(facts).toHaveLength(2);
     expect(facts[0]!.sourceId).toBe("bigballs");
     expect(facts[0]!.value).toMatch(/run differential [+-]?\d+/);
+  });
+});
+
+describe("withContextFacts", () => {
+  // The real briefing eval snapshot, so the merge is exercised against the same
+  // shape the citation-grade pipeline is reviewed against.
+  const snapshot = evaluationSnapshots[0]!;
+
+  it("never appends a fact whose source the panel could not list", () => {
+    // The invariant that fails if a future buildFacts branch invents a fourth
+    // sourceId: the Sources panel would under-report where the material came
+    // from, which is the whole reason this merge moved out of the buddy.
+    for (const stored of [
+      buildFacts(full),
+      buildFacts({
+        ...base,
+        sport: "baseball",
+        homeTeam: "New York Yankees",
+        awayTeam: "Boston Red Sox",
+        baseballTable,
+      }),
+    ]) {
+      const merged = withContextFacts(snapshot, stored);
+      const listed = new Set(merged.sources.map((source) => source.id));
+      expect(stored.length).toBeGreaterThan(0);
+      for (const fact of merged.evidenceFacts) {
+        expect(listed).toContain(fact.sourceId);
+      }
+      // The appended references have to survive the contract too, or the merge
+      // would produce a snapshot the read boundary could not have returned.
+      expect(() => gameSnapshotSchema.parse(merged)).not.toThrow();
+    }
+  });
+
+  it("keeps the existing facts in place so their [n] numbers do not move", () => {
+    const merged = withContextFacts(snapshot, buildFacts(full));
+    expect(
+      merged.evidenceFacts.slice(0, snapshot.evidenceFacts.length),
+    ).toEqual(snapshot.evidenceFacts);
+    expect(merged.sources.slice(0, snapshot.sources.length)).toEqual(
+      snapshot.sources,
+    );
+  });
+
+  it("lists no injury report for a fixture with nobody out", () => {
+    const merged = withContextFacts(
+      snapshot,
+      buildFacts({ ...full, injuries: undefined }),
+    );
+    expect(merged.sources.map((source) => source.id)).not.toContain(
+      "api-sports",
+    );
+  });
+
+  it("returns the snapshot untouched when nothing was stored", () => {
+    expect(withContextFacts(snapshot, [])).toBe(snapshot);
+  });
+
+  it("takes the six strongest and stops", () => {
+    const stored = Array.from({ length: 9 }, (_, index) => ({
+      ...buildFacts(full)[0]!,
+      id: `football-data-564645-ctx-${index}`,
+    }));
+    const merged = withContextFacts(snapshot, stored);
+    expect(merged.evidenceFacts).toHaveLength(
+      snapshot.evidenceFacts.length + 6,
+    );
   });
 });

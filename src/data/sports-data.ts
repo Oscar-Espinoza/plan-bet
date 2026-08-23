@@ -3,6 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { isDatabaseConfigured, getDatabase } from "@/db/client";
 import { seedConfiguredTeams } from "@/db/seed";
+import { readFixtureContext } from "@/data/fixture-context-repository";
+import { withContextFacts } from "@/data/fixture-facts";
 import {
   acquireRefreshLease,
   completeRefreshLease,
@@ -338,6 +340,14 @@ export async function getGameDetail(
     }
   }
   if (!snapshot) return undefined;
+  // Stored fixture context is a bonus, never a dependency: no database, no row,
+  // or a row written in a shape the contract has since moved past all leave the
+  // snapshot exactly as it was. Merged here rather than in any one consumer so
+  // the page, the briefing and the buddy read the same facts.
+  if (isDatabaseConfigured()) {
+    const stored = await readFixtureContext(gameId).catch(() => undefined);
+    if (stored) snapshot = withContextFacts(snapshot, stored.facts);
+  }
   const team = getTeam(snapshot.game.teamSlug)!;
   return { snapshot, briefing: createEvidenceBriefing(snapshot, team) };
 }
