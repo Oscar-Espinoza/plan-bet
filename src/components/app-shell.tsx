@@ -28,12 +28,7 @@ function WorkspaceControls({
 }: {
   accountControl?: React.ReactNode;
 }) {
-  return (
-    <div className="topbar-controls">
-      <Buddy />
-      {accountControl}
-    </div>
-  );
+  return <div className="topbar-controls">{accountControl}</div>;
 }
 
 export function AppShell({
@@ -146,6 +141,7 @@ export function AppShell({
         })}
       </nav>
       <TourBar />
+      <Buddy />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MAX_QUESTION_CHARS } from "@/lib/buddy-prompt";
 import { useMatchdayStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 type Turn = {
   role: "user" | "buddy";
@@ -34,6 +35,7 @@ export function Buddy() {
   const hydrated = useMatchdayStore((state) => state.hydrated);
   const anonymousId = useMatchdayStore((state) => state.anonymousId);
   const conversation = useMatchdayStore((state) => state.buddyConversation);
+  const tourStep = useMatchdayStore((state) => state.tourStep);
 
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -158,7 +160,14 @@ export function Buddy() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button variant="secondary" size="sm">
+        <Button
+          variant="secondary"
+          size="sm"
+          className={cn(
+            "buddy-launcher",
+            tourStep < 4 && "buddy-launcher-raised",
+          )}
+        >
           <MessageCircle aria-hidden="true" size={15} />
           Buddy
         </Button>
