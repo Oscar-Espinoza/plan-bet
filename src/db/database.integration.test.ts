@@ -1130,3 +1130,71 @@ describe("Phase E.1 buddy notes", () => {
     expect(rows[0]!.note).toBe("swears a lot, roots for Madrid");
   });
 });
+
+describe("Phase G2 fixture context", () => {
+  it("keeps one cache row per provider/kind/scope and overwrites in place", async () => {
+    const key = ["apifootball", "standings", "laliga"] as const;
+    for (const points of [70, 71]) {
+      await sql`
+        insert into provider_cache (provider, kind, scope, payload, fetched_at, expires_at)
+        values (
+          ${key[0]}, ${key[1]}, ${key[2]},
+          ${JSON.stringify([{ team: "Real Madrid", points }])}::jsonb,
+          now(), now() + interval '12 hours'
+        )
+        on conflict (provider, kind, scope) do update set
+          payload = excluded.payload,
+          fetched_at = excluded.fetched_at,
+          expires_at = excluded.expires_at
+      `;
+    }
+
+    const rows = await sql<{ payload: { points: number }[] }[]>`
+      select payload from provider_cache
+      where provider = ${key[0]} and kind = ${key[1]} and scope = ${key[2]}
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.payload[0]!.points).toBe(71);
+  });
+
+  it("holds one context row per real game and drops it with the game", async () => {
+    await seedTeams();
+    const canonicalId = `football-data-${randomUUID().slice(0, 8)}`;
+    const [game] = await sql<{ id: string }[]>`
+      insert into games (
+        canonical_id, sport, provider, external_id, summary,
+        scheduled_at, source_observed_at, fetched_at, expires_at, payload_hash
+      ) values (
+        ${canonicalId}, 'soccer', 'football-data', ${canonicalId},
+        ${JSON.stringify({ homeTeam: "Elche", awayTeam: "Barcelona" })}::jsonb,
+        now() + interval '2 days', now(), now(), now() + interval '6 hours',
+        ${`hash-${canonicalId}`}
+      ) returning id
+    `;
+
+    // A Clásico is visible under both teams' routes; the context is keyed on
+    // the one real game, so a second build replaces rather than duplicates.
+    for (const summary of ["first pass", "second pass"]) {
+      await sql`
+        insert into fixture_context (game_id, facts, summary, built_at)
+        values (${game!.id}, ${JSON.stringify([{ id: "a" }])}::jsonb, ${summary}, now())
+        on conflict (game_id) do update set
+          facts = excluded.facts,
+          summary = excluded.summary,
+          built_at = excluded.built_at
+      `;
+    }
+
+    const built = await sql<{ summary: string }[]>`
+      select summary from fixture_context where game_id = ${game!.id}
+    `;
+    expect(built).toHaveLength(1);
+    expect(built[0]!.summary).toBe("second pass");
+
+    await sql`delete from games where id = ${game!.id}`;
+    const orphans = await sql`
+      select 1 from fixture_context where game_id = ${game!.id}
+    `;
+    expect(orphans).toHaveLength(0);
+  });
+});
