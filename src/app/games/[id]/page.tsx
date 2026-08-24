@@ -63,6 +63,7 @@ async function loadWagering(
       routeId,
       state: { kind: "unavailable" },
       wagers: [],
+      groupPicks: [],
     };
   }
 
@@ -81,15 +82,20 @@ async function loadWagering(
         balance: summary.balance,
         groups: groups.map((group) => ({ id: group.id, name: group.name })),
         byMarket: record.byMarket,
-        groupPicks: groupPicks.map((pick) => ({
-          wager: pick.wager,
-          userName: pick.userName,
-          groupName: pick.groupName,
-        })),
       }
     : { kind: "closed", reason: availability.reason };
 
-  return { signedIn: true, routeId, state, wagers: gameWagers };
+  return {
+    signedIn: true,
+    routeId,
+    state,
+    wagers: gameWagers,
+    groupPicks: groupPicks.map((pick) => ({
+      wager: pick.wager,
+      userName: pick.userName,
+      groupName: pick.groupName,
+    })),
+  };
 }
 
 export default async function GamePage({ params }: Props) {

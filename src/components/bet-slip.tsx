@@ -34,13 +34,6 @@ export type WagerPanelState =
       // exactly as it already exists for /you, reused rather than a new
       // query. Empty when the account has no settled history at all.
       byMarket: RecordSlice[];
-      // Other members' picks on this game, across every group the viewer
-      // belongs to — empty for every solo user's normal state.
-      groupPicks: {
-        wager: Wager;
-        userName: string | null;
-        groupName: string;
-      }[];
     };
 
 export type WagerPanelData =
@@ -50,6 +43,14 @@ export type WagerPanelData =
       routeId: string;
       state: WagerPanelState;
       wagers: Wager[];
+      // Other members' picks on this game, across every group the viewer
+      // belongs to — renders in every state, not just "open", so a game
+      // going closed at kickoff never hides it.
+      groupPicks: {
+        wager: Wager;
+        userName: string | null;
+        groupName: string;
+      }[];
     };
 
 type ArmedSelection = { marketId: string; selectionId: string };
@@ -74,8 +75,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     data.signedIn && data.state.kind === "open" ? data.state.groups : [];
   const byMarket =
     data.signedIn && data.state.kind === "open" ? data.state.byMarket : [];
-  const groupPicks =
-    data.signedIn && data.state.kind === "open" ? data.state.groupPicks : [];
+  const groupPicks = data.signedIn ? data.groupPicks : [];
 
   // marketId/selectionId collapse into one armed selection: tapping a price
   // in the grid *is* the selection, so changing market never resets a pick
@@ -205,7 +205,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
         </div>
       )}
 
-      {state.kind === "open" && groupPicks.length > 0 && (
+      {groupPicks.length > 0 && (
         <div className="side-form">
           {groupPicks.map((pick) => (
             <p className="fine-print" key={pick.wager.id}>

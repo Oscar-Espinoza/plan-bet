@@ -52,6 +52,7 @@ describe("BetSlip - unavailable and closed", () => {
       routeId: "soc-rma-01",
       state: { kind: "unavailable" },
       wagers: [],
+      groupPicks: [],
     };
     render(<BetSlip data={data} />);
 
@@ -67,6 +68,7 @@ describe("BetSlip - unavailable and closed", () => {
       routeId: "soc-rma-01",
       state: { kind: "closed", reason: "finished" },
       wagers: [],
+      groupPicks: [],
     };
     render(<BetSlip data={data} />);
 
@@ -96,20 +98,23 @@ describe("BetSlip - open", () => {
         groupName: string;
       }[];
     }> = {},
-  ): WagerPanelData => ({
-    signedIn: true,
-    routeId: "soc-rma-01",
-    state: {
-      kind: "open",
-      markets: soccerMarkets,
-      balance: 1000,
-      groups: [],
-      byMarket: [],
-      groupPicks: [],
-      ...overrides,
-    },
-    wagers: [],
-  });
+  ): WagerPanelData => {
+    const { groupPicks, ...stateOverrides } = overrides;
+    return {
+      signedIn: true,
+      routeId: "soc-rma-01",
+      state: {
+        kind: "open",
+        markets: soccerMarkets,
+        balance: 1000,
+        groups: [],
+        byMarket: [],
+        ...stateOverrides,
+      },
+      wagers: [],
+      groupPicks: groupPicks ?? [],
+    };
+  };
 
   it("renders every market's selections as priced buttons, with no selection armed yet", () => {
     render(<BetSlip data={openData()} />);
@@ -348,5 +353,47 @@ describe("BetSlip - open", () => {
     render(<BetSlip data={data} />);
 
     expect(screen.getByText("won")).toBeInTheDocument();
+  });
+});
+
+// Phase F: groupPicks used to live only inside the "open" arm of
+// WagerPanelState, so a game going "closed" at kickoff hid it.
+describe("BetSlip - group picks outlive kickoff", () => {
+  const pick: Wager = {
+    id: "wager-2",
+    routeId: "soc-rma-01",
+    canonicalGameId: "football-data-1",
+    groupId: "group-1",
+    sport: "soccer",
+    marketId: "soccer-total-2-5",
+    marketLabel: "Total goals",
+    selectionId: "over",
+    selectionLabel: "Over",
+    line: 2.5,
+    price: 1.9,
+    stake: 25,
+    potentialReturn: 47,
+    matchup: "Barcelona at Real Madrid",
+    competition: "La Liga",
+    scheduledAt: "2026-01-01T00:00:00.000Z",
+    placedAt: "2025-12-30T12:00:00.000Z",
+    settled: false,
+  };
+
+  it("still shows a group pick once the game has closed", () => {
+    const data: WagerPanelData = {
+      signedIn: true,
+      routeId: "soc-rma-01",
+      state: { kind: "closed", reason: "finished" },
+      wagers: [],
+      groupPicks: [
+        { wager: pick, userName: "Dani", groupName: "Sunday League" },
+      ],
+    };
+    render(<BetSlip data={data} />);
+
+    expect(
+      screen.getByText("Sunday League — Dani has 25 on Over 2.5."),
+    ).toBeInTheDocument();
   });
 });
