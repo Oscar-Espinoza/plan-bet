@@ -461,14 +461,24 @@ export type GroupAcceptRequestInput = z.infer<typeof groupAcceptRequestSchema>;
 export const gameCommentPhaseSchema = z.enum(["before", "after"]);
 export type GameCommentPhase = z.infer<typeof gameCommentPhaseSchema>;
 
+export const commentVoteKindSchema = z.enum(["shame", "slander"]);
+export type CommentVoteKind = z.infer<typeof commentVoteKindSchema>;
+
 export const gameCommentSchema = z.object({
   id: z.uuid(),
   groupId: z.uuid(),
   userId: z.uuid(),
   authorName: z.string().nullable(),
+  // The author's side on this game, in this group — what makes "you may
+  // only vote across the aisle" legible next to the comment itself, rather
+  // than a mystery disabled button.
+  authorSelectionLabel: z.string(),
   phase: gameCommentPhaseSchema,
   body: z.string().min(1),
   createdAt: z.iso.datetime(),
+  shameVotes: z.number().int().nonnegative(),
+  slanderVotes: z.number().int().nonnegative(),
+  viewerVoted: z.array(commentVoteKindSchema),
 });
 export type GameComment = z.infer<typeof gameCommentSchema>;
 
@@ -477,3 +487,8 @@ export const gameCommentRequestSchema = z.object({
   body: z.string().trim().min(1).max(280),
 });
 export type GameCommentRequestInput = z.infer<typeof gameCommentRequestSchema>;
+
+export const commentVoteRequestSchema = z.object({
+  kind: commentVoteKindSchema,
+});
+export type CommentVoteRequestInput = z.infer<typeof commentVoteRequestSchema>;

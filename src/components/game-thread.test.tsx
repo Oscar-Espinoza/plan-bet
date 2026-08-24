@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { GameThread, type CommentThreadView } from "@/components/game-thread";
+import type { GameComment } from "@/lib/contracts";
 
 const refresh = vi.fn();
 
@@ -16,6 +17,26 @@ function thread(overrides: Partial<CommentThreadView> = {}): CommentThreadView {
     groupName: "Sunday League",
     comments: [],
     hasCommented: false,
+    viewerSelectionLabel: null,
+    pins: {},
+    ...overrides,
+  };
+}
+
+function comment(
+  overrides: Partial<GameComment> & { id: string },
+): GameComment {
+  return {
+    groupId: "group-1",
+    userId: "user-1",
+    authorName: "Dani",
+    authorSelectionLabel: "Home",
+    phase: "before",
+    body: "Taking the over",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    shameVotes: 0,
+    slanderVotes: 0,
+    viewerVoted: [],
     ...overrides,
   };
 }
@@ -51,21 +72,14 @@ describe("GameThread", () => {
         routeId="soc-rma-01"
         thread={thread({
           comments: [
-            {
-              id: "comment-1",
-              groupId: "group-1",
-              userId: "user-1",
-              authorName: "Dani",
-              phase: "after",
-              body: "Called it",
-              createdAt: "2026-01-01T22:00:00.000Z",
-            },
+            comment({ id: "comment-1", phase: "after", body: "Called it" }),
           ],
         })}
       />,
     );
 
-    expect(screen.getByText("Dani · after — Called it")).toBeInTheDocument();
+    expect(screen.getByText("Called it", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Dani", { exact: false })).toBeInTheDocument();
   });
 
   it("falls back to a generic name when the author has none on file", () => {
@@ -73,23 +87,104 @@ describe("GameThread", () => {
       <GameThread
         routeId="soc-rma-01"
         thread={thread({
+          comments: [comment({ id: "comment-1", authorName: null })],
+        })}
+      />,
+    );
+
+    expect(screen.getByText("A member", { exact: false })).toBeInTheDocument();
+  });
+
+  it("shows vote counts for a comment from the other side", () => {
+    render(
+      <GameThread
+        routeId="soc-rma-01"
+        thread={thread({
+          viewerSelectionLabel: "Home",
           comments: [
-            {
+            comment({
               id: "comment-1",
-              groupId: "group-1",
-              userId: "user-1",
-              authorName: null,
-              phase: "before",
-              body: "Taking the over",
-              createdAt: "2025-12-30T12:00:00.000Z",
-            },
+              authorSelectionLabel: "Away",
+              shameVotes: 2,
+              slanderVotes: 1,
+            }),
           ],
         })}
       />,
     );
 
     expect(
-      screen.getByText("A member · before — Taking the over"),
+      screen.getByRole("button", { name: "Shame (2)" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Slander (1)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the vote buttons entirely when the viewer is on the same side as the author", () => {
+    render(
+      <GameThread
+        routeId="soc-rma-01"
+        thread={thread({
+          viewerSelectionLabel: "Home",
+          comments: [
+            comment({ id: "comment-1", authorSelectionLabel: "Home" }),
+          ],
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Shame/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Slander/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables only the vote the viewer has already cast, on that one comment", () => {
+    render(
+      <GameThread
+        routeId="soc-rma-01"
+        thread={thread({
+          viewerSelectionLabel: "Home",
+          comments: [
+            comment({
+              id: "comment-1",
+              authorSelectionLabel: "Away",
+              viewerVoted: ["shame"],
+            }),
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Shame (0)" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Slander (0)" }),
+    ).not.toBeDisabled();
+  });
+
+  it("shows a pin caption naming the pinned comment's author, once a pin exists", () => {
+    render(
+      <GameThread
+        routeId="soc-rma-01"
+        thread={thread({
+          viewerSelectionLabel: "Home",
+          pins: { shame: "comment-1" },
+          comments: [
+            comment({
+              id: "comment-1",
+              authorName: "Dani",
+              authorSelectionLabel: "Away",
+              shameVotes: 3,
+            }),
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Pin of shame: Dani")).toBeInTheDocument();
+    expect(screen.queryByText(/Best slander/)).not.toBeInTheDocument();
   });
 });

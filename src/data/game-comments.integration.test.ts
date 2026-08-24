@@ -9,13 +9,18 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setDatabaseForTests } from "@/db/client";
-import { listCommentThreads, postComment } from "@/data/game-comments";
+import {
+  castVote,
+  listCommentThreads,
+  pickPins,
+  postComment,
+} from "@/data/game-comments";
 
 // App code speaks the Neon driver and cannot connect to plain Postgres (see
 // src/db/database.integration.test.ts), so this suite installs a postgres-js
 // handle through `setDatabaseForTests` and drives the real `postComment` /
-// `listCommentThreads` functions against it — the same functions the API
-// routes call, not a hand-copied mirror of their SQL.
+// `listCommentThreads` / `castVote` functions against it — the same
+// functions the API routes call, not a hand-copied mirror of their SQL.
 let container: StartedPostgreSqlContainer;
 let sql: Sql;
 
@@ -90,6 +95,7 @@ async function insertWagerForGroup(
   userId: string,
   groupId: string,
   canonicalGameId: string,
+  selection: { id: string; label: string } = { id: "home", label: "Home" },
 ) {
   await sql`
     insert into wagers (
@@ -99,9 +105,9 @@ async function insertWagerForGroup(
       rules_version
     ) values (
       ${userId}, ${groupId}, ${canonicalGameId}, ${`${canonicalGameId}-real-madrid`},
-      'soccer', 'soccer-match-result', 'home', 'Match Result', 'Home', 2.40,
-      25, 60, 'Barcelona at Real Madrid', 'La Liga', now() + interval '1 day',
-      'v1', 'v1'
+      'soccer', 'soccer-match-result', ${selection.id}, 'Match Result',
+      ${selection.label}, 2.40, 25, 60, 'Barcelona at Real Madrid', 'La Liga',
+      now() + interval '1 day', 'v1', 'v1'
     )
   `;
 }
@@ -366,5 +372,278 @@ describe("Phase F game_comments", () => {
       select count(*)::int as count from game_comments where group_id = ${groupId}
     `;
     expect(count).toBe(0);
+  });
+});
+
+describe("Phase F2 comment votes", () => {
+  it("applies the comment_votes migration; the composite primary key is the whole rule", async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+    `;
+    expect(rows.map((row) => row.table_name)).toContain("comment_votes");
+
+    const pk = await sql<{ column_name: string }[]>`
+      select kcu.column_name from information_schema.table_constraints tc
+      join information_schema.key_column_usage kcu
+        on tc.constraint_name = kcu.constraint_name
+      where tc.table_name = 'comment_votes' and tc.constraint_type = 'PRIMARY KEY'
+    `;
+    expect(pk.map((row) => row.column_name).sort()).toEqual([
+      "comment_id",
+      "kind",
+      "user_id",
+    ]);
+  });
+
+  it("accepts a cross-side vote, rejects a same-side vote, and rejects voting on your own comment", async () => {
+    const home = await createUser(`vote-home-${randomUUID()}@example.com`);
+    const homeMate = await createUser(
+      `vote-homemate-${randomUUID()}@example.com`,
+    );
+    const away = await createUser(`vote-away-${randomUUID()}@example.com`);
+    const groupId = await createGroup(home, "Sunday League");
+    await addGroupMember(groupId, home);
+    await addGroupMember(groupId, homeMate);
+    await addGroupMember(groupId, away);
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(canonicalGameId);
+    await insertWagerForGroup(home, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(homeMate, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(away, groupId, canonicalGameId, {
+      id: "away",
+      label: "Away",
+    });
+
+    const posted = await postComment({
+      userId: home,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    expect(posted.ok).toBe(true);
+    const commentId = posted.ok ? posted.comment.id : "";
+
+    // Voting on your own comment is excluded by the side comparison itself
+    // (same user, same wager, same selection), not a separate identity check.
+    const selfVote = await castVote({ userId: home, commentId, kind: "shame" });
+    expect(selfVote).toEqual({ ok: false, reason: "not_eligible" });
+
+    // A different person, but the same side, is excluded the same way.
+    const sameSideVote = await castVote({
+      userId: homeMate,
+      commentId,
+      kind: "shame",
+    });
+    expect(sameSideVote).toEqual({ ok: false, reason: "not_eligible" });
+
+    const crossVote = await castVote({
+      userId: away,
+      commentId,
+      kind: "shame",
+    });
+    expect(crossVote).toEqual({ ok: true });
+  });
+
+  it("rejects a second vote of the same kind but accepts the other kind on the same comment", async () => {
+    const home = await createUser(
+      `vote-repeat-home-${randomUUID()}@example.com`,
+    );
+    const away = await createUser(
+      `vote-repeat-away-${randomUUID()}@example.com`,
+    );
+    const groupId = await createGroup(home, "Sunday League");
+    await addGroupMember(groupId, home);
+    await addGroupMember(groupId, away);
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(canonicalGameId);
+    await insertWagerForGroup(home, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(away, groupId, canonicalGameId, {
+      id: "away",
+      label: "Away",
+    });
+
+    const posted = await postComment({
+      userId: home,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    const commentId = posted.ok ? posted.comment.id : "";
+
+    expect(await castVote({ userId: away, commentId, kind: "shame" })).toEqual({
+      ok: true,
+    });
+    expect(await castVote({ userId: away, commentId, kind: "shame" })).toEqual({
+      ok: false,
+      reason: "already_voted",
+    });
+    // The primary key includes kind, so the other kind is a distinct vote.
+    expect(
+      await castVote({ userId: away, commentId, kind: "slander" }),
+    ).toEqual({
+      ok: true,
+    });
+  });
+
+  it("treats a group member with no wager on the game as not eligible to vote", async () => {
+    const author = await createUser(`vote-author-${randomUUID()}@example.com`);
+    const bystander = await createUser(
+      `vote-bystander-${randomUUID()}@example.com`,
+    );
+    const groupId = await createGroup(author, "Sunday League");
+    await addGroupMember(groupId, author);
+    await addGroupMember(groupId, bystander); // member, but never wagers here
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(canonicalGameId);
+    await insertWagerForGroup(author, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+
+    const posted = await postComment({
+      userId: author,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    const commentId = posted.ok ? posted.comment.id : "";
+
+    const result = await castVote({
+      userId: bystander,
+      commentId,
+      kind: "shame",
+    });
+    expect(result).toEqual({ ok: false, reason: "not_eligible" });
+  });
+
+  it("treats an unknown comment as unavailable", async () => {
+    const voter = await createUser(`vote-unknown-${randomUUID()}@example.com`);
+    const result = await castVote({
+      userId: voter,
+      commentId: randomUUID(),
+      kind: "shame",
+    });
+    expect(result).toEqual({ ok: false, reason: "unavailable" });
+  });
+
+  it("tallies real votes through listCommentThreads, and pickPins picks the comment with the most", async () => {
+    const authorA = await createUser(
+      `pin-author-a-${randomUUID()}@example.com`,
+    );
+    const authorB = await createUser(
+      `pin-author-b-${randomUUID()}@example.com`,
+    );
+    const voter1 = await createUser(`pin-voter-1-${randomUUID()}@example.com`);
+    const voter2 = await createUser(`pin-voter-2-${randomUUID()}@example.com`);
+    const groupId = await createGroup(authorA, "Sunday League");
+    for (const userId of [authorA, authorB, voter1, voter2]) {
+      await addGroupMember(groupId, userId);
+    }
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(canonicalGameId);
+    await insertWagerForGroup(authorA, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(authorB, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(voter1, groupId, canonicalGameId, {
+      id: "away",
+      label: "Away",
+    });
+    await insertWagerForGroup(voter2, groupId, canonicalGameId, {
+      id: "away",
+      label: "Away",
+    });
+
+    const commentA = await postComment({
+      userId: authorA,
+      groupId,
+      canonicalGameId,
+      body: "A's take",
+      now: new Date(),
+    });
+    const commentB = await postComment({
+      userId: authorB,
+      groupId,
+      canonicalGameId,
+      body: "B's take",
+      now: new Date(),
+    });
+    const idA = commentA.ok ? commentA.comment.id : "";
+    const idB = commentB.ok ? commentB.comment.id : "";
+
+    await castVote({ userId: voter1, commentId: idA, kind: "shame" });
+    await castVote({ userId: voter2, commentId: idA, kind: "shame" });
+    await castVote({ userId: voter1, commentId: idB, kind: "shame" });
+
+    const threads = await listCommentThreads(voter1, canonicalGameId);
+    const comments = threads[0]!.comments;
+    const byId = (id: string) => comments.find((c) => c.id === id)!;
+
+    expect(byId(idA).shameVotes).toBe(2);
+    expect(byId(idB).shameVotes).toBe(1);
+    // voter1 cast a vote on both — reads back as viewerVoted, not a count.
+    expect(byId(idA).viewerVoted).toEqual(["shame"]);
+    expect(byId(idA).authorSelectionLabel).toBe("Home");
+    expect(pickPins(comments).shame).toBe(idA);
+  });
+
+  it("cascades from a comment to its votes on delete", async () => {
+    const author = await createUser(
+      `vote-cascade-author-${randomUUID()}@example.com`,
+    );
+    const voter = await createUser(
+      `vote-cascade-voter-${randomUUID()}@example.com`,
+    );
+    const groupId = await createGroup(author, "Sunday League");
+    await addGroupMember(groupId, author);
+    await addGroupMember(groupId, voter);
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(canonicalGameId);
+    await insertWagerForGroup(author, groupId, canonicalGameId, {
+      id: "home",
+      label: "Home",
+    });
+    await insertWagerForGroup(voter, groupId, canonicalGameId, {
+      id: "away",
+      label: "Away",
+    });
+    const posted = await postComment({
+      userId: author,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    const commentId = posted.ok ? posted.comment.id : "";
+    await castVote({ userId: voter, commentId, kind: "shame" });
+
+    const [{ count: before }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from comment_votes where comment_id = ${commentId}
+    `;
+    expect(before).toBe(1);
+
+    await sql`delete from game_comments where id = ${commentId}`;
+
+    const [{ count: after }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from comment_votes where comment_id = ${commentId}
+    `;
+    expect(after).toBe(0);
   });
 });

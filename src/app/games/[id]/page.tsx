@@ -5,7 +5,11 @@ import { cache } from "react";
 import type { WagerPanelData, WagerPanelState } from "@/components/bet-slip";
 import { GameDetail } from "@/components/game-detail";
 import { getCreditSummary } from "@/data/credits";
-import { commentPhase, listCommentThreads } from "@/data/game-comments";
+import {
+  commentPhase,
+  listCommentThreads,
+  pickPins,
+} from "@/data/game-comments";
 import { listGroupsForUser } from "@/data/groups-repository";
 import { getGameDetail } from "@/data/sports-data";
 import { evaluateWagerAvailability } from "@/data/wagers";
@@ -111,6 +115,12 @@ async function loadWagering(
         (comment) =>
           comment.userId === account.userId && comment.phase === currentPhase,
       ),
+      // The viewer's own side in this group, on this game — never a
+      // second lookup, just the wager the game already read for the slip.
+      viewerSelectionLabel:
+        gameWagers.find((wager) => wager.groupId === thread.groupId)
+          ?.selectionLabel ?? null,
+      pins: pickPins(thread.comments),
     })),
   };
 }

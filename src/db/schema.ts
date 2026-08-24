@@ -651,3 +651,37 @@ export const gameComments = pgTable(
     ),
   ],
 );
+
+export const commentVoteKindEnum = pgEnum("comment_vote_kind", [
+  "shame",
+  "slander",
+]);
+
+/**
+ * A pin of shame, a pin for the best slander — both derived at read time as
+ * `max()` over this tally, same discipline as freshness-from-expiry and
+ * wager-state-from-ledger. No `pins` table, no vote counter. The composite
+ * primary key *is* the whole rule: one vote of each kind, per person, per
+ * comment, so a race cannot beat it and no advisory lock is needed (classid 8
+ * stays unclaimed). Append-only like every other ledger here — no update
+ * path, no un-vote.
+ */
+export const commentVotes = pgTable(
+  "comment_votes",
+  {
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => gameComments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: commentVoteKindEnum("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userId, table.kind] }),
+    index("comment_votes_comment_idx").on(table.commentId),
+  ],
+);

@@ -420,6 +420,8 @@ describe("BetSlip - comment threads", () => {
           groupName: "Sunday League",
           comments: [],
           hasCommented: false,
+          viewerSelectionLabel: null,
+          pins: {},
         },
       ],
     };
