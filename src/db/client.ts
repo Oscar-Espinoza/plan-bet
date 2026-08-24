@@ -30,6 +30,17 @@ export function getDatabase() {
   return database;
 }
 
+/**
+ * The Neon HTTP driver cannot reach a plain PostgreSQL container, so an
+ * integration test builds its own postgres-js handle and installs it here.
+ * Without this, the only way to run `src/data/*` against real SQL is to
+ * re-type its statements by hand in the test — which proves the schema and
+ * nothing at all about the code that ships.
+ */
+export function setDatabaseForTests(replacement: unknown) {
+  database = replacement as Database;
+}
+
 // Session 04 shipped a migration that was never applied to production, so
 // `briefing_runs` silently didn't exist for a day. `select 1 from teams`
 // can't see that drift — it only proves the connection and one table work.

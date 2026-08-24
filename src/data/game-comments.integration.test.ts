@@ -8,13 +8,14 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres, { type Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setDatabaseForTests } from "@/db/client";
+import { listCommentThreads, postComment } from "@/data/game-comments";
 
 // App code speaks the Neon driver and cannot connect to plain Postgres (see
-// src/db/database.integration.test.ts), so — same as that suite — this one
-// drives raw SQL that mirrors the exact statements game-comments.ts issues:
-// the eligibility select, the bare `.onConflictDoNothing()` insert, and the
-// per-group comment read. It proves the schema and the unique index hold,
-// which is the actual feature.
+// src/db/database.integration.test.ts), so this suite installs a postgres-js
+// handle through `setDatabaseForTests` and drives the real `postComment` /
+// `listCommentThreads` functions against it — the same functions the API
+// routes call, not a hand-copied mirror of their SQL.
 let container: StartedPostgreSqlContainer;
 let sql: Sql;
 
@@ -24,6 +25,10 @@ beforeAll(async () => {
   await migrate(drizzle(sql), {
     migrationsFolder: path.resolve(process.cwd(), "drizzle"),
   });
+  // getDatabase() throws DatabaseConfigurationError unless this is set, even
+  // once a handle is installed below — the value itself is never read.
+  process.env.DATABASE_URL = container.getConnectionUri();
+  setDatabaseForTests(drizzle(sql));
 });
 
 afterAll(async () => {
@@ -54,21 +59,33 @@ async function addGroupMember(groupId: string, userId: string) {
   `;
 }
 
-async function createGame(canonicalId: string) {
+/** `variant` controls whether kickoff is ahead of or behind the real clock,
+ * so `postComment`'s phase derivation can be exercised both ways without
+ * ever passing a phase in from the test. */
+async function createGame(
+  canonicalId: string,
+  variant: "future" | "past" = "future",
+) {
+  const scheduledAt =
+    variant === "future"
+      ? sql`now() + interval '1 day'`
+      : sql`now() - interval '1 day'`;
   await sql`
     insert into games (
       canonical_id, sport, provider, external_id, summary, scheduled_at,
       source_observed_at, fetched_at, expires_at, payload_hash
     ) values (
       ${canonicalId}, 'soccer', 'football-data', ${canonicalId}, '{}',
-      now() + interval '1 day', now(), now(), now(), ${`hash-${canonicalId}`}
+      ${scheduledAt}, now(), now(), now(), ${`hash-${canonicalId}`}
     )
   `;
 }
 
 /** Mirrors placeWager: a wager only ever carries a groupId once membership
  * was already verified, so this is what makes a wager row itself the
- * eligibility fact — no separate group_members join needed to read it back. */
+ * eligibility fact — no separate group_members join needed to read it back.
+ * `selection` defaults to the home side; tests that need two sides of the
+ * same game pass the away side explicitly. */
 async function insertWagerForGroup(
   userId: string,
   groupId: string,
@@ -87,65 +104,6 @@ async function insertWagerForGroup(
       'v1', 'v1'
     )
   `;
-}
-
-/** The exact predicate postComment and listCommentThreads both re-check:
- * "you have a wager in this group on this game." */
-async function isEligible(
-  userId: string,
-  groupId: string,
-  canonicalGameId: string,
-) {
-  const [row] = await sql<{ id: string }[]>`
-    select id from wagers
-    where user_id = ${userId} and group_id = ${groupId}
-      and canonical_game_id = ${canonicalGameId}
-    limit 1
-  `;
-  return Boolean(row);
-}
-
-/** The exact statement postComment issues: insert, bare
- * `on conflict do nothing`, returning nothing when the unique index bites. */
-async function postCommentRaw(
-  groupId: string,
-  canonicalGameId: string,
-  userId: string,
-  phase: "before" | "after",
-  body: string,
-) {
-  const rows = await sql<{ id: string }[]>`
-    insert into game_comments (group_id, canonical_game_id, user_id, phase, body)
-    values (${groupId}, ${canonicalGameId}, ${userId}, ${phase}, ${body})
-    on conflict do nothing
-    returning id
-  `;
-  return rows.length > 0;
-}
-
-async function listThreadsRaw(userId: string, canonicalGameId: string) {
-  const eligibleGroups = await sql<{ group_id: string; group_name: string }[]>`
-    select distinct w.group_id, g.name as group_name
-    from wagers w
-    join groups g on g.id = w.group_id
-    where w.user_id = ${userId} and w.canonical_game_id = ${canonicalGameId}
-  `;
-  const threads = [];
-  for (const group of eligibleGroups) {
-    const comments = await sql<
-      { body: string; phase: string; user_id: string }[]
-    >`
-      select body, phase, user_id from game_comments
-      where group_id = ${group.group_id} and canonical_game_id = ${canonicalGameId}
-      order by created_at asc
-    `;
-    threads.push({
-      groupId: group.group_id,
-      groupName: group.group_name,
-      comments,
-    });
-  }
-  return threads;
 }
 
 describe("Phase F game_comments", () => {
@@ -183,24 +141,23 @@ describe("Phase F game_comments", () => {
     await createGame(canonicalGameId);
     await insertWagerForGroup(userId, groupId, canonicalGameId);
 
-    expect(
-      await postCommentRaw(
-        groupId,
-        canonicalGameId,
-        userId,
-        "before",
-        "Madrid win it",
-      ),
-    ).toBe(true);
-    expect(
-      await postCommentRaw(
-        groupId,
-        canonicalGameId,
-        userId,
-        "before",
-        "Actually, draw",
-      ),
-    ).toBe(false);
+    const first = await postComment({
+      userId,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await postComment({
+      userId,
+      groupId,
+      canonicalGameId,
+      body: "Actually, draw",
+      now: new Date(),
+    });
+    expect(second).toEqual({ ok: false, reason: "already_commented" });
 
     const [{ count }] = await sql<{ count: number }[]>`
       select count(*)::int as count from game_comments
@@ -217,30 +174,61 @@ describe("Phase F game_comments", () => {
     await createGame(canonicalGameId);
     await insertWagerForGroup(userId, groupId, canonicalGameId);
 
-    expect(
-      await postCommentRaw(
-        groupId,
-        canonicalGameId,
-        userId,
-        "before",
-        "Madrid win it",
-      ),
-    ).toBe(true);
-    expect(
-      await postCommentRaw(
-        groupId,
-        canonicalGameId,
-        userId,
-        "after",
-        "Called it",
-      ),
-    ).toBe(true);
+    const before = await postComment({
+      userId,
+      groupId,
+      canonicalGameId,
+      body: "Madrid win it",
+      now: new Date(),
+    });
+    expect(before.ok && before.comment.phase).toBe("before");
+
+    // The same real clock, now read against a game already past kickoff —
+    // postComment derives "after" from that alone, never from an argument.
+    const after = await postComment({
+      userId,
+      groupId,
+      canonicalGameId,
+      body: "Called it",
+      now: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    });
+    expect(after.ok && after.comment.phase).toBe("after");
 
     const [{ count }] = await sql<{ count: number }[]>`
       select count(*)::int as count from game_comments
       where group_id = ${groupId} and canonical_game_id = ${canonicalGameId} and user_id = ${userId}
     `;
     expect(count).toBe(2);
+  });
+
+  it("derives the comment phase from the game's own clock, never from client input", async () => {
+    const userId = await createUser(`phase-clock-${randomUUID()}@example.com`);
+    const groupId = await createGroup(userId, "Sunday League");
+    await addGroupMember(groupId, userId);
+
+    const futureGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(futureGameId, "future");
+    await insertWagerForGroup(userId, groupId, futureGameId);
+    const beforeResult = await postComment({
+      userId,
+      groupId,
+      canonicalGameId: futureGameId,
+      body: "not yet",
+      now: new Date(),
+    });
+    expect(beforeResult.ok && beforeResult.comment.phase).toBe("before");
+
+    const pastGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    await createGame(pastGameId, "past");
+    await insertWagerForGroup(userId, groupId, pastGameId);
+    const afterResult = await postComment({
+      userId,
+      groupId,
+      canonicalGameId: pastGameId,
+      body: "already happened",
+      now: new Date(),
+    });
+    expect(afterResult.ok && afterResult.comment.phase).toBe("after");
   });
 
   it("treats a group member with no wager on this game as not eligible", async () => {
@@ -258,7 +246,14 @@ describe("Phase F game_comments", () => {
     await insertWagerForGroup(owner, groupId, canonicalGameId);
     // member never places a wager on this game.
 
-    expect(await isEligible(member, groupId, canonicalGameId)).toBe(false);
+    const result = await postComment({
+      userId: member,
+      groupId,
+      canonicalGameId,
+      body: "can I say something",
+      now: new Date(),
+    });
+    expect(result).toEqual({ ok: false, reason: "not_eligible" });
   });
 
   it("treats a non-member as not eligible", async () => {
@@ -275,7 +270,32 @@ describe("Phase F game_comments", () => {
     await createGame(canonicalGameId);
     await insertWagerForGroup(owner, groupId, canonicalGameId);
 
-    expect(await isEligible(outsider, groupId, canonicalGameId)).toBe(false);
+    const result = await postComment({
+      userId: outsider,
+      groupId,
+      canonicalGameId,
+      body: "let me in",
+      now: new Date(),
+    });
+    expect(result).toEqual({ ok: false, reason: "not_eligible" });
+  });
+
+  it("treats an unknown game as unavailable, even with an eligible wager on it", async () => {
+    const userId = await createUser(`unknown-game-${randomUUID()}@example.com`);
+    const groupId = await createGroup(userId, "Sunday League");
+    await addGroupMember(groupId, userId);
+    const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
+    // A wager exists (eligibility passes) but no games row was ever inserted.
+    await insertWagerForGroup(userId, groupId, canonicalGameId);
+
+    const result = await postComment({
+      userId,
+      groupId,
+      canonicalGameId,
+      body: "ghost game",
+      now: new Date(),
+    });
+    expect(result).toEqual({ ok: false, reason: "unavailable" });
   });
 
   it("keeps two groups on the same game as two separate threads, neither visible from the other", async () => {
@@ -290,23 +310,23 @@ describe("Phase F game_comments", () => {
     await insertWagerForGroup(userA, groupA, canonicalGameId);
     await insertWagerForGroup(userB, groupB, canonicalGameId);
 
-    await postCommentRaw(
-      groupA,
+    await postComment({
+      userId: userA,
+      groupId: groupA,
       canonicalGameId,
-      userA,
-      "before",
-      "Group A take",
-    );
-    await postCommentRaw(
-      groupB,
+      body: "Group A take",
+      now: new Date(),
+    });
+    await postComment({
+      userId: userB,
+      groupId: groupB,
       canonicalGameId,
-      userB,
-      "before",
-      "Group B take",
-    );
+      body: "Group B take",
+      now: new Date(),
+    });
 
-    const threadsForA = await listThreadsRaw(userA, canonicalGameId);
-    const threadsForB = await listThreadsRaw(userB, canonicalGameId);
+    const threadsForA = await listCommentThreads(userA, canonicalGameId);
+    const threadsForB = await listCommentThreads(userB, canonicalGameId);
 
     expect(threadsForA).toHaveLength(1);
     expect(threadsForA[0]!.groupId).toBe(groupA);
@@ -328,13 +348,13 @@ describe("Phase F game_comments", () => {
     const canonicalGameId = `football-data-${randomUUID().slice(0, 8)}`;
     await createGame(canonicalGameId);
     await insertWagerForGroup(userId, groupId, canonicalGameId);
-    await postCommentRaw(
+    await postComment({
+      userId,
       groupId,
       canonicalGameId,
-      userId,
-      "before",
-      "Madrid win it",
-    );
+      body: "Madrid win it",
+      now: new Date(),
+    });
 
     // Deleting the user cascades to wagers (userId FK) first, which clears
     // the only FK still pointing at the group from outside this test, then
