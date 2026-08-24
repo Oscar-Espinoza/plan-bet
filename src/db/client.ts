@@ -1,5 +1,5 @@
 import { Pool, neon } from "@neondatabase/serverless";
-import { sql } from "drizzle-orm";
+import { Table, getTableName, is, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
 import * as schema from "@/db/schema";
@@ -33,24 +33,12 @@ export function getDatabase() {
 // Session 04 shipped a migration that was never applied to production, so
 // `briefing_runs` silently didn't exist for a day. `select 1 from teams`
 // can't see that drift — it only proves the connection and one table work.
-const EXPECTED_TABLES = [
-  "teams",
-  "games",
-  "team_games",
-  "game_snapshots",
-  "ingestion_runs",
-  "briefing_runs",
-  "users",
-  "accounts",
-  "sessions",
-  "verification_tokens",
-  "credit_entries",
-  "wagers",
-  "groups",
-  "group_members",
-  "group_invites",
-  "buddy_messages",
-] as const;
+// Derived, not hand-listed: the list drifted four tables behind between 0008
+// and 0010 (buddy_notes, provider_cache, fixture_context, game_comments) and
+// silently stopped being able to catch the very drift it exists for.
+const EXPECTED_TABLES = (Object.values(schema) as unknown[])
+  .filter((value): value is Table => is(value, Table))
+  .map(getTableName);
 
 export async function checkDatabaseConnection() {
   const startedAt = Date.now();
