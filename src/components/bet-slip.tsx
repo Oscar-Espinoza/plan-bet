@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { GameThread, type CommentThreadView } from "@/components/game-thread";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -44,13 +45,14 @@ export type WagerPanelData =
       state: WagerPanelState;
       wagers: Wager[];
       // Other members' picks on this game, across every group the viewer
-      // belongs to — renders in every state, not just "open", so a game
-      // going closed at kickoff never hides it.
+      // belongs to, and this game's comment threads — both render in every
+      // panel state, not just "open".
       groupPicks: {
         wager: Wager;
         userName: string | null;
         groupName: string;
       }[];
+      threads: CommentThreadView[];
     };
 
 type ArmedSelection = { marketId: string; selectionId: string };
@@ -76,6 +78,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
   const byMarket =
     data.signedIn && data.state.kind === "open" ? data.state.byMarket : [];
   const groupPicks = data.signedIn ? data.groupPicks : [];
+  const threads = data.signedIn ? data.threads : [];
 
   // marketId/selectionId collapse into one armed selection: tapping a price
   // in the grid *is* the selection, so changing market never resets a pick
@@ -216,6 +219,14 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           ))}
         </div>
       )}
+
+      {threads.map((thread) => (
+        <GameThread
+          key={thread.groupId}
+          routeId={data.routeId}
+          thread={thread}
+        />
+      ))}
 
       {state.kind === "open" && (
         <div className="selection-grid">

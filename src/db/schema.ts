@@ -604,3 +604,50 @@ export const fixtureContext = pgTable("fixture_context", {
   summary: text("summary").notNull(),
   builtAt: timestamp("built_at", { withTimezone: true }).notNull(),
 });
+
+export const gameCommentPhaseEnum = pgEnum("game_comment_phase", [
+  "before",
+  "after",
+]);
+
+/**
+ * One comment each side of kickoff, between people who share a group and
+ * both have a wager on this game. The unique index below *is* the "one
+ * before, one after" rule — no counter, no status column, no advisory lock,
+ * the same move as `credit_entries_wager_return_uidx`. Append-only: no
+ * `updated_at`, no edit or delete path, like `wagers`. Keyed on
+ * `canonicalGameId` as text, not a FK to `games`, exactly like
+ * `wagers.canonicalGameId` — a thread survives its `games` row being
+ * replaced, and a Clásico under two team-perspective routes is one thread.
+ */
+export const gameComments = pgTable(
+  "game_comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    canonicalGameId: text("canonical_game_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    phase: gameCommentPhaseEnum("phase").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("game_comments_one_per_phase_uidx").on(
+      table.groupId,
+      table.canonicalGameId,
+      table.userId,
+      table.phase,
+    ),
+    index("game_comments_thread_idx").on(
+      table.groupId,
+      table.canonicalGameId,
+      table.createdAt,
+    ),
+  ],
+);

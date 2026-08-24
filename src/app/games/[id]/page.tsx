@@ -5,6 +5,7 @@ import { cache } from "react";
 import type { WagerPanelData, WagerPanelState } from "@/components/bet-slip";
 import { GameDetail } from "@/components/game-detail";
 import { getCreditSummary } from "@/data/credits";
+import { commentPhase, listCommentThreads } from "@/data/game-comments";
 import { listGroupsForUser } from "@/data/groups-repository";
 import { getGameDetail } from "@/data/sports-data";
 import { evaluateWagerAvailability } from "@/data/wagers";
@@ -64,16 +65,19 @@ async function loadWagering(
       state: { kind: "unavailable" },
       wagers: [],
       groupPicks: [],
+      threads: [],
     };
   }
 
-  const [summary, gameWagers, groups, record, groupPicks] = await Promise.all([
-    getCreditSummary(account.userId),
-    listWagersForGame(account.userId, game.canonicalId),
-    listGroupsForUser(account.userId),
-    getRecordSlices(account.userId),
-    listGroupWagersForGame(account.userId, game.canonicalId),
-  ]);
+  const [summary, gameWagers, groups, record, groupPicks, threads] =
+    await Promise.all([
+      getCreditSummary(account.userId),
+      listWagersForGame(account.userId, game.canonicalId),
+      listGroupsForUser(account.userId),
+      getRecordSlices(account.userId),
+      listGroupWagersForGame(account.userId, game.canonicalId),
+      listCommentThreads(account.userId, game.canonicalId),
+    ]);
   const availability = evaluateWagerAvailability(game.summary);
   const state: WagerPanelState = availability.open
     ? {
@@ -85,6 +89,10 @@ async function loadWagering(
       }
     : { kind: "closed", reason: availability.reason };
 
+  // Derived once here, the same clock postComment re-derives on write —
+  // never trusted from anywhere else.
+  const currentPhase = commentPhase(game.summary.scheduledAt, new Date());
+
   return {
     signedIn: true,
     routeId,
@@ -94,6 +102,15 @@ async function loadWagering(
       wager: pick.wager,
       userName: pick.userName,
       groupName: pick.groupName,
+    })),
+    threads: threads.map((thread) => ({
+      groupId: thread.groupId,
+      groupName: thread.groupName,
+      comments: thread.comments,
+      hasCommented: thread.comments.some(
+        (comment) =>
+          comment.userId === account.userId && comment.phase === currentPhase,
+      ),
     })),
   };
 }

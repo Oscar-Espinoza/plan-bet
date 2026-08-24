@@ -457,3 +457,23 @@ export const groupAcceptRequestSchema = z.object({
   token: z.string().min(1),
 });
 export type GroupAcceptRequestInput = z.infer<typeof groupAcceptRequestSchema>;
+
+export const gameCommentPhaseSchema = z.enum(["before", "after"]);
+export type GameCommentPhase = z.infer<typeof gameCommentPhaseSchema>;
+
+export const gameCommentSchema = z.object({
+  id: z.uuid(),
+  groupId: z.uuid(),
+  userId: z.uuid(),
+  authorName: z.string().nullable(),
+  phase: gameCommentPhaseSchema,
+  body: z.string().min(1),
+  createdAt: z.iso.datetime(),
+});
+export type GameComment = z.infer<typeof gameCommentSchema>;
+
+export const gameCommentRequestSchema = z.object({
+  groupId: z.uuid(),
+  body: z.string().trim().min(1).max(280),
+});
+export type GameCommentRequestInput = z.infer<typeof gameCommentRequestSchema>;

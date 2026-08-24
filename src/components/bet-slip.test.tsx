@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
+import type { CommentThreadView } from "@/components/game-thread";
 import type { Wager } from "@/lib/contracts";
 import { marketsFor } from "@/lib/markets";
 
@@ -53,6 +54,7 @@ describe("BetSlip - unavailable and closed", () => {
       state: { kind: "unavailable" },
       wagers: [],
       groupPicks: [],
+      threads: [],
     };
     render(<BetSlip data={data} />);
 
@@ -69,6 +71,7 @@ describe("BetSlip - unavailable and closed", () => {
       state: { kind: "closed", reason: "finished" },
       wagers: [],
       groupPicks: [],
+      threads: [],
     };
     render(<BetSlip data={data} />);
 
@@ -97,9 +100,10 @@ describe("BetSlip - open", () => {
         userName: string | null;
         groupName: string;
       }[];
+      threads: CommentThreadView[];
     }> = {},
   ): WagerPanelData => {
-    const { groupPicks, ...stateOverrides } = overrides;
+    const { groupPicks, threads, ...stateOverrides } = overrides;
     return {
       signedIn: true,
       routeId: "soc-rma-01",
@@ -113,6 +117,7 @@ describe("BetSlip - open", () => {
       },
       wagers: [],
       groupPicks: groupPicks ?? [],
+      threads: threads ?? [],
     };
   };
 
@@ -389,11 +394,40 @@ describe("BetSlip - group picks outlive kickoff", () => {
       groupPicks: [
         { wager: pick, userName: "Dani", groupName: "Sunday League" },
       ],
+      threads: [],
     };
     render(<BetSlip data={data} />);
 
     expect(
       screen.getByText("Sunday League — Dani has 25 on Over 2.5."),
     ).toBeInTheDocument();
+  });
+});
+
+// Same shape as groupPicks above: threads render off WagerPanelData directly,
+// in every panel state, not gated on state.kind === "open".
+describe("BetSlip - comment threads", () => {
+  it("renders a thread's block below the picks even once the game has closed", () => {
+    const data: WagerPanelData = {
+      signedIn: true,
+      routeId: "soc-rma-01",
+      state: { kind: "closed", reason: "finished" },
+      wagers: [],
+      groupPicks: [],
+      threads: [
+        {
+          groupId: "group-1",
+          groupName: "Sunday League",
+          comments: [],
+          hasCommented: false,
+        },
+      ],
+    };
+    render(<BetSlip data={data} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Sunday League" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Say something")).toBeInTheDocument();
   });
 });
