@@ -50,4 +50,45 @@ describe("buildBuddyInput", () => {
     expect(allowedFactIds).toEqual([]);
     expect(input).toContain("none available on this page");
   });
+
+  it("lists the board under its own heading, bans the pick marker, and tells the buddy to name the fixture", () => {
+    const recallContext: BuddyContext = {
+      kind: "recall",
+      facts: [
+        {
+          id: "recall-football-data-1",
+          label: "Real Madrid vs Barcelona",
+          value: "Real Madrid vs Barcelona. Injuries: none.",
+          valueType: "text",
+          sourceId: "app",
+          observedAt: "2026-08-23T10:00:00.000Z",
+        },
+        {
+          id: "recall-mlb-777",
+          label: "Yankees vs Red Sox",
+          value: "Yankees vs Red Sox. Form: W W L.",
+          valueType: "text",
+          sourceId: "app",
+          observedAt: "2026-08-23T10:00:00.000Z",
+        },
+      ],
+    };
+    const { instructions, input, allowedFactIds, allowedPickIds } =
+      buildBuddyInput({
+        context: recallContext,
+        history: [],
+        question: "who's in form right now?",
+      });
+    expect(allowedFactIds).toEqual([
+      "recall-football-data-1",
+      "recall-mlb-777",
+    ]);
+    expect(allowedPickIds).toEqual([]);
+    expect(input).toContain("Upcoming games on the board:");
+    expect(input).not.toContain("Facts available on this page:");
+    expect(input).toContain("id=recall-football-data-1");
+    expect(input).toContain("id=recall-mlb-777");
+    expect(instructions).toContain("Never include a [pick: ...] marker");
+    expect(instructions).toContain("name the fixture you're talking about");
+  });
 });

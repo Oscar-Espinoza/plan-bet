@@ -15,6 +15,7 @@ export type BuddyContext =
   | { kind: "game"; facts: EvidenceFact[]; allowedPickIds: string[] }
   | { kind: "you"; facts: EvidenceFact[] }
   | { kind: "group"; facts: EvidenceFact[] }
+  | { kind: "recall"; facts: EvidenceFact[] }
   | { kind: "none" };
 
 export type BuddyTurn = { role: "user" | "buddy"; text: string };
@@ -59,6 +60,11 @@ export function buildBuddyInput(options: {
     context.kind === "game"
       ? `- You may end your reply with one optional marker on its own, in the exact form [pick: <id>], choosing only from: ${allowedPickIds.join(", ")}. Never invent or describe a selection that isn't in that list.`
       : "- Never include a [pick: ...] marker on this page.",
+    ...(context.kind === "recall"
+      ? [
+          '- These facts are other games on the board, not the page the reader is on — name the fixture you\'re talking about rather than saying "this game".',
+        ]
+      : []),
     "",
     "Voice — talk like a friend in a group chat, not a history class:",
     '- Never recite the facts back. No standings, no table positions, no "listed #3 with a win", no stat quoting, no naming a source. Read the facts, form a take, give the take — the citation marker is the proof you used one, not something to say out loud.',
@@ -90,7 +96,9 @@ export function buildBuddyInput(options: {
   );
 
   const input = [
-    "Facts available on this page:",
+    context.kind === "recall"
+      ? "Upcoming games on the board:"
+      : "Facts available on this page:",
     factLines,
     "",
     "<user_reference>",

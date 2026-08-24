@@ -1,7 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { prepareBuddyTurn, resolveContext } from "@/data/buddy";
+import { boardFacts, prepareBuddyTurn, resolveContext } from "@/data/buddy";
 import { getSnapshot } from "@/lib/seed";
 import { marketsFor } from "@/lib/markets";
+
+function boardRow(overrides: { canonicalId?: string; summary?: string } = {}) {
+  return {
+    canonicalId: overrides.canonicalId ?? "football-data-564645",
+    game: {
+      id: "football-data-564645",
+      sport: "soccer" as const,
+      teamSlug: "real-madrid" as const,
+      competition: "La Liga",
+      homeTeam: "Real Madrid",
+      awayTeam: "Barcelona",
+      scheduledAt: "2026-09-01T19:00:00.000Z",
+      status: "scheduled" as const,
+    },
+    summary: overrides.summary ?? "Real Madrid vs Barcelona. Injuries: none.",
+  };
+}
 
 const GAME_ID = "soc-rma-01";
 const original = { ...process.env };
@@ -77,6 +94,35 @@ describe("resolveContext", () => {
     expect((await resolveContext("/rules", {})).context).toEqual({
       kind: "none",
     });
+  });
+});
+
+describe("boardFacts", () => {
+  it("keys each fact on recall-<canonicalId> and carries the stored summary", () => {
+    const facts = boardFacts([boardRow()]);
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toMatchObject({
+      id: "recall-football-data-564645",
+      label: "Real Madrid vs Barcelona",
+      value: "Real Madrid vs Barcelona. Injuries: none.",
+      valueType: "text",
+    });
+  });
+
+  it("drops a row whose stored GameSummary doesn't parse, rather than guessing, and keeps the rest", () => {
+    // Missing `homeTeam` fails gameSummarySchema; that row must be skipped
+    // while a valid row alongside it still comes through.
+    const broken = boardRow({ canonicalId: "football-data-999" });
+    const facts = boardFacts([
+      { ...broken, game: { ...broken.game, homeTeam: undefined } },
+      boardRow(),
+    ]);
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.id).toBe("recall-football-data-564645");
+  });
+
+  it("returns [] for an empty board", () => {
+    expect(boardFacts([])).toEqual([]);
   });
 });
 

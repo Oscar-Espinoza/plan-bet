@@ -151,3 +151,25 @@ export async function dueWork(input: {
     .orderBy(asc(games.scheduledAt))
     .limit(input.limit);
 }
+
+/**
+ * Every upcoming fixture that has context built, nearest kickoff first — the
+ * board as the buddy sees it from a page with no game in scope. Bounded by
+ * `limit` rather than by a similarity search: the board is ~15 rows, and the
+ * whole of it fits in one prompt.
+ */
+export async function listBoardContext(input: { limit: number; now?: Date }) {
+  const now = input.now ?? new Date();
+  return getDatabase()
+    .select({
+      canonicalId: games.canonicalId,
+      /** The stored `GameSummary`, re-parsed by the caller before it is read. */
+      game: games.summary,
+      summary: fixtureContext.summary,
+    })
+    .from(fixtureContext)
+    .innerJoin(games, eq(games.id, fixtureContext.gameId))
+    .where(gt(games.scheduledAt, now))
+    .orderBy(asc(games.scheduledAt))
+    .limit(input.limit);
+}

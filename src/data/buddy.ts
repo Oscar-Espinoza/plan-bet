@@ -8,6 +8,7 @@ import {
   recordBuddyReply,
   saveBuddyNote,
 } from "@/data/buddy-repository";
+import { listBoardContext } from "@/data/fixture-context-repository";
 import {
   getGroupBySlug,
   getGroupLeaderboard,
@@ -23,7 +24,11 @@ import {
   type BuddyTurn,
 } from "@/lib/buddy-prompt";
 import { parseBuddyReply } from "@/lib/buddy-validation";
-import type { GroupLeaderboardEntry, RecordSlices } from "@/lib/contracts";
+import {
+  gameSummarySchema,
+  type GroupLeaderboardEntry,
+  type RecordSlices,
+} from "@/lib/contracts";
 import { logEvent } from "@/lib/logger";
 import { marketsFor } from "@/lib/markets";
 import { isDatabaseConfigured } from "@/db/client";
@@ -75,6 +80,36 @@ function leaderboardFacts(entries: GroupLeaderboardEntry[]) {
       `${entry.won}-${entry.lost}${entry.voided ? `-${entry.voided}` : ""}, net ${entry.netReturn}`,
     ),
   );
+}
+
+// ponytail: the whole board in one prompt, ~15 short summaries. Swap to
+// retrieval (pgvector + an embedding client — the design is in the phase
+// plan) when the corpus outgrows a single prompt: more teams tracked, or
+// finished fixtures kept around.
+const RECALL_FIXTURES = 12;
+
+/**
+ * One fact per upcoming fixture that has context built — the board itself,
+ * for a route with no game in scope. Pure, so it's unit-testable without a
+ * database. A row whose stored `GameSummary` doesn't parse is skipped, never
+ * guessed at, the same rule `readFixtureContext` applies to stored facts.
+ */
+export function boardFacts(
+  rows: { canonicalId: string; game: unknown; summary: string }[],
+) {
+  const facts = [];
+  for (const row of rows) {
+    const game = gameSummarySchema.safeParse(row.game);
+    if (!game.success) continue;
+    facts.push(
+      fact(
+        `recall-${row.canonicalId}`,
+        `${game.data.homeTeam} vs ${game.data.awayTeam}`,
+        row.summary,
+      ),
+    );
+  }
+  return facts;
 }
 
 /**
@@ -132,7 +167,15 @@ export async function resolveContext(
     };
   }
 
-  return none;
+  // Every other route: the board itself. `none` is now the *empty* case of
+  // recall — no database, nothing built yet — rather than a route category.
+  if (!isDatabaseConfigured()) return none;
+  const rows = await listBoardContext({ limit: RECALL_FIXTURES }).catch(
+    () => [],
+  );
+  const facts = boardFacts(rows);
+  if (facts.length === 0) return none;
+  return { context: { kind: "recall", facts }, routeLabel: "recall" };
 }
 
 /** No model call: labelled plainly, one line per fact, and never leans. */
