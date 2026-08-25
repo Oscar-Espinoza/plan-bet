@@ -42,18 +42,29 @@ export type BuddyReplyParse =
       factIds: string[];
       pickId?: string;
       note?: string;
+      draft?: string;
     }
   | { ok: false; reason: BuddyReplyReason };
 
-// Fact markers are bare ids in brackets ("[abc-1]"); the pick and note
-// markers are distinguished by their prefix. The note trails everything
-// else — it's a note-to-self about the reader, not part of the pick or the
-// take — so it's stripped first, then the pick, so neither parses as a
-// stray fact citation.
+// Fact markers are bare ids in brackets ("[abc-1]"); the pick, draft, and
+// note markers are distinguished by their prefix. Text order runs
+// ... [pick: ...] [draft: ...] [note: ...] — the note trails everything
+// (it's a note-to-self about the reader, never part of the pick or the
+// take), the draft trails the pick (it's the line the pick prompted), so
+// stripping runs note first, then draft, then pick, and none of the three
+// can parse as a stray fact citation.
 const PICK_MARKER = /\s*\[pick:\s*([a-zA-Z0-9_:-]+)\]\s*$/i;
+// Unlike NOTE_MARKER, this one allows brackets inside the captured text
+// (greedy up to the last "]") — a draft, unlike a note, can plausibly carry
+// a stray fact citation the model meant for the prose, and it still has to
+// come out of the draft text below.
+const DRAFT_MARKER = /\s*\[draft:\s*([\s\S]*)\]\s*$/i;
 const NOTE_MARKER = /\s*\[note:\s*([^[\]]*)\]\s*$/i;
 const FACT_MARKER = /\[([a-zA-Z0-9_-]+)\]/g;
 const MAX_NOTE_CHARS = 120;
+// Same cap gameCommentRequestSchema enforces on a real posted comment — the
+// draft has to fit the textarea it's headed for.
+export const MAX_DRAFT_CHARS = 280;
 
 export function parseBuddyReply(
   text: string,
@@ -74,10 +85,29 @@ export function parseBuddyReply(
   const rawNote = noteMatch?.[1]?.trim();
   const note = rawNote ? rawNote.slice(0, MAX_NOTE_CHARS) : undefined;
 
-  const pickMatch = withoutNote.match(PICK_MARKER);
-  const withoutPick = pickMatch
-    ? withoutNote.slice(0, pickMatch.index).trim()
+  const draftMatch = withoutNote.match(DRAFT_MARKER);
+  const withoutDraft = draftMatch
+    ? withoutNote.slice(0, draftMatch.index).trim()
     : withoutNote;
+  // A blank or malformed draft is dropped silently too — same contract as
+  // the note. Fact markers are stripped out of the draft text itself, and
+  // it's removed from the reply here, before factIds is ever computed below
+  // — so a bracket can never reach the textarea and a citation buried in a
+  // draft can never satisfy `no_citation`.
+  const rawDraft = draftMatch?.[1]?.trim();
+  const draft = rawDraft
+    ? rawDraft
+        .replace(FACT_MARKER, "")
+        .replace(/\s+([,.;:!?])/g, "$1")
+        .replace(/\s{2,}/g, " ")
+        .trim()
+        .slice(0, MAX_DRAFT_CHARS)
+    : undefined;
+
+  const pickMatch = withoutDraft.match(PICK_MARKER);
+  const withoutPick = pickMatch
+    ? withoutDraft.slice(0, pickMatch.index).trim()
+    : withoutDraft;
   // An invalid or unoffered pick is dropped, not a rejection of the whole
   // reply — the reply itself may still be a perfectly grounded lean.
   const pickId =
@@ -94,7 +124,13 @@ export function parseBuddyReply(
     }
   }
 
-  if (findBuddyProhibitedLanguage(withoutPick)) {
+  // A draft is destined for a public thread, so a slur in it retracts the
+  // whole reply — it does not quietly drop just the draft the way a
+  // malformed marker does.
+  if (
+    findBuddyProhibitedLanguage(withoutPick) ||
+    (draft && findBuddyProhibitedLanguage(draft))
+  ) {
     return { ok: false, reason: "prohibited_language" };
   }
 
@@ -107,5 +143,5 @@ export function parseBuddyReply(
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  return { ok: true, prose, factIds, pickId, note };
+  return { ok: true, prose, factIds, pickId, note, draft };
 }

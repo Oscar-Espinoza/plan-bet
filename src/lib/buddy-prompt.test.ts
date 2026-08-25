@@ -30,6 +30,43 @@ describe("buildBuddyInput", () => {
     expect(instructions).toContain("soccer-match-result:home");
   });
 
+  it("omits the draft instruction and draftGroupId for a game with no draft on offer", () => {
+    const { instructions, draftGroupId } = buildBuddyInput({
+      context: gameContext,
+      history: [],
+      question: "who wins?",
+    });
+    expect(draftGroupId).toBeUndefined();
+    expect(instructions).not.toContain("[draft:");
+  });
+
+  it("adds the draft instruction and returns draftGroupId when the game context carries a draft", () => {
+    const gameContextWithDraft: BuddyContext = {
+      kind: "game",
+      facts: gameContext.kind === "game" ? gameContext.facts : [],
+      allowedPickIds:
+        gameContext.kind === "game" ? gameContext.allowedPickIds : [],
+      draft: { groupId: "group-1" },
+    };
+    const { instructions, draftGroupId } = buildBuddyInput({
+      context: gameContextWithDraft,
+      history: [],
+      question: "give me a line for the group",
+    });
+    expect(draftGroupId).toBe("group-1");
+    expect(instructions).toContain("[draft: <text>]");
+  });
+
+  it("never emits the draft instruction outside the game context", () => {
+    const { instructions, draftGroupId } = buildBuddyInput({
+      context: { kind: "you", facts: [] },
+      history: [],
+      question: "how am I doing?",
+    });
+    expect(draftGroupId).toBeUndefined();
+    expect(instructions).not.toContain("[draft:");
+  });
+
   it("neutralizes an injected user_reference so it cannot close the block early", () => {
     const { input } = buildBuddyInput({
       context: gameContext,

@@ -66,4 +66,60 @@ describe("parseBuddyReply", () => {
       note: "swears a lot, root for Madrid",
     });
   });
+
+  it("extracts a trailing draft marker and strips it from prose", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const result = parseBuddyReply(
+      `Madrid, easy [${id}]. [draft: Madrid takes this walking]`,
+      buddyEvalContext,
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      prose: "Madrid, easy.",
+      draft: "Madrid takes this walking",
+    });
+  });
+
+  it("drops a missing or malformed draft silently, without rejecting the reply", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const noDraft = parseBuddyReply(`Madrid, easy [${id}].`, buddyEvalContext);
+    expect(noDraft).toMatchObject({ ok: true, draft: undefined });
+
+    const blank = parseBuddyReply(
+      `Madrid, easy [${id}]. [draft: ]`,
+      buddyEvalContext,
+    );
+    expect(blank).toMatchObject({ ok: true, draft: undefined });
+  });
+
+  it("truncates a draft over the 280-character cap rather than rejecting the reply", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const long = "x".repeat(400);
+    const result = parseBuddyReply(
+      `Madrid, easy [${id}]. [draft: ${long}]`,
+      buddyEvalContext,
+    );
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) {
+      expect(result.draft).toHaveLength(280);
+    }
+  });
+
+  it("strips fact markers out of the draft text so a citation never reaches the textarea", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const result = parseBuddyReply(
+      `Madrid, easy [${id}]. [draft: Madrid all day [${id}]]`,
+      buddyEvalContext,
+    );
+    expect(result).toMatchObject({ ok: true, draft: "Madrid all day" });
+  });
+
+  it("retracts the whole reply when the draft itself carries prohibited language", () => {
+    const id = buddyEvalContext.allowedFactIds[0]!;
+    const result = parseBuddyReply(
+      `Madrid, easy [${id}]. [draft: this is a guaranteed win]`,
+      buddyEvalContext,
+    );
+    expect(result).toMatchObject({ ok: false, reason: "prohibited_language" });
+  });
 });

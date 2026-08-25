@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { GameThread, type CommentThreadView } from "@/components/game-thread";
 import type { GameComment } from "@/lib/contracts";
+import { useMatchdayStore } from "@/lib/store";
 
 const refresh = vi.fn();
 
@@ -9,7 +16,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // A leftover draft from one test must never leak into the next.
+  useMatchdayStore.setState({ commentDraft: undefined });
+});
 
 function thread(overrides: Partial<CommentThreadView> = {}): CommentThreadView {
   return {
@@ -186,5 +197,45 @@ describe("GameThread", () => {
 
     expect(screen.getByText("Pin of shame: Dani")).toBeInTheDocument();
     expect(screen.queryByText(/Best slander/)).not.toBeInTheDocument();
+  });
+
+  it("prefills the textarea from a matching buddy draft and clears it", () => {
+    useMatchdayStore.setState({
+      commentDraft: { groupId: "group-1", text: "Their pick is soft" },
+    });
+    render(<GameThread routeId="soc-rma-01" thread={thread()} />);
+
+    expect(screen.getByLabelText("Say something")).toHaveValue(
+      "Their pick is soft",
+    );
+    expect(useMatchdayStore.getState().commentDraft).toBeUndefined();
+  });
+
+  it("refills the textarea when the same line is drafted again", () => {
+    const { draftComment } = useMatchdayStore.getState();
+    draftComment("group-1", "Their pick is soft");
+    render(<GameThread routeId="soc-rma-01" thread={thread()} />);
+
+    const field = screen.getByLabelText("Say something");
+    fireEvent.change(field, { target: { value: "" } });
+    expect(field).toHaveValue("");
+
+    // A fresh object each time, so byte-identical text still lands — the
+    // reader who typed over the box can ask for the same line back.
+    act(() => draftComment("group-1", "Their pick is soft"));
+    expect(field).toHaveValue("Their pick is soft");
+  });
+
+  it("ignores a draft whose groupId belongs to another thread", () => {
+    useMatchdayStore.setState({
+      commentDraft: { groupId: "group-2", text: "Their pick is soft" },
+    });
+    render(<GameThread routeId="soc-rma-01" thread={thread()} />);
+
+    expect(screen.getByLabelText("Say something")).toHaveValue("");
+    expect(useMatchdayStore.getState().commentDraft).toEqual({
+      groupId: "group-2",
+      text: "Their pick is soft",
+    });
   });
 });

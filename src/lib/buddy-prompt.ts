@@ -12,7 +12,12 @@ const MAX_HISTORY_TURNS = 6;
  * (signed out on `/you`, a non-member on `/groups/x`).
  */
 export type BuddyContext =
-  | { kind: "game"; facts: EvidenceFact[]; allowedPickIds: string[] }
+  | {
+      kind: "game";
+      facts: EvidenceFact[];
+      allowedPickIds: string[];
+      draft?: { groupId: string };
+    }
   | { kind: "you"; facts: EvidenceFact[] }
   | { kind: "group"; facts: EvidenceFact[] }
   | { kind: "recall"; facts: EvidenceFact[] }
@@ -23,6 +28,7 @@ export type BuddyTurn = { role: "user" | "buddy"; text: string };
 export type BuddyInput = {
   allowedFactIds: string[];
   allowedPickIds: string[];
+  draftGroupId?: string;
   instructions: string;
   input: string;
 };
@@ -38,6 +44,8 @@ export function buildBuddyInput(options: {
   const facts = context.kind === "none" ? [] : context.facts;
   const allowedFactIds = facts.map((fact) => fact.id);
   const allowedPickIds = context.kind === "game" ? context.allowedPickIds : [];
+  const draftGroupId =
+    context.kind === "game" ? context.draft?.groupId : undefined;
 
   const factLines = facts.length
     ? facts
@@ -60,6 +68,11 @@ export function buildBuddyInput(options: {
     context.kind === "game"
       ? `- You may end your reply with one optional marker on its own, in the exact form [pick: <id>], choosing only from: ${allowedPickIds.join(", ")}. Never invent or describe a selection that isn't in that list.`
       : "- Never include a [pick: ...] marker on this page.",
+    ...(context.kind === "game" && context.draft
+      ? [
+          "- The reader is in a group thread on this game and hasn't said their piece yet. If they ask you for a line to post there, end your reply with one more marker, in the exact form [draft: <text>], at most 280 characters, aimed at the pick and never the person — you're proposing it, they post it.",
+        ]
+      : []),
     ...(context.kind === "recall"
       ? [
           '- These facts are other games on the board, not the page the reader is on — name the fixture you\'re talking about rather than saying "this game".',
@@ -108,5 +121,5 @@ export function buildBuddyInput(options: {
     "</user_reference>",
   ].join("\n");
 
-  return { allowedFactIds, allowedPickIds, instructions, input };
+  return { allowedFactIds, allowedPickIds, draftGroupId, instructions, input };
 }

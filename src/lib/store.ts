@@ -19,6 +19,13 @@ type MatchdayActions = {
   advanceTour: (step: number) => void;
   finishTour: () => void;
   dismissIntro: () => void;
+  // Not part of `StoredState`: a hand-off from a buddy turn to the group
+  // thread's textarea, gone the moment it's consumed. Set with `set()`
+  // rather than `commit()` so it never reaches `persist()` — the same
+  // reason `hydrated` isn't in the schema either.
+  commentDraft?: { groupId: string; text: string };
+  draftComment: (groupId: string, text: string) => void;
+  clearCommentDraft: () => void;
 };
 
 export type MatchdayStore = StoredState & MatchdayActions;
@@ -81,5 +88,7 @@ export const useMatchdayStore = create<MatchdayStore>((set, get) => {
     },
     finishTour: () => commit({ tourStep: 4 }),
     dismissIntro: () => commit({ introDismissed: true }),
+    draftComment: (groupId, text) => set({ commentDraft: { groupId, text } }),
+    clearCommentDraft: () => set({ commentDraft: undefined }),
   };
 });

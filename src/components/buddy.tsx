@@ -17,6 +17,7 @@ type Turn = {
   ok?: boolean;
   factIds?: string[];
   pickId?: string;
+  draft?: { groupId: string; text: string };
 };
 
 const RETRACTED_MESSAGE =
@@ -36,6 +37,7 @@ export function Buddy() {
   const anonymousId = useMatchdayStore((state) => state.anonymousId);
   const conversation = useMatchdayStore((state) => state.buddyConversation);
   const tourStep = useMatchdayStore((state) => state.tourStep);
+  const draftComment = useMatchdayStore((state) => state.draftComment);
 
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -118,6 +120,7 @@ export function Buddy() {
             prose?: string;
             factIds?: string[];
             pickId?: string;
+            draft?: { groupId: string; text: string };
           };
           try {
             payload = JSON.parse(line.slice(5).trim());
@@ -138,6 +141,7 @@ export function Buddy() {
                       ok: true,
                       factIds: payload.factIds,
                       pickId: payload.pickId,
+                      draft: payload.draft,
                     }
                   : { text: RETRACTED_MESSAGE, streaming: false, ok: false },
               ),
@@ -235,6 +239,19 @@ export function Buddy() {
                       Back this
                     </Button>
                   </Link>
+                )}
+                {turn.ok && turn.draft && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      draftComment(turn.draft!.groupId, turn.draft!.text);
+                      setOpen(false);
+                    }}
+                  >
+                    Use as my comment
+                  </Button>
                 )}
               </div>
             ))}

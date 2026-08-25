@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import type { CommentVoteKind, GameComment } from "@/lib/contracts";
+import { useMatchdayStore } from "@/lib/store";
 
 const VOTE_LABEL: Record<CommentVoteKind, string> = {
   shame: "Shame",
@@ -55,6 +56,33 @@ export function GameThread({
   const [votePending, setVotePending] = useState("");
   const [voteError, setVoteError] = useState("");
   const fieldId = `comment-${thread.groupId}`;
+
+  // The dialog is an overlay over this same page, so the thread is already
+  // mounted when a draft lands — the group id gate is what stops a draft
+  // meant for one thread from filling in a different one on the same page.
+  // Filling the textarea is adjusted during render (React's own pattern for
+  // syncing local state to a changed external value, rather than a render
+  // behind it in an effect); clearing the draft from the store is the one
+  // real side effect, so that alone runs in an effect.
+  const commentDraft = useMatchdayStore((state) => state.commentDraft);
+  const clearCommentDraft = useMatchdayStore(
+    (state) => state.clearCommentDraft,
+  );
+  const matchingDraft =
+    commentDraft?.groupId === thread.groupId ? commentDraft : undefined;
+  // Compared by reference, not by text: `draftComment` mints a fresh object
+  // every time, so asking for the same line twice — after typing over the
+  // box — still refills it, which comparing the text would silently skip.
+  const [consumedDraft, setConsumedDraft] = useState<object | undefined>(
+    undefined,
+  );
+  if (matchingDraft && matchingDraft !== consumedDraft) {
+    setConsumedDraft(matchingDraft);
+    setBody(matchingDraft.text);
+  }
+  useEffect(() => {
+    if (matchingDraft) clearCommentDraft();
+  }, [matchingDraft, clearCommentDraft]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();

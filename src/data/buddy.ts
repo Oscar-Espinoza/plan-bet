@@ -10,12 +10,18 @@ import {
 } from "@/data/buddy-repository";
 import { listBoardContext } from "@/data/fixture-context-repository";
 import {
+  commentPhase,
+  listCommentThreads,
+  pickPins,
+  type CommentThread,
+} from "@/data/game-comments";
+import {
   getGroupBySlug,
   getGroupLeaderboard,
   isGroupMember,
 } from "@/data/groups-repository";
 import { getGameDetail } from "@/data/sports-data";
-import { getRecordSlices } from "@/data/wagers-repository";
+import { getRecordSlices, readGameForWager } from "@/data/wagers-repository";
 import { estimateCostMicros } from "@/lib/ai-cost";
 import {
   buildBuddyInput,
@@ -26,6 +32,7 @@ import {
 import { parseBuddyReply } from "@/lib/buddy-validation";
 import {
   gameSummarySchema,
+  type EvidenceFact,
   type GroupLeaderboardEntry,
   type RecordSlices,
 } from "@/lib/contracts";
@@ -113,6 +120,46 @@ export function boardFacts(
 }
 
 /**
+ * One fact per comment in a group's thread on this game, plus the two pins
+ * when they exist — what turns "a take about the fixture" into material for
+ * a take addressed to the group. Pure, so it's unit-testable without a
+ * database, same rule as `boardFacts`: skip, don't guess.
+ */
+export function threadFacts(thread: CommentThread): EvidenceFact[] {
+  const facts: EvidenceFact[] = thread.comments.map((comment, index) =>
+    fact(
+      `thread-${index}`,
+      `${comment.authorName ?? "A member"} (${comment.authorSelectionLabel})`,
+      comment.body,
+    ),
+  );
+  const pins = pickPins(thread.comments);
+  const pinned = (id: string | undefined) =>
+    id ? thread.comments.find((comment) => comment.id === id) : undefined;
+  const shame = pinned(pins.shame);
+  if (shame) {
+    facts.push(
+      fact(
+        "thread-pin-shame",
+        "Pin of shame",
+        `${shame.authorName ?? "A member"}: ${shame.body}`,
+      ),
+    );
+  }
+  const slander = pinned(pins.slander);
+  if (slander) {
+    facts.push(
+      fact(
+        "thread-pin-slander",
+        "Best slander",
+        `${slander.authorName ?? "A member"}: ${slander.body}`,
+      ),
+    );
+  }
+  return facts;
+}
+
+/**
  * The client sends `route` — the pathname it's on — never a fact. Every fact
  * the buddy can cite is looked up here, server-side, from that route and the
  * viewer's own session; group membership and account ownership are
@@ -127,20 +174,52 @@ export async function resolveContext(
 
   const gameMatch = route.match(/^\/games\/([^/?#]+)\/?$/);
   if (gameMatch) {
-    const detail = await getGameDetail(gameMatch[1]!);
+    const routeId = gameMatch[1]!;
+    const detail = await getGameDetail(routeId);
     if (!detail) return none;
     // Stored fixture context already reached the snapshot in `getGameDetail`,
     // so the buddy cites exactly what the page displays beside it.
+    const facts = [...detail.snapshot.evidenceFacts];
+    let draft: { groupId: string } | undefined;
+    if (viewer.userId && isDatabaseConfigured()) {
+      // The same lookup `POST /api/games/[gameId]/comments` already makes to
+      // resolve a route id to the canonical one — never a canonical id
+      // accepted from the client.
+      const game = await readGameForWager(routeId).catch(() => undefined);
+      if (game) {
+        // Degrades rather than throws, the same rule the recall arm and
+        // `listBuddyNotes` already follow: a database blip costs the buddy
+        // the thread, never the whole turn.
+        const threads = await listCommentThreads(
+          viewer.userId,
+          game.canonicalId,
+        ).catch(() => [] as CommentThread[]);
+        // ponytail: only the first eligible thread. A reader in two groups
+        // on the same game drafts for the first; widen when someone
+        // actually has two.
+        const thread = threads[0];
+        if (thread) {
+          facts.push(...threadFacts(thread));
+          const phase = commentPhase(game.summary.scheduledAt, new Date());
+          const hasCommented = thread.comments.some(
+            (comment) =>
+              comment.userId === viewer.userId && comment.phase === phase,
+          );
+          if (!hasCommented) draft = { groupId: thread.groupId };
+        }
+      }
+    }
     return {
       context: {
         kind: "game",
-        facts: detail.snapshot.evidenceFacts,
+        facts,
         allowedPickIds: marketsFor(detail.snapshot.game.sport).flatMap(
           (market) =>
             market.selections.map(
               (selection) => `${market.id}:${selection.id}`,
             ),
         ),
+        ...(draft ? { draft } : {}),
       },
       routeLabel: `game:${detail.snapshot.game.id}`,
     };
@@ -212,6 +291,7 @@ export type BuddyStreamEvent =
       prose: string;
       factIds: string[];
       pickId?: string;
+      draft?: { groupId: string; text: string };
       quota?: { remaining: number; resetAt: string };
       reason?: string;
     };
@@ -497,6 +577,10 @@ async function* streamLive(
         prose: parsed.prose,
         factIds: parsed.factIds,
         pickId: parsed.pickId,
+        draft:
+          parsed.draft && prompt.draftGroupId
+            ? { groupId: prompt.draftGroupId, text: parsed.draft }
+            : undefined,
         quota: claim?.allowed
           ? {
               remaining: claim.remaining,

@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { boardFacts, prepareBuddyTurn, resolveContext } from "@/data/buddy";
+import {
+  boardFacts,
+  prepareBuddyTurn,
+  resolveContext,
+  threadFacts,
+} from "@/data/buddy";
+import type { CommentThread } from "@/data/game-comments";
 import { getSnapshot } from "@/lib/seed";
 import { marketsFor } from "@/lib/markets";
+import type { GameComment } from "@/lib/contracts";
 
 function boardRow(overrides: { canonicalId?: string; summary?: string } = {}) {
   return {
@@ -123,6 +130,82 @@ describe("boardFacts", () => {
 
   it("returns [] for an empty board", () => {
     expect(boardFacts([])).toEqual([]);
+  });
+});
+
+function comment(
+  overrides: Partial<GameComment> & { id: string },
+): GameComment {
+  return {
+    groupId: "group-1",
+    userId: "user-1",
+    authorName: "Dani",
+    authorSelectionLabel: "Home",
+    phase: "before",
+    body: "Taking the over",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    shameVotes: 0,
+    slanderVotes: 0,
+    viewerVoted: [],
+    ...overrides,
+  };
+}
+
+function thread(comments: GameComment[]): CommentThread {
+  return { groupId: "group-1", groupName: "Sunday League", comments };
+}
+
+describe("threadFacts", () => {
+  it("returns [] for an empty thread", () => {
+    expect(threadFacts(thread([]))).toEqual([]);
+  });
+
+  it("makes one fact per comment, labelled with the author and their side", () => {
+    const facts = threadFacts(
+      thread([
+        comment({
+          id: "comment-1",
+          authorName: "Dani",
+          authorSelectionLabel: "Home",
+          body: "Taking the over",
+        }),
+        comment({
+          id: "comment-2",
+          authorName: "Sam",
+          authorSelectionLabel: "Away",
+          body: "No chance",
+        }),
+      ]),
+    );
+    expect(facts).toHaveLength(2);
+    expect(facts[0]).toMatchObject({
+      id: "thread-0",
+      label: "Dani (Home)",
+      value: "Taking the over",
+    });
+    expect(facts[1]).toMatchObject({
+      id: "thread-1",
+      label: "Sam (Away)",
+      value: "No chance",
+    });
+  });
+
+  it("adds a pin fact for whichever side has one, and only that side", () => {
+    const facts = threadFacts(
+      thread([
+        comment({
+          id: "comment-1",
+          authorName: "Dani",
+          body: "Taking the over",
+          shameVotes: 3,
+        }),
+      ]),
+    );
+    expect(facts.map((f) => f.id)).toEqual(["thread-0", "thread-pin-shame"]);
+    expect(facts[1]).toMatchObject({
+      label: "Pin of shame",
+      value: "Dani: Taking the over",
+    });
   });
 });
 
