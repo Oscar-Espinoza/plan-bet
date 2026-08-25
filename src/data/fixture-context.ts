@@ -41,6 +41,7 @@ import {
 } from "@/providers/bigballs/provider";
 import type { BigBallsStandingRow } from "@/providers/bigballs/schemas";
 import { providerErrorCode } from "@/providers/provider-error";
+import { ZodError } from "zod";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -105,6 +106,14 @@ async function attempt<T>(
       operation,
       status: "failed",
       errorCode: providerErrorCode(error),
+      // The code alone can't tell a vendor drift from a bug in this file.
+      // `errorName` is the class ("ZodError", "TypeError"), and for a Zod
+      // failure `invalidPath` is the field that broke — the path only, never
+      // the value, so nothing sensitive travels.
+      errorName: error instanceof Error ? error.name : "unknown",
+      ...(error instanceof ZodError
+        ? { invalidPath: error.issues[0]?.path.join(".") ?? "" }
+        : {}),
     });
     return undefined;
   }

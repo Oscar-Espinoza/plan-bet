@@ -134,6 +134,27 @@ async function send(
   }
 }
 
+/**
+ * `send` converts an aborted *request* into a typed ProviderError, but the
+ * abort signal stays armed while the body streams — so a slow server that
+ * starts responding and then stalls threw a raw `TimeoutError` from here,
+ * which `providerErrorCode` could only report as "persistence_error". Every
+ * body read goes through this so a timeout is a timeout wherever it lands.
+ */
+async function readBody(response: Response, operation: string) {
+  try {
+    return await response.text();
+  } catch (error) {
+    throw new ProviderError(
+      error instanceof Error && error.name === "TimeoutError"
+        ? "timeout"
+        : "unavailable",
+      "MCP response body could not be read",
+      operation,
+    );
+  }
+}
+
 /** `initialize`, then the `notifications/initialized` the spec requires before any call. */
 async function openSession(
   server: McpServer,
@@ -157,7 +178,7 @@ async function openSession(
     operation,
   );
   const sessionId = response.headers.get("mcp-session-id");
-  await response.text();
+  await readBody(response, operation);
   if (!response.ok || !sessionId) {
     throw new ProviderError(
       response.status === 401 || response.status === 403
@@ -196,7 +217,7 @@ export async function callMcpTool(
   // A 400 here means the server wants a session (or the cached one expired).
   // Open one and retry exactly once; a second failure is a real error.
   if (response.status === 400) {
-    await response.text();
+    await readBody(response, operation);
     await openSession(server, options, operation);
     response = await send(server, request, options, operation);
   }
@@ -222,7 +243,7 @@ export async function callMcpTool(
     );
   }
 
-  const raw = await response.text();
+  const raw = await readBody(response, operation);
   if (raw.length > maxBytes) {
     throw new ProviderError(
       "invalid_payload",

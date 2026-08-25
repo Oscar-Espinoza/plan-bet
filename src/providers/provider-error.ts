@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ZodError } from "zod";
+
 export type ProviderErrorCode =
   | "unauthorized"
   | "rate_limited"
@@ -20,5 +22,10 @@ export class ProviderError extends Error {
 }
 
 export function providerErrorCode(error: unknown) {
-  return error instanceof ProviderError ? error.code : "persistence_error";
+  if (error instanceof ProviderError) return error.code;
+  // A Zod failure is a payload the vendor changed, not a database problem —
+  // the old catch-all reported both as "persistence_error", which named the
+  // wrong subsystem in every path that only reads.
+  if (error instanceof ZodError) return "invalid_payload";
+  return "persistence_error";
 }
