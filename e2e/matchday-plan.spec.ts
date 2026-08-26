@@ -249,3 +249,33 @@ test("the briefing endpoint validates input and degrades honestly", async ({
   }
   expect(JSON.stringify(body)).not.toContain("sk-");
 });
+
+test.describe("kickoff times", () => {
+  test.use({ timezoneId: "America/Argentina/Buenos_Aires" });
+
+  test("clocks read in the viewer's own zone, never the server's", async ({
+    page,
+  }) => {
+    await page.goto("/?sport=soccer");
+    const times = page.locator(".game-time time");
+    const count = await times.count();
+    expect(count).toBeGreaterThan(0);
+
+    for (let index = 0; index < count; index += 1) {
+      const time = times.nth(index);
+      const iso = await time.getAttribute("datetime");
+      expect(iso).toBeTruthy();
+      const expected = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "America/Argentina/Buenos_Aires",
+      }).format(new Date(iso as string));
+      // Fails loudly if the server's zone is ever frozen into the DOM again.
+      await expect(time).toHaveText(expected);
+    }
+
+    await expect(page.locator(".slate-tz")).toContainText("GMT-3");
+    await expect(page.locator(".slate-tz")).not.toContainText("UTC");
+    await expect(page.locator(".slate-tz")).toContainText("your time");
+  });
+});

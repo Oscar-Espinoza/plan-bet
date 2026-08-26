@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { ChevronRight, MapPin } from "lucide-react";
 import { DemoStamp } from "@/components/demo-stamp";
-import { KickoffTime, RelativeKickoff } from "@/components/local-date-time";
+import {
+  KickoffTime,
+  RelativeKickoff,
+  TimezoneLegend,
+} from "@/components/local-date-time";
 import { StatusTag } from "@/components/ui/status-tag";
 import type { DashboardData } from "@/data/sports-data";
 import type { GameSummary, Sport } from "@/lib/contracts";
@@ -78,6 +82,10 @@ export function Slate({
     tz,
   );
 
+  // ponytail: day headings group by the geo-header zone while the clocks below
+  // them are the browser's own. They agree for anyone whose browser matches
+  // their location; behind a VPN a late kickoff can land under the wrong
+  // heading. Regroup client-side if that ever matters.
   const groups: { key: string; label: string; games: GameSummary[] }[] = [];
   for (const game of games) {
     const key = dayKey(game.scheduledAt, tz);
@@ -113,7 +121,10 @@ export function Slate({
               <span>
                 {nextUp.competition} · {nextUp.venue ?? "Not provided"}
               </span>
-              <KickoffTime value={nextUp.scheduledAt} />
+              <span className="next-up-meta-clock">
+                <KickoffTime value={nextUp.scheduledAt} />
+                <small>your time</small>
+              </span>
             </div>
           </div>
           <div className="slate-freshness slate-freshness-standalone">
@@ -169,6 +180,7 @@ export function Slate({
             {filter.label}
           </Link>
         ))}
+        <TimezoneLegend />
       </nav>
 
       {groups.length ? (

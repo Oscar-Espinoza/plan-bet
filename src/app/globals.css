@@ -842,10 +842,39 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+.next-up-meta-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.next-up-meta-clock small {
+  color: var(--faint);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .slate-filters {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
   margin-bottom: 1.25rem;
+}
+
+.slate-tz {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slate-tz span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .slate-chip {

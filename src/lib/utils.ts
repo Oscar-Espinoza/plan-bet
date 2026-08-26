@@ -15,8 +15,9 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * A match time the reader can act on: full date, time, and an explicit zone
- * label, all in their own timezone. No venue zone is shown because neither
- * provider supplies one, and inferring it from a country would be fabrication.
+ * label, all in their own timezone. The zone the match is played in is never
+ * shown: neither provider supplies one, and a second clock per fixture was
+ * noise — the reader only needs to know when to be ready.
  */
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
