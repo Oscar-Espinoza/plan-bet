@@ -12,6 +12,11 @@ import { cn } from "@/lib/utils";
 // the same billing as the games board. Three items, one destination each:
 // the slate, where you stand, and the group lens on it. System moves to the
 // footer, beside Rules.
+//
+// Three destinations never justified a 15rem fixed rail: it cost every page a
+// column of width to render three words. The same three items ride in the
+// topbar above 1024px and in the bottom bar below it, so exactly one copy is
+// ever in the accessibility tree.
 const navItems = [
   { href: "/", label: "Games", icon: Gauge },
   { href: "/you", label: "You", icon: UserCircle },
@@ -45,42 +50,29 @@ export function AppShell({
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      <aside className="sidebar" aria-label="Site sidebar">
-        <Link href="/" className="brand" aria-label="Matchday Plan home">
-          <span className="brand-mark">MP</span>
-          <span>
-            <span className="brand-name">Matchday Plan</span>
-            <span className="brand-subtitle">Game prep desk</span>
-          </span>
-        </Link>
-        <nav className="nav-list" aria-label="Primary navigation">
-          {navItems.map((item) => {
-            const active = isCurrent(pathname, item.href);
-            return (
-              <Link
-                className={cn("nav-link", active && "nav-link-active")}
-                href={item.href}
-                key={item.href}
-                aria-current={active ? "page" : undefined}
-              >
-                <item.icon aria-hidden="true" size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
       <div className="workspace">
         <header className="topbar">
           <div className="topbar-inner">
-            <Link
-              href="/"
-              className="mobile-brand"
-              aria-label="Matchday Plan home"
-            >
+            <Link href="/" className="brand" aria-label="Matchday Plan home">
               <span className="brand-mark">MP</span>
-              <span>Matchday Plan</span>
+              <span className="brand-name">Matchday Plan</span>
             </Link>
+            <nav className="topbar-nav" aria-label="Primary navigation">
+              {navItems.map((item) => {
+                const active = isCurrent(pathname, item.href);
+                return (
+                  <Link
+                    className={cn("nav-link", active && "nav-link-active")}
+                    href={item.href}
+                    key={item.href}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <item.icon aria-hidden="true" size={17} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
             <WorkspaceControls accountControl={accountControl} />
           </div>
         </header>

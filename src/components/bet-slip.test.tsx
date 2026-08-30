@@ -59,7 +59,7 @@ describe("BetSlip - unavailable and closed", () => {
     render(<BetSlip data={data} />);
 
     expect(
-      screen.getByText("This game is not available for wagers."),
+      screen.getByText("This game is not open for bets."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -318,7 +318,7 @@ describe("BetSlip - open", () => {
     };
     render(<BetSlip data={data} />);
 
-    const heading = screen.getByText("Your wagers on this game");
+    const heading = screen.getByText("Your bets on this game");
     expect(heading).toBeInTheDocument();
     expect(heading.parentElement?.textContent).toContain("Home");
     expect(heading.parentElement?.textContent).toContain("60");

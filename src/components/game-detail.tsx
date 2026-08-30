@@ -13,13 +13,14 @@ import {
   CircleAlert,
   Clock3,
   Cpu,
+  Library,
   MapPin,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { DemoStamp } from "@/components/demo-stamp";
-import { LocalDateTime } from "@/components/local-date-time";
+import { LocalDateTime, RelativeKickoff } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
@@ -285,7 +286,14 @@ export function GameDetail({
             </span>
             {game.result?.completion === "extra" && "After extra time"}
             {game.result?.completion === "shootout" && "After penalties"}
-            <LocalDateTime value={game.scheduledAt} />
+            {/* Countdown, not a second copy of the kickoff stamp — the full
+                local date and time is already one row below in
+                `.matchup-details`. Sodium, because it is time. */}
+            {!game.result && (
+              <em className="matchup-countdown">
+                <RelativeKickoff value={game.scheduledAt} />
+              </em>
+            )}
           </div>
           <div className="matchup-team matchup-team-away">
             {!isHome && <TeamMark team={team} size="lg" />}
@@ -305,17 +313,31 @@ export function GameDetail({
         </div>
       </header>
 
+      {/* The action comes first in the DOM, so on a phone the thing you came
+          to do is above the reading material rather than three screens under
+          it. Above 1100px the same node is placed into the right column by
+          grid, without a second render order for assistive tech. */}
       <div className="detail-layout">
+        {/* Absent, not empty, when sign-in isn't configured: an empty aside
+            still claims a grid track and a gap. */}
+        {wagering && (
+          <aside className="detail-side" aria-label="Place a bet">
+            <BetSlip data={wagering} />
+          </aside>
+        )}
+
         <div className="detail-primary">
           <section className="panel" aria-labelledby="context-heading">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">{context.kind} context</p>
                 <h2 className="panel-title" id="context-heading">
-                  Matchup read
+                  The read
                 </h2>
+                <p className="panel-purpose">
+                  Form, standing and availability — the facts the brief below is
+                  built from.
+                </p>
               </div>
-              <span className="fine-print">Sport-specific view</span>
             </div>
             {context.kind === "soccer" ? (
               <div className="context-body">
@@ -506,13 +528,19 @@ export function GameDetail({
           >
             <div className="brief-intro">
               <div>
-                <p className="eyebrow">
-                  {aiEnabled ? "Grounded briefing" : "Prepared example"}
-                </p>
                 <h2 className="panel-title" id="brief-heading">
-                  Game brief
+                  The brief
                 </h2>
+                <p className="panel-purpose">
+                  {aiEnabled
+                    ? "A short read written only from the facts above. Every line cites the fact it came from."
+                    : "A prepared example, written only from the facts above. Every line cites the fact it came from."}
+                </p>
                 <p>{shown.summary}</p>
+                {/* Model, latency and freshness were four more chips fighting
+                    the label for the same row; freshness already has its own
+                    stamp in the header, and the model only means something
+                    once a generation actually ran. */}
                 <div className="brief-meta">
                   <StatusTag tone={briefMode === "ai" ? "positive" : "warning"}>
                     {briefLabel}
@@ -523,15 +551,13 @@ export function GameDetail({
                     </span>
                   )}
                   <span>
-                    Model: <Provided value={shown.generation?.model} />
-                  </span>
-                  <span>
                     Generated <LocalDateTime value={shown.generatedAt} short />
                   </span>
                   {shown.generation && (
-                    <span>{shown.generation.latencyMs} ms</span>
+                    <span>
+                      {shown.generation.model} · {shown.generation.latencyMs} ms
+                    </span>
                   )}
-                  <span>Data: {freshness.mode}</span>
                   {quota && (
                     <span>
                       {quota.remaining} generation
@@ -633,14 +659,17 @@ export function GameDetail({
             )}
           </section>
 
-          <section className="panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Sources</h2>
-              <StatusTag>
+          {/* Reference material, not reading material: collapsed by default
+              so it costs one row of scroll instead of a screen of it. */}
+          <details className="panel evidence-disclosure">
+            <summary>
+              <span>
+                <Library aria-hidden="true" size={17} /> Sources ·{" "}
                 {sources.length}{" "}
                 {sources.length === 1 ? "reference" : "references"}
-              </StatusTag>
-            </div>
+              </span>
+              <ChevronDown aria-hidden="true" size={17} />
+            </summary>
             <div className="source-list">
               {sources.map((source) => (
                 <div key={source.id}>
@@ -663,24 +692,21 @@ export function GameDetail({
                 </div>
               ))}
             </div>
-          </section>
-        </div>
+          </details>
 
-        <aside className="detail-side" aria-label="Preparation tools">
-          {wagering && <BetSlip data={wagering} />}
           <div className="side-disclaimer">
             <strong>How this brief is made</strong>
             <p>
-              Every bullet is written from the validated provider snapshot above
+              Every line is written from the validated provider snapshot above
               and must cite evidence from it.{" "}
               {aiEnabled
                 ? "When generation fails validation or the model is unreachable, the deterministic evidence brief is served instead and labelled as a fallback."
                 : "AI generation is not configured here, so the deterministic evidence brief is shown."}{" "}
-              Market prices shown on this page are fictional house prices
-              published by this app for a free-to-play simulator — not bookmaker
-              odds, not a prediction, and not betting advice. No real money is
-              involved and nothing is withdrawable; see the{" "}
-              <Link href="/rules">rules</Link> for how markets settle.
+              Prices on this page are fictional house prices published by this
+              app for a free-to-play simulator — not bookmaker odds, not a
+              prediction, and not betting advice. No real money is involved and
+              nothing is withdrawable; see the <Link href="/rules">rules</Link>{" "}
+              for how markets settle.
             </p>
             {archivedDemo && (
               <p>
@@ -698,7 +724,7 @@ export function GameDetail({
               </Button>
             )}
           </div>
-        </aside>
+        </div>
       </div>
       <p className="sr-only" aria-live="polite">
         {message}

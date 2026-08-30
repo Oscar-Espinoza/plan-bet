@@ -148,7 +148,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
               (payload as { error: { message?: string } }).error?.message ?? "",
             )
           : "";
-      setError(text || "The wager did not go through. Try again.");
+      setError(text || "The bet did not go through. Try again.");
       return;
     }
 
@@ -171,14 +171,23 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
     return (
       <section className="panel">
         <div className="panel-header">
-          <h2 className="panel-title">Wager</h2>
+          <div>
+            <h2 className="panel-title">Your bet</h2>
+            <p className="panel-purpose">
+              Free-to-play, on fictional credits. Nothing real is staked.
+            </p>
+          </div>
         </div>
         <div className="side-form">
-          <p>
-            <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
-              Sign in
-            </Link>{" "}
-            to place a free-to-play wager.
+          <Link
+            className="button w-full"
+            href={`/sign-in?callbackUrl=/games/${data.routeId}`}
+          >
+            Sign in
+          </Link>
+          <p className="fine-print">
+            Signing in only unlocks the credit ledger — the rest of the page
+            works signed out.
           </p>
         </div>
       </section>
@@ -190,13 +199,29 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
   return (
     <section className="panel" aria-labelledby="wager-heading">
       <div className="panel-header">
-        <h2 className="panel-title" id="wager-heading">
-          Wager
-        </h2>
+        <div>
+          <h2 className="panel-title" id="wager-heading">
+            Your bet
+          </h2>
+          <p className="panel-purpose">
+            {state.kind === "open"
+              ? "Tap a price to pick a side, then set a stake."
+              : "Fictional credits, house prices this app publishes itself."}
+          </p>
+        </div>
+        {/* The balance used to appear only after a selection was armed, so the
+            one number you need before choosing a stake was the one number the
+            panel hid. Chalk, never sodium: it is money, not time. */}
+        {state.kind === "open" && (
+          <span className="bet-balance">
+            <small>Balance</small>
+            {state.balance}
+          </span>
+        )}
       </div>
 
       {state.kind === "unavailable" && (
-        <p className="side-form">This game is not available for wagers.</p>
+        <p className="side-form">This game is not open for bets.</p>
       )}
       {state.kind === "closed" && (
         <p className="side-form">{CLOSED_COPY[state.reason]}</p>
@@ -207,26 +232,6 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           <Banner tone="positive">{confirmation}</Banner>
         </div>
       )}
-
-      {groupPicks.length > 0 && (
-        <div className="side-form">
-          {groupPicks.map((pick) => (
-            <p className="fine-print" key={pick.wager.id}>
-              {pick.groupName} — {pick.userName ?? "A member"} has{" "}
-              {pick.wager.stake} on {pick.wager.selectionLabel}
-              {lineSuffix(pick.wager.line)}.
-            </p>
-          ))}
-        </div>
-      )}
-
-      {threads.map((thread) => (
-        <GameThread
-          key={thread.groupId}
-          routeId={data.routeId}
-          thread={thread}
-        />
-      ))}
 
       {state.kind === "open" && (
         <div className="selection-grid">
@@ -258,6 +263,11 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
               </div>
             </div>
           ))}
+          {!selection && (
+            <p className="bet-hint">
+              Nothing picked yet — tap any price above to set a stake.
+            </p>
+          )}
         </div>
       )}
 
@@ -284,6 +294,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
             id="wager-stake"
             className="field"
             type="number"
+            inputMode="numeric"
             min={MIN_STAKE}
             max={MAX_STAKE}
             step={1}
@@ -369,7 +380,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
 
       {wagers.length > 0 && (
         <div className="side-form">
-          <h3 className="field-label">Your wagers on this game</h3>
+          <h3 className="field-label">Your bets on this game</h3>
           {wagers.map((wager) => (
             <div className="data-pair" key={wager.id}>
               <span>
@@ -392,6 +403,29 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           ))}
         </div>
       )}
+
+      {/* Who else is in, and the argument about it — context on your own pick,
+          so it sits under the action rather than above it. */}
+      {groupPicks.length > 0 && (
+        <div className="side-form">
+          <h3 className="field-label">Group picks on this game</h3>
+          {groupPicks.map((pick) => (
+            <p className="fine-print" key={pick.wager.id}>
+              {pick.groupName} — {pick.userName ?? "A member"} has{" "}
+              {pick.wager.stake} on {pick.wager.selectionLabel}
+              {lineSuffix(pick.wager.line)}.
+            </p>
+          ))}
+        </div>
+      )}
+
+      {threads.map((thread) => (
+        <GameThread
+          key={thread.groupId}
+          routeId={data.routeId}
+          thread={thread}
+        />
+      ))}
     </section>
   );
 }

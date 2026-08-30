@@ -15,15 +15,16 @@ export type WagerClosedReason = GameStatus | "started";
  * Every entry names a next action (principle 5 — never dead-end).
  */
 export const CLOSED_COPY: Record<WagerClosedReason, string> = {
-  // Unreachable: scheduled is the open state, so a wager is never placed
+  // Unreachable: scheduled is the open state, so a bet is never placed
   // against it. Kept so this map stays a total function over the type.
-  scheduled: "This game is not open for wagers.",
-  started: "This game has already started. Check the slate for what's next.",
-  live: "This game is already in progress. Check the slate for what's next.",
+  scheduled: "This game is not open for bets.",
+  started:
+    "This game has already started. Check the games board for what's next.",
+  live: "This game is already in progress. Check the games board for what's next.",
   finished: "This game has finished. Your record is on /you.",
   postponed: "This game has been postponed. Check back for a new time.",
   cancelled: "This game has been cancelled and will not be replayed.",
-  unknown: "This game is not open for wagers.",
+  unknown: "This game is not open for bets.",
 };
 
 export function priceMovedCopy(price: number) {
