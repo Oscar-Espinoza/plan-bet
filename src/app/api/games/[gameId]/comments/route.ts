@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ gameId: string }> };
 
-/** `[gameId]` is the route id, matching the sibling `[gameId]/briefings` —
+/** `[gameId]` is the route id, the same shape the page itself is served at —
  * resolved to the canonical id here, never accepted from the client. */
 export async function POST(request: NextRequest, { params }: Params) {
   const context = createRouteContext("POST /api/games/[gameId]/comments");

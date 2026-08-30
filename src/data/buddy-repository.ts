@@ -1,23 +1,46 @@
 import "server-only";
 
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { utcDayEnd, utcDayStart } from "@/data/briefings-repository";
 import { withDatabaseTransaction, getDatabase } from "@/db/client";
 import { buddyMessages, buddyNotes } from "@/db/schema";
 
 export const BUDDY_SESSION_DAILY_LIMIT = 30;
 export const BUDDY_IP_DAILY_LIMIT = 100;
 
+// ponytail: a per-process salt when RATE_LIMIT_HASH_SECRET is unset. Raw IPs are
+// still never stored, but IP quotas reset on redeploy — set the secret in
+// production to make them stable.
+const FALLBACK_SALT = randomUUID();
+
+export function hashSessionId(sessionId: string) {
+  return createHash("sha256").update(`session:${sessionId}`).digest("hex");
+}
+
+export function hashClientAddress(address: string) {
+  const secret = process.env.RATE_LIMIT_HASH_SECRET?.trim() || FALLBACK_SALT;
+  return createHmac("sha256", secret).update(address).digest("hex");
+}
+
+export function utcDayStart(now: Date) {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+}
+
+export function utcDayEnd(now: Date) {
+  return new Date(utcDayStart(now).getTime() + 24 * 60 * 60 * 1000);
+}
+
 export type BuddyTurnClaim =
   | { allowed: true; id: string; remaining: number; resetAt: Date }
   | { allowed: false; remaining: 0; resetAt: Date };
 
 /**
- * Same shape as claimBriefingSlot: advisory locks in a fixed order (session,
- * then IP — classids 6 and 7, the next feature after this claims 8) around a
- * count-then-insert in one transaction, so concurrent turns from the same
- * session or IP can't both slip under the limit. A chat turn is cheaper than
- * a full briefing generation, hence the higher daily caps.
+ * Advisory locks in a fixed order (session, then IP — classids 6 and 7; 1 and 2
+ * were the briefing quotas and are free again, the next feature after this
+ * claims 8) around a count-then-insert in one transaction, so concurrent turns
+ * from the same session or IP can't both slip under the limit.
  */
 export async function claimBuddyTurn(input: {
   conversation: string;

@@ -1,22 +1,15 @@
 import "server-only";
 
-import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { modeForExpiry } from "@/data/cache-policy";
 import { getDatabase, isDatabaseConfigured } from "@/db/client";
-import {
-  briefingRuns,
-  creditEntries,
-  ingestionRuns,
-  teams,
-  wagers,
-} from "@/db/schema";
+import { creditEntries, ingestionRuns, teams, wagers } from "@/db/schema";
 import type { Sport } from "@/lib/contracts";
 
 const DEFAULT_LIMIT = 10;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 10;
 const DEFAULT_WINDOW_HOURS = 24;
-const TOP_ERROR_CODES = 5;
 
 export type SystemMetrics =
   | {
@@ -44,21 +37,6 @@ export type SystemMetrics =
           lastRunAt: string | null;
           lastSuccessAt: string | null;
         }[];
-      };
-      briefings: {
-        total: number;
-        succeeded: number;
-        failed: number;
-        running: number;
-        live: number;
-        fallback: number;
-        retried: number;
-        latencyMs: { p50: number; p95: number } | null;
-        inputTokens: number;
-        outputTokens: number;
-        estimatedCostMicros: number;
-        lastGenerationAt: string | null;
-        errors: { code: string; count: number }[];
       };
       // Same provider/operation/scope reused from ingestion_runs — settlement
       // has no table of its own (docs/architecture.md explains why). A run
@@ -149,47 +127,6 @@ export async function getSystemMetrics(
       .where(gte(ingestionRuns.startedAt, windowStart))
       .groupBy(ingestionRuns.provider);
 
-    const briefingAggQuery = database
-      .select({
-        total: sql<number>`count(*)`,
-        succeeded: sql<number>`count(*) filter (where ${briefingRuns.status} = 'succeeded')`,
-        failed: sql<number>`count(*) filter (where ${briefingRuns.status} = 'failed')`,
-        running: sql<number>`count(*) filter (where ${briefingRuns.status} = 'running')`,
-        live: sql<number>`count(*) filter (where ${briefingRuns.mode} = 'live')`,
-        fallback: sql<number>`count(*) filter (where ${briefingRuns.mode} = 'fallback')`,
-        retried: sql<number>`count(*) filter (where ${briefingRuns.attemptCount} > 1)`,
-        p50: sql<
-          number | null
-        >`percentile_cont(0.5) within group (order by ${briefingRuns.latencyMs}) filter (where ${briefingRuns.latencyMs} is not null)`,
-        p95: sql<
-          number | null
-        >`percentile_cont(0.95) within group (order by ${briefingRuns.latencyMs}) filter (where ${briefingRuns.latencyMs} is not null)`,
-        inputTokens: sql<number | null>`sum(${briefingRuns.inputTokens})`,
-        outputTokens: sql<number | null>`sum(${briefingRuns.outputTokens})`,
-        estimatedCostMicros: sql<
-          number | null
-        >`sum(${briefingRuns.estimatedCostMicros})`,
-        lastGenerationAt: sql<string | null>`max(${briefingRuns.startedAt})`,
-      })
-      .from(briefingRuns)
-      .where(gte(briefingRuns.startedAt, windowStart));
-
-    const errorRowsQuery = database
-      .select({
-        code: briefingRuns.errorCode,
-        count: sql<number>`count(*)`,
-      })
-      .from(briefingRuns)
-      .where(
-        and(
-          gte(briefingRuns.startedAt, windowStart),
-          isNotNull(briefingRuns.errorCode),
-        ),
-      )
-      .groupBy(briefingRuns.errorCode)
-      .orderBy(sql`count(*) desc`)
-      .limit(TOP_ERROR_CODES);
-
     const teamRowsQuery = database
       .select({
         sport: teams.sport,
@@ -254,13 +191,11 @@ export async function getSystemMetrics(
       )
       .where(isNull(creditEntries.id));
 
-    // Nine independent reads; running them concurrently keeps /system and
-    // /api/system/recent to one round-trip's latency instead of nine.
+    // Seven independent reads; running them concurrently keeps /system and
+    // /api/system/recent to one round-trip's latency instead of seven.
     const [
       recentRuns,
       byProviderRows,
-      [briefingAgg],
-      errorRows,
       teamRows,
       [settlementLatest],
       [settlementSuccess],
@@ -269,8 +204,6 @@ export async function getSystemMetrics(
     ] = await Promise.all([
       recentRunsQuery,
       byProviderQuery,
-      briefingAggQuery,
-      errorRowsQuery,
       teamRowsQuery,
       settlementLatestQuery,
       settlementSuccessQuery,
@@ -313,28 +246,6 @@ export async function getSystemMetrics(
           lastRunAt: toIso(row.lastRunAt),
           lastSuccessAt: toIso(row.lastSuccessAt),
         })),
-      },
-      briefings: {
-        total: toNumber(briefingAgg?.total),
-        succeeded: toNumber(briefingAgg?.succeeded),
-        failed: toNumber(briefingAgg?.failed),
-        running: toNumber(briefingAgg?.running),
-        live: toNumber(briefingAgg?.live),
-        fallback: toNumber(briefingAgg?.fallback),
-        retried: toNumber(briefingAgg?.retried),
-        latencyMs:
-          briefingAgg?.p50 != null && briefingAgg?.p95 != null
-            ? { p50: toNumber(briefingAgg.p50), p95: toNumber(briefingAgg.p95) }
-            : null,
-        inputTokens: toNumber(briefingAgg?.inputTokens),
-        outputTokens: toNumber(briefingAgg?.outputTokens),
-        estimatedCostMicros: toNumber(briefingAgg?.estimatedCostMicros),
-        lastGenerationAt: toIso(briefingAgg?.lastGenerationAt),
-        errors: errorRows
-          .filter(
-            (row): row is { code: string; count: number } => row.code != null,
-          )
-          .map((row) => ({ code: row.code, count: toNumber(row.count) })),
       },
       settlement: {
         lastRunAt: toIso(settlementLatest?.startedAt),

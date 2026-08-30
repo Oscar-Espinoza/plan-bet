@@ -292,7 +292,7 @@ const CONTEXT_SOURCES: Record<string, Omit<SourceReference, "observedAt">> = {
 
 /**
  * Appends stored fixture context to a snapshot, so the page's evidence panel,
- * the briefing and the buddy all read one fact list rather than the buddy
+ * the page and the buddy read one fact list rather than the buddy
  * reasoning from material the reader cannot see.
  *
  * Appended, never merged in place: every fact already there keeps the `[n]`

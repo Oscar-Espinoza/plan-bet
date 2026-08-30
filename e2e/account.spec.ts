@@ -146,17 +146,14 @@ test("POST /api/cron/settle never returns 200 without a valid bearer secret", as
   expect([401, 503]).toContain(response.status());
 });
 
-test("anonymous evidence-brief state survives reload and matchday-plan:v1 stays version 3", async ({
+test("anonymous browsing survives reload and matchday-plan:v1 stays version 3", async ({
   page,
 }) => {
   await page.goto("/games/soc-rma-01");
-  await page
-    .getByRole("button", { name: /View demo brief|Generate briefing/ })
-    .click();
-  await expect(page.getByText("Data used")).toBeVisible();
+  await expect(page.getByText(/Data used/)).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("Data used")).toBeVisible();
+  await expect(page.getByText(/Data used/)).toBeVisible();
 
   const stored = await page.evaluate(() =>
     localStorage.getItem("matchday-plan:v1"),

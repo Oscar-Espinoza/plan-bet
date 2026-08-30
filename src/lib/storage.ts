@@ -1,25 +1,15 @@
 import { z } from "zod";
-import { briefingSchema } from "@/lib/contracts";
 
 export const STORAGE_KEY = "matchday-plan:v1";
 
 export const storedStateSchema = z.object({
   version: z.literal(3),
-  savedBriefings: z.array(z.string()),
-  viewedBriefings: z.array(z.string()),
-  // Added after v1 shipped. `.default` keeps older payloads valid and `.catch`
-  // means one corrupt briefing cannot discard a whole workspace.
-  generatedBriefings: z
-    .record(z.string(), briefingSchema)
-    .catch({})
-    .default({}),
   anonymousId: z.uuid(),
-  // Added after v3 shipped. Same `.default` trick as generatedBriefings: an
-  // older payload parses clean and picks up the default, so no version bump
-  // and no migrateLegacy arm.
+  // Added after v3 shipped. `.catch().default()` means an older payload parses
+  // clean and picks up the default, so no version bump and no migrateLegacy arm.
   tourStep: z.number().int().min(0).max(4).catch(0).default(0),
   introDismissed: z.boolean().catch(false).default(false),
-  // Added after v3 shipped, same `.catch().default()` trick: the uuid every
+  // Added after v3 shipped, same trick: the uuid every
   // buddy turn in one browsing session groups under. A corrupt or missing
   // value mints a fresh conversation rather than failing the workspace — never
   // the SSR placeholder uuid, which the API route treats as unhydrated.
@@ -36,9 +26,6 @@ export function createDefaultState(
 ): StoredState {
   return {
     version: 3,
-    savedBriefings: [],
-    viewedBriefings: [],
-    generatedBriefings: {},
     anonymousId,
     tourStep: 0,
     introDismissed: false,
@@ -50,8 +37,9 @@ export function createDefaultState(
  * Phase B dropped the sport/team selection the topbar mode switcher used to
  * drive (v2 -> v3), once the slate replaced it as the one way to find a game.
  * Spreading a returning browser's payload over the current default keeps what
- * still has a home (saved and generated briefings, anonymousId) and lets
- * `storedStateSchema` silently strip the rest. Anything older than v2 predates
+ * still has a home (anonymousId, tour state) and lets `storedStateSchema`
+ * silently strip the rest — which is also how the removed briefing fields
+ * leave a v3 payload without needing a version bump. Anything older than v2 predates
  * Phase A and falls through to `parseStoredState`'s default — browser-local
  * demo state, not data worth three migration arms.
  */

@@ -1,6 +1,6 @@
 import { checkDatabaseConnection, isDatabaseConfigured } from "@/db/client";
 import {
-  getLastBriefingGenerationAt,
+  getLastAiGenerationAt,
   getProviderHealthState,
 } from "@/data/sports-repository";
 import { apiSuccess, createRouteContext } from "@/lib/api-response";
@@ -27,7 +27,7 @@ export async function GET() {
     }
   >;
 
-  // Four providers x two queries each, plus the briefing lookup below, is nine
+  // Four providers x two queries each, plus the buddy lookup below, is nine
   // round trips. Health is polled by monitors and by the e2e suite, so they run
   // concurrently rather than one after another.
   const states = await Promise.all(
@@ -66,12 +66,12 @@ export async function GET() {
     };
   }
 
-  // OpenAI never writes ingestion_runs rows (only briefing_runs), so its
-  // "recency" signal is the last briefing generation attempt instead.
+  // OpenAI never writes ingestion_runs rows (only buddy_messages), so its
+  // "recency" signal is the last buddy turn instead.
   if (database.status === "healthy") {
     try {
       providerChecks.openai.lastGenerationAt =
-        (await getLastBriefingGenerationAt())?.toISOString() ?? undefined;
+        (await getLastAiGenerationAt())?.toISOString() ?? undefined;
     } catch {
       // leave lastGenerationAt undefined; health must stay cheap and honest
     }

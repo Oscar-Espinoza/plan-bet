@@ -1,0 +1,15 @@
+[mcp_servers.apifootball]
+url = "https://mcp.apifootball.com/mcp"
+
+[mcp_servers.apifootball.http_headers]
+Authorization = "Bearer e0eb66d1b6b8606b0baa80ba3e12c0466e31f703b1bca5fc0850df3354c345c8"
+
+[mcp_servers.bigballsports]
+url = "https://bbs-mcp-server-production.up.railway.app/mcp"
+
+[mcp_servers.bigballsports.http_headers]
+Authorization = "Bearer bbs_live_00000nMgNdWofSYCT39ltiooqKbPSMJYBkpUH0RjzTyxArCX"
+
+[mcp_servers.jcodemunch]
+command = "/home/oscar/.local/bin/jcodemunch-mcp"
+args = ["serve"]

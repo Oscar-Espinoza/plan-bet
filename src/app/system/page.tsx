@@ -1,35 +1,11 @@
 import type { Metadata } from "next";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Coins,
-  Cpu,
-  Database,
-  RefreshCw,
-  Repeat,
-  Timer,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Repeat } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { StatusTag } from "@/components/ui/status-tag";
 import { getSystemMetrics } from "@/data/system-metrics";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "System" };
-
-function pct(numerator: number, denominator: number) {
-  if (denominator <= 0) return "Not provided";
-  return `${Math.round((numerator / denominator) * 100)}%`;
-}
-
-function formatMs(value: number | null | undefined) {
-  return value === null || value === undefined
-    ? "Not provided"
-    : `${Math.round(value)} ms`;
-}
-
-function formatCost(micros: number) {
-  return `$${(micros / 1_000_000).toFixed(4)}`;
-}
 
 function sportLabel(sport: string) {
   return sport === "soccer" ? "Soccer" : "Baseball";
@@ -51,9 +27,9 @@ export default async function Page() {
           <p className="eyebrow">Operational telemetry</p>
           <h1 className="display-title">System</h1>
           <p className="page-description">
-            Provider freshness, ingestion runs, and AI briefing generation
-            health for this deployment. Aggregates and timestamps only — no
-            per-visitor detail is ever shown here.
+            Provider freshness, ingestion runs, and settlement health for this
+            deployment. Aggregates and timestamps only — no per-visitor detail
+            is ever shown here.
           </p>
         </div>
       </header>
@@ -77,7 +53,7 @@ export default async function Page() {
               </h3>
               <p className="empty-copy">
                 {metrics.reason === "unconfigured"
-                  ? "This environment has no DATABASE_URL set, so there is no ingestion or briefing history to show."
+                  ? "This environment has no DATABASE_URL set, so there is no ingestion or settlement history to show."
                   : "The database could not be reached just now. This page will show data again once it recovers."}
               </p>
             </div>
@@ -227,105 +203,6 @@ export default async function Page() {
                 </div>
               ) : (
                 <p className="fine-print">No ingestion runs recorded yet.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="panel" aria-labelledby="briefings-heading">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Last {metrics.windowHours}h</p>
-                <h2 className="panel-title" id="briefings-heading">
-                  AI briefings
-                </h2>
-              </div>
-              <span className="fine-print">
-                {metrics.briefings.lastGenerationAt ? (
-                  <>
-                    Last generation{" "}
-                    <LocalDateTime
-                      value={metrics.briefings.lastGenerationAt}
-                      short
-                    />
-                  </>
-                ) : (
-                  "No generations yet"
-                )}
-              </span>
-            </div>
-            <div className="panel-body">
-              <div className="metric-grid">
-                <div className="metric-card panel">
-                  <Cpu aria-hidden="true" size={17} />
-                  <strong>{metrics.briefings.total}</strong>
-                  <span>Generations</span>
-                </div>
-                <div className="metric-card panel">
-                  <RefreshCw aria-hidden="true" size={17} />
-                  <strong>
-                    {pct(metrics.briefings.fallback, metrics.briefings.total)}
-                  </strong>
-                  <span>Fallback rate</span>
-                </div>
-                <div className="metric-card panel">
-                  <CheckCircle2 aria-hidden="true" size={17} />
-                  <strong>
-                    {pct(metrics.briefings.succeeded, metrics.briefings.total)}
-                  </strong>
-                  <span>Validated rate</span>
-                </div>
-                <div className="metric-card panel">
-                  <Repeat aria-hidden="true" size={17} />
-                  <strong>
-                    {pct(metrics.briefings.retried, metrics.briefings.total)}
-                  </strong>
-                  <span>Retry rate</span>
-                </div>
-                <div className="metric-card panel">
-                  <Timer aria-hidden="true" size={17} />
-                  <strong>
-                    {metrics.briefings.latencyMs
-                      ? formatMs(metrics.briefings.latencyMs.p50)
-                      : "Not provided"}
-                  </strong>
-                  <span>Latency p50</span>
-                </div>
-                <div className="metric-card panel">
-                  <Timer aria-hidden="true" size={17} />
-                  <strong>
-                    {metrics.briefings.latencyMs
-                      ? formatMs(metrics.briefings.latencyMs.p95)
-                      : "Not provided"}
-                  </strong>
-                  <span>Latency p95</span>
-                </div>
-                <div className="metric-card panel">
-                  <Database aria-hidden="true" size={17} />
-                  <strong>
-                    {metrics.briefings.inputTokens} /{" "}
-                    {metrics.briefings.outputTokens}
-                  </strong>
-                  <span>Tokens in / out</span>
-                </div>
-                <div className="metric-card panel">
-                  <Coins aria-hidden="true" size={17} />
-                  <strong>
-                    {formatCost(metrics.briefings.estimatedCostMicros)}
-                  </strong>
-                  <span>Est. cost</span>
-                </div>
-              </div>
-              <p className="eyebrow">Recent error codes</p>
-              {metrics.briefings.errors.length ? (
-                <div className="tag-row">
-                  {metrics.briefings.errors.map((error) => (
-                    <StatusTag tone="negative" key={error.code}>
-                      {error.code} · {error.count}
-                    </StatusTag>
-                  ))}
-                </div>
-              ) : (
-                <p className="fine-print">No errors recorded in this window.</p>
               )}
             </div>
           </section>

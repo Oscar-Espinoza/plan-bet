@@ -14,7 +14,6 @@ import {
   readStoredSnapshot,
   recordProviderDiagnostic,
 } from "@/data/sports-repository";
-import { createEvidenceBriefing } from "@/lib/briefing";
 import {
   gameScheduleSchema,
   type GameDetailData,
@@ -23,13 +22,7 @@ import {
   type TeamSlug,
 } from "@/lib/contracts";
 import { logEvent } from "@/lib/logger";
-import {
-  generateGames,
-  getDemoBriefing,
-  getSnapshot,
-  getTeam,
-  teams,
-} from "@/lib/seed";
+import { generateGames, getSnapshot, getTeam, teams } from "@/lib/seed";
 import type { CachedTeamMetadata } from "@/providers/contracts";
 import { providerErrorCode } from "@/providers/provider-error";
 import { getSportsProvider } from "@/providers/registry";
@@ -317,12 +310,7 @@ export async function getGameDetail(
   const now = options.now ?? new Date();
   const requestId = options.requestId ?? randomUUID();
   const demoSnapshot = getSnapshot(gameId, now);
-  if (demoSnapshot) {
-    return {
-      snapshot: demoSnapshot,
-      briefing: getDemoBriefing(gameId, now)!,
-    };
-  }
+  if (demoSnapshot) return { snapshot: demoSnapshot };
   if (process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo")
     return undefined;
 
@@ -343,13 +331,12 @@ export async function getGameDetail(
   // Stored fixture context is a bonus, never a dependency: no database, no row,
   // or a row written in a shape the contract has since moved past all leave the
   // snapshot exactly as it was. Merged here rather than in any one consumer so
-  // the page, the briefing and the buddy read the same facts.
+  // the page and the buddy read the same facts.
   if (isDatabaseConfigured()) {
     const stored = await readFixtureContext(gameId).catch(() => undefined);
     if (stored) snapshot = withContextFacts(snapshot, stored.facts);
   }
-  const team = getTeam(snapshot.game.teamSlug)!;
-  return { snapshot, briefing: createEvidenceBriefing(snapshot, team) };
+  return { snapshot };
 }
 
 export function getConfiguredTeams() {

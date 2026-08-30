@@ -18,7 +18,6 @@ describe("browser storage", () => {
   it("falls back to defaults for a pre-v2 payload", () => {
     const v1 = {
       version: 1,
-      savedBriefings: ["game-a"],
       anonymousId: "20000000-0000-4000-8000-000000000002",
     };
     expect(parseStoredState(JSON.stringify(v1), fallbackId)).toEqual(
@@ -34,15 +33,10 @@ describe("browser storage", () => {
       version: 2,
       selectedSport: "soccer",
       selectedTeamSlug: "real-madrid",
-      savedBriefings: ["game-a"],
-      viewedBriefings: ["game-a"],
-      generatedBriefings: {},
       anonymousId: "30000000-0000-4000-8000-000000000003",
     };
     const result = parseStoredState(JSON.stringify(v2), fallbackId);
     expect(result.version).toBe(3);
-    expect(result.savedBriefings).toEqual(["game-a"]);
-    expect(result.viewedBriefings).toEqual(["game-a"]);
     expect(result.anonymousId).toBe("30000000-0000-4000-8000-000000000003");
     expect(result).not.toHaveProperty("selectedSport");
     expect(result).not.toHaveProperty("selectedTeamSlug");
@@ -54,23 +48,16 @@ describe("browser storage", () => {
   it("defaults tourStep and introDismissed on a v3 payload that predates them", () => {
     const v3 = {
       version: 3,
-      savedBriefings: ["game-a"],
-      viewedBriefings: ["game-a"],
-      generatedBriefings: {},
       anonymousId: "40000000-0000-4000-8000-000000000004",
     };
     const result = parseStoredState(JSON.stringify(v3), fallbackId);
     expect(result.tourStep).toBe(0);
     expect(result.introDismissed).toBe(false);
-    expect(result.savedBriefings).toEqual(["game-a"]);
   });
 
   it("mints a fresh buddyConversation for a v3 payload that predates it, never the SSR placeholder", () => {
     const v3 = {
       version: 3,
-      savedBriefings: [],
-      viewedBriefings: [],
-      generatedBriefings: {},
       anonymousId: "40000000-0000-4000-8000-000000000004",
     };
     const result = parseStoredState(JSON.stringify(v3), fallbackId);

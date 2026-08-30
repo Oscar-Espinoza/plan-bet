@@ -70,7 +70,7 @@ export const getCreditSummary = cache(async function getCreditSummary(
 /**
  * ponytail: advisory lock + count over credit_entries, same shape as
  * claimBriefingSlot. Move to a counter table only if reset volume ever
- * matters. classid 3 — 1 and 2 are the briefing session/IP quota locks.
+ * matters. classid 3 — 1 and 2 are free (they were the briefing quotas).
  */
 export async function resetBankroll(input: {
   userId: string;

@@ -22,7 +22,6 @@ import {
 import { requireAccount } from "@/lib/auth";
 import { marketsFor } from "@/lib/markets";
 import { getTeam } from "@/lib/seed";
-import { isOpenAiConfigured } from "@/providers/openai/client";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -132,12 +131,5 @@ export default async function GamePage({ params }: Props) {
   const team = getTeam(detail.snapshot.game.teamSlug);
   if (!team) notFound();
   const wagering = await loadWagering(id);
-  return (
-    <GameDetail
-      data={detail}
-      team={team}
-      aiEnabled={isOpenAiConfigured()}
-      wagering={wagering}
-    />
-  );
+  return <GameDetail data={detail} team={team} wagering={wagering} />;
 }

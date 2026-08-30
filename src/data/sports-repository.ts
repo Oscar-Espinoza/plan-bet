@@ -5,7 +5,7 @@ import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
 import { stableHash } from "@/data/stable-hash";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
 import {
-  briefingRuns,
+  buddyMessages,
   gameSnapshots,
   games,
   ingestionRuns,
@@ -294,14 +294,14 @@ export async function getProviderHealthState(provider: string) {
 
 /**
  * Nothing ever writes an `ingestion_runs` row with provider "openai" — its
- * recency signal is the most recent briefing generation attempt instead.
- * Aggregate-only, no session/ip/input/output columns touched.
+ * recency signal is the most recent buddy turn instead.
+ * Aggregate-only, no session/ip/text columns touched.
  */
-export async function getLastBriefingGenerationAt() {
+export async function getLastAiGenerationAt() {
   const [row] = await getDatabase()
     .select({
-      lastGenerationAt: sql<string | null>`max(${briefingRuns.startedAt})`,
+      lastGenerationAt: sql<string | null>`max(${buddyMessages.createdAt})`,
     })
-    .from(briefingRuns);
+    .from(buddyMessages);
   return row?.lastGenerationAt ? new Date(row.lastGenerationAt) : undefined;
 }

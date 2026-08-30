@@ -1,18 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Bookmark,
-  BookmarkCheck,
-  CheckCircle2,
   ChevronDown,
-  CircleAlert,
   Clock3,
-  Cpu,
   Library,
   MapPin,
   RefreshCw,
@@ -24,18 +17,8 @@ import { LocalDateTime, RelativeKickoff } from "@/components/local-date-time";
 import { TeamMark } from "@/components/team-mark";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import type {
-  Briefing,
-  BriefingQuota,
-  BriefingReason,
-  GameDetailData,
-  StatcastBatting,
-  Team,
-} from "@/lib/contracts";
-import { briefingResultSchema } from "@/lib/contracts";
-import { TIME_TOKEN } from "@/lib/briefing-prompt";
-import { useMatchdayStore } from "@/lib/store";
-import { citedRefs as citedRefsFor, isLegacyBaseballGameId } from "@/lib/utils";
+import type { GameDetailData, StatcastBatting, Team } from "@/lib/contracts";
+import { isLegacyBaseballGameId } from "@/lib/utils";
 
 function Provided({ value }: { value?: string }) {
   return (
@@ -48,15 +31,6 @@ function Provided({ value }: { value?: string }) {
     </>
   );
 }
-
-/** Short, sighted-reader version of the reason the API returns. */
-const REASON_LABELS: Record<BriefingReason, string> = {
-  ai_unconfigured: "AI not configured",
-  validation_failed: "Output failed validation",
-  provider_timeout: "Model timed out",
-  provider_unavailable: "Model unreachable",
-  provider_rate_limited: "Model rate limited",
-};
 
 function decimal(value: number) {
   return value.toFixed(3).replace(/^0/, "");
@@ -93,150 +67,22 @@ function StatcastLine({
 export function GameDetail({
   data,
   team,
-  aiEnabled = false,
   wagering,
 }: {
   data: GameDetailData;
   team: Team;
-  aiEnabled?: boolean;
   // Optional so game-detail.test.tsx keeps compiling without wiring it.
   // Absent entirely when sign-in isn't configured — matches AccountControl.
   wagering?: WagerPanelData;
 }) {
   const router = useRouter();
-  const { snapshot, briefing } = data;
+  const { snapshot } = data;
   const { game, context, evidenceFacts, sources, freshness } = snapshot;
-  const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
-  const [quota, setQuota] = useState<BriefingQuota>();
-  const [reason, setReason] = useState<BriefingReason>();
-  const [failure, setFailure] = useState("");
-  const inFlight = useRef(false);
-  // The sr-only live region below is the single place any status message is
-  // announced. Clearing it first (via a synchronous commit) before writing
-  // the next message forces a fresh DOM mutation even when the new text is
-  // identical to the last one, so a repeated message is still announced.
-  const announce = (text: string) => {
-    flushSync(() => setMessage(""));
-    setMessage(text);
-  };
-  const viewed = useMatchdayStore((state) =>
-    state.viewedBriefings.includes(game.id),
-  );
-  const saved = useMatchdayStore((state) =>
-    state.savedBriefings.includes(game.id),
-  );
-  const generated = useMatchdayStore(
-    (state) => state.generatedBriefings[game.id],
-  );
-  const anonymousId = useMatchdayStore((state) => state.anonymousId);
-  const hydrated = useMatchdayStore((state) => state.hydrated);
-  const saveGeneratedBriefing = useMatchdayStore(
-    (state) => state.saveGeneratedBriefing,
-  );
-  const viewBriefing = useMatchdayStore((state) => state.viewBriefing);
-  const toggleSavedBriefing = useMatchdayStore(
-    (state) => state.toggleSavedBriefing,
-  );
-  // The generated briefing replaces the server one only once it has arrived, so
-  // a pending or failed regeneration never blanks what the reader is looking at.
-  const shown: Briefing = generated ?? briefing;
-  const briefMode = shown.mode;
-  // "Fallback" only means something once a generation was actually attempted.
-  // Before that, the deterministic brief is simply the brief on offer.
-  const briefLabel =
-    briefMode === "ai"
-      ? "Live AI"
-      : briefMode === "demo"
-        ? "Demo"
-        : generated
-          ? "Fallback"
-          : "Evidence brief";
-  const briefOpen = viewed || Boolean(generated);
-  // Reference numbers key off the snapshot's own fact order, so a fact keeps the
-  // same number whether or not this briefing happens to cite it.
-  const citedRefs = (ids: string[]) => citedRefsFor(evidenceFacts, ids);
-  const renderItemText = (item: Briefing["items"][number]) => {
-    const [before, after] = item.text.split(TIME_TOKEN);
-    if (!item.timestamp) return item.text;
-    if (after === undefined) {
-      return (
-        <>
-          {item.text} <LocalDateTime value={item.timestamp} />
-        </>
-      );
-    }
-    return (
-      <>
-        {before}
-        <LocalDateTime value={item.timestamp} />
-        {after}
-      </>
-    );
-  };
   const isHome = game.homeTeamSlug === team.slug;
   const archivedDemo =
     game.sport === "baseball" &&
     freshness.mode === "demo" &&
     isLegacyBaseballGameId(game.id);
-
-  const openBrief = () => {
-    viewBriefing(game.id);
-    announce("Evidence brief opened.");
-  };
-
-  const generateBrief = async () => {
-    // A ref, not state: it is set before React can re-render, so a double click
-    // cannot slip a second request through.
-    if (inFlight.current || !hydrated) return;
-    inFlight.current = true;
-    setPending(true);
-    setFailure("");
-    announce("Generating briefing…");
-    try {
-      const response = await fetch(`/api/games/${game.id}/briefings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: anonymousId }),
-      });
-      const payload: unknown = await response.json();
-      if (!response.ok) {
-        const code =
-          typeof payload === "object" &&
-          payload !== null &&
-          "error" in payload &&
-          typeof (payload as { error?: { code?: unknown } }).error?.code ===
-            "string"
-            ? (payload as { error: { code: string } }).error.code
-            : "unavailable";
-        const text =
-          code === "quota_exceeded"
-            ? "The daily briefing limit has been reached. The previous briefing is unchanged."
-            : "Generation failed. The previous briefing is unchanged.";
-        setFailure(text);
-        announce(text);
-        return;
-      }
-      const result = briefingResultSchema.parse(
-        (payload as { data: unknown }).data,
-      );
-      saveGeneratedBriefing(game.id, result.briefing);
-      setQuota(result.quota);
-      setReason(result.reason);
-      announce(
-        result.mode === "live"
-          ? "Briefing generated."
-          : "Generation unavailable. Showing the deterministic fallback briefing.",
-      );
-    } catch {
-      const text = "Generation failed. The previous briefing is unchanged.";
-      setFailure(text);
-      announce(text);
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
-  };
 
   return (
     <>
@@ -522,142 +368,35 @@ export function GameDetail({
             )}
           </section>
 
-          <section
-            className="brief-panel panel"
-            aria-labelledby="brief-heading"
-          >
-            <div className="brief-intro">
-              <div>
-                <h2 className="panel-title" id="brief-heading">
-                  The brief
-                </h2>
-                <p className="panel-purpose">
-                  {aiEnabled
-                    ? "A short read written only from the facts above. Every line cites the fact it came from."
-                    : "A prepared example, written only from the facts above. Every line cites the fact it came from."}
-                </p>
-                <p>{shown.summary}</p>
-                {/* Model, latency and freshness were four more chips fighting
-                    the label for the same row; freshness already has its own
-                    stamp in the header, and the model only means something
-                    once a generation actually ran. */}
-                <div className="brief-meta">
-                  <StatusTag tone={briefMode === "ai" ? "positive" : "warning"}>
-                    {briefLabel}
-                  </StatusTag>
-                  {briefMode === "fallback" && reason && (
-                    <span className="brief-reason">
-                      {REASON_LABELS[reason]}
-                    </span>
-                  )}
+          {/* Lifted out of the deleted brief panel: the numbered fact list is
+              what every other number on this page is drawn from, so it stays
+              a disclosure of its own rather than leaving with the prose. */}
+          <details className="panel evidence-disclosure">
+            <summary>
+              <span>
+                <ShieldCheck aria-hidden="true" size={17} /> Data used ·{" "}
+                {evidenceFacts.length} facts
+              </span>
+              <ChevronDown aria-hidden="true" size={17} />
+            </summary>
+            <div className="evidence-list">
+              {evidenceFacts.map((fact, index) => (
+                <div key={fact.id}>
                   <span>
-                    Generated <LocalDateTime value={shown.generatedAt} short />
+                    <b className="brief-ref">[{index + 1}]</b> {fact.label}
                   </span>
-                  {shown.generation && (
-                    <span>
-                      {shown.generation.model} · {shown.generation.latencyMs} ms
-                    </span>
-                  )}
-                  {quota && (
-                    <span>
-                      {quota.remaining} generation
-                      {quota.remaining === 1 ? "" : "s"} left today
-                    </span>
-                  )}
-                </div>
-              </div>
-              {aiEnabled ? (
-                <Button
-                  onClick={generateBrief}
-                  disabled={pending || !hydrated}
-                  aria-busy={pending}
-                >
-                  <Cpu aria-hidden="true" size={16} />
-                  {pending
-                    ? "Generating…"
-                    : generated
-                      ? "Regenerate briefing"
-                      : "Generate briefing"}
-                </Button>
-              ) : !viewed ? (
-                <Button onClick={openBrief}>View demo brief</Button>
-              ) : (
-                <StatusTag tone="positive">
-                  <CheckCircle2 aria-hidden="true" size={12} /> Viewed
-                </StatusTag>
-              )}
-            </div>
-            {failure && (
-              <p className="brief-failure">
-                <CircleAlert aria-hidden="true" size={15} /> {failure}
-              </p>
-            )}
-            {briefOpen && (
-              <div id="demo-brief" className="brief-content">
-                <div className="brief-list">
-                  {shown.items.map((item) => (
-                    <p key={item.id}>
-                      {renderItemText(item)}
-                      {citedRefs(item.evidenceIds).map((reference) => (
-                        <sup key={reference} className="brief-ref">
-                          [{reference}]
-                        </sup>
-                      ))}
-                    </p>
-                  ))}
-                </div>
-                <div className="brief-actions">
-                  <Button
-                    variant="secondary"
-                    onClick={() => toggleSavedBriefing(game.id)}
-                  >
-                    {saved ? (
-                      <BookmarkCheck aria-hidden="true" size={16} />
+                  <strong>
+                    {fact.valueType === "datetime" ? (
+                      <LocalDateTime value={fact.value} />
                     ) : (
-                      <Bookmark aria-hidden="true" size={16} />
+                      fact.value
                     )}
-                    {saved ? "Saved" : "Save brief"}
-                  </Button>
+                  </strong>
+                  <small>Ref: {fact.id}</small>
                 </div>
-                <details className="evidence-disclosure">
-                  <summary>
-                    <span>
-                      <ShieldCheck aria-hidden="true" size={17} /> Data used ·{" "}
-                      {evidenceFacts.length} facts · {sources.length} sources
-                    </span>
-                    <ChevronDown aria-hidden="true" size={17} />
-                  </summary>
-                  <div className="evidence-list">
-                    {evidenceFacts.map((fact, index) => (
-                      <div key={fact.id}>
-                        <span>
-                          <b className="brief-ref">[{index + 1}]</b>{" "}
-                          {fact.label}
-                        </span>
-                        <strong>
-                          {fact.valueType === "datetime" ? (
-                            <LocalDateTime value={fact.value} />
-                          ) : (
-                            fact.value
-                          )}
-                        </strong>
-                        <small>Ref: {fact.id}</small>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-                <div className="limitations">
-                  <CircleAlert aria-hidden="true" size={17} />
-                  <div>
-                    <strong>Limitations</strong>
-                    {shown.limitations.map((limitation) => (
-                      <p key={limitation}>{limitation}</p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
+              ))}
+            </div>
+          </details>
 
           {/* Reference material, not reading material: collapsed by default
               so it costs one row of scroll instead of a screen of it. */}
@@ -695,18 +434,15 @@ export function GameDetail({
           </details>
 
           <div className="side-disclaimer">
-            <strong>How this brief is made</strong>
+            <strong>Where these numbers come from</strong>
             <p>
-              Every line is written from the validated provider snapshot above
-              and must cite evidence from it.{" "}
-              {aiEnabled
-                ? "When generation fails validation or the model is unreachable, the deterministic evidence brief is served instead and labelled as a fallback."
-                : "AI generation is not configured here, so the deterministic evidence brief is shown."}{" "}
-              Prices on this page are fictional house prices published by this
-              app for a free-to-play simulator — not bookmaker odds, not a
-              prediction, and not betting advice. No real money is involved and
-              nothing is withdrawable; see the <Link href="/rules">rules</Link>{" "}
-              for how markets settle.
+              Every fact on this page is read from the validated provider
+              snapshot above — nothing is inferred and nothing is padded. Prices
+              on this page are fictional house prices published by this app for
+              a free-to-play simulator — not bookmaker odds, not a prediction,
+              and not betting advice. No real money is involved and nothing is
+              withdrawable; see the <Link href="/rules">rules</Link> for how
+              markets settle.
             </p>
             {archivedDemo && (
               <p>
@@ -726,9 +462,6 @@ export function GameDetail({
           </div>
         </div>
       </div>
-      <p className="sr-only" aria-live="polite">
-        {message}
-      </p>
     </>
   );
 }

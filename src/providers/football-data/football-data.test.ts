@@ -11,8 +11,6 @@ import {
   normalizeFootballStatus,
   normalizeSoccerTeamData,
 } from "@/providers/football-data/normalize";
-import { createEvidenceBriefing } from "@/lib/briefing";
-import { getTeam } from "@/lib/seed";
 import {
   footballDataMatchesSchema,
   footballDataStandingsSchema,
@@ -132,14 +130,6 @@ describe("football-data normalization", () => {
       label: "Scheduled time",
       value: game.scheduledAt,
       valueType: "datetime",
-    });
-    const briefing = createEvidenceBriefing(
-      data.snapshots[0]!.snapshot,
-      getTeam("real-madrid")!,
-    );
-    expect(briefing.items[0]).toMatchObject({
-      text: "Scheduled time:",
-      timestamp: game.scheduledAt,
     });
   });
 

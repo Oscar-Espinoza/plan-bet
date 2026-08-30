@@ -1,8 +1,8 @@
-import { evaluationSnapshots } from "@/lib/__fixtures__/briefing-evals";
+import { evaluationSnapshots } from "@/lib/__fixtures__/snapshot-evals";
 import { marketsFor } from "@/lib/markets";
 
-// Reuses the real briefing eval snapshot rather than inventing a second one:
-// same evidence ids the briefing pipeline is already reviewed against.
+// Reuses the shared eval snapshot rather than inventing a second one:
+// same evidence ids fixture-facts.test.ts is already reviewed against.
 const snapshot = evaluationSnapshots[0]!; // eval-soc-1, Real Madrid vs Sevilla
 const [, formId, standingId, venueId, availabilityId, matchupId] =
   snapshot.evidenceFacts.map((fact) => fact.id);

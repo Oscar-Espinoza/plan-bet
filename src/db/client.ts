@@ -42,7 +42,7 @@ export function setDatabaseForTests(replacement: unknown) {
 }
 
 // Session 04 shipped a migration that was never applied to production, so
-// `briefing_runs` silently didn't exist for a day. `select 1 from teams`
+// a generated table silently didn't exist for a day. `select 1 from teams`
 // can't see that drift — it only proves the connection and one table work.
 // Derived, not hand-listed: the list drifted four tables behind between 0008
 // and 0010 (buddy_notes, provider_cache, fixture_context, game_comments) and

@@ -241,57 +241,8 @@ describe("Session 03 shared sports persistence", () => {
 });
 
 /**
- * The quota is enforced by counting briefing_runs rows for a hash over the
- * current UTC day inside one advisory-locked transaction, then inserting the
- * claimed row. These tests exercise that sequence directly, the same way the
- * refresh-lease tests exercise the partial unique index rather than its
- * TypeScript wrapper.
- */
-const SESSION_LIMIT = 5;
-const IP_LIMIT = 20;
-
-/** The same UTC day boundary the repository computes in JavaScript. */
-function utcDayStart(now = new Date()) {
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  ).toISOString();
-}
-
-async function claimSlot(
-  sessionHash: string,
-  ipHash: string,
-  startedAt = new Date(),
-) {
-  const dayStart = utcDayStart();
-  return sql.begin(async (transaction) => {
-    await transaction`select pg_advisory_xact_lock(1, hashtext(${sessionHash}))`;
-    await transaction`select pg_advisory_xact_lock(2, hashtext(${ipHash}))`;
-    const [session] = await transaction<{ used: number }[]>`
-      select count(*)::int as used from briefing_runs
-      where session_hash = ${sessionHash} and started_at >= ${dayStart}
-    `;
-    const [ip] = await transaction<{ used: number }[]>`
-      select count(*)::int as used from briefing_runs
-      where ip_hash = ${ipHash} and started_at >= ${dayStart}
-    `;
-    if (session!.used >= SESSION_LIMIT || ip!.used >= IP_LIMIT) return false;
-    await transaction`
-      insert into briefing_runs (
-        route_id, sport, session_hash, ip_hash, model, prompt_version,
-        schema_version, input_hash, status, request_id, started_at
-      ) values (
-        'football-data-600002-real-madrid', 'soccer', ${sessionHash}, ${ipHash},
-        'test-model', 'v1', '1', 'input-hash', 'running', 'req-1',
-        ${startedAt.toISOString()}
-      )
-    `;
-    return true;
-  });
-}
-
-/**
  * Drives raw `postgres` tagged SQL against the ledger, the same way the
- * refresh-lease and quota tests above exercise the partial unique indexes
+ * refresh-lease tests above exercise the partial unique indexes
  * directly rather than their TypeScript wrappers.
  */
 async function createUser(email: string) {
@@ -431,83 +382,10 @@ describe("Session 06 accounts and the credit ledger", () => {
   });
 });
 
-describe("Session 04 briefing runs and quotas", () => {
-  it("applies the briefing_runs migration", async () => {
-    const rows = await sql<{ table_name: string }[]>`
-      select table_name from information_schema.tables
-      where table_schema = 'public'
-    `;
-    expect(rows.map((row) => row.table_name)).toContain("briefing_runs");
-  });
-
-  it("cannot exceed the session quota under concurrent claims", async () => {
-    const sessionHash = `session-${randomUUID()}`;
-    const ipHash = `ip-${randomUUID()}`;
-
-    const results = await Promise.all(
-      Array.from({ length: 12 }, () => claimSlot(sessionHash, ipHash)),
-    );
-
-    expect(results.filter(Boolean)).toHaveLength(SESSION_LIMIT);
-    const [{ count }] = await sql<{ count: number }[]>`
-      select count(*)::int as count from briefing_runs
-      where session_hash = ${sessionHash}
-    `;
-    expect(count).toBe(SESSION_LIMIT);
-  });
-
-  it("cannot exceed the IP quota across distinct sessions", async () => {
-    const ipHash = `ip-${randomUUID()}`;
-    const claims: Promise<boolean>[] = [];
-    for (let i = 0; i < 6; i += 1) {
-      const sessionHash = `session-${randomUUID()}`;
-      for (let n = 0; n < SESSION_LIMIT; n += 1) {
-        claims.push(claimSlot(sessionHash, ipHash));
-      }
-    }
-
-    const results = await Promise.all(claims);
-    expect(results.filter(Boolean)).toHaveLength(IP_LIMIT);
-  });
-
-  it("does not count rows from a previous UTC day", async () => {
-    const sessionHash = `session-${randomUUID()}`;
-    const ipHash = `ip-${randomUUID()}`;
-    const yesterday = new Date(Date.now() - 26 * 60 * 60 * 1000);
-
-    for (let n = 0; n < SESSION_LIMIT; n += 1) {
-      await claimSlot(sessionHash, ipHash, yesterday);
-    }
-
-    await expect(claimSlot(sessionHash, ipHash)).resolves.toBe(true);
-  });
-
-  it("stores no raw address, watchlist text, or note", async () => {
-    const columns = await sql<{ column_name: string }[]>`
-      select column_name from information_schema.columns
-      where table_schema = 'public' and table_name = 'briefing_runs'
-    `;
-    const names = columns.map((column) => column.column_name);
-
-    expect(names).toEqual(
-      expect.arrayContaining([
-        "session_hash",
-        "ip_hash",
-        "input_hash",
-        "validation_status",
-        "error_code",
-      ]),
-    );
-    for (const forbidden of ["ip_address", "note", "watchlist", "user_text"]) {
-      expect(names).not.toContain(forbidden);
-    }
-  });
-});
-
 /**
  * Replicates the shape of the placeWager transaction (advisory lock, balance
  * check, wager insert, stake ledger row) directly against raw SQL, the same
- * way claimSlot above exercises the briefing quota logic. App code speaks the
+ * way the lease tests exercise the partial unique index. App code speaks the
  * Neon driver and cannot connect to plain Postgres, so this suite proves the
  * schema and locking hold rather than calling the service.
  */
@@ -997,13 +875,20 @@ describe("Session 09 settlement", () => {
 });
 
 /**
- * Same shape as claimSlot above (session and IP quotas over rows counted for
- * the current UTC day, inside advisory locks taken in a fixed order), on the
- * next classid pair: 6 for the buddy's session quota, 7 for its IP quota —
- * the next feature after this claims 8.
+ * Session and IP quotas over rows counted for the current UTC day, inside
+ * advisory locks taken in a fixed order: classid 6 for the buddy's session
+ * quota, 7 for its IP quota. Classids 1 and 2 were the briefing quotas and are
+ * free again; the next feature claims 8.
  */
 const BUDDY_SESSION_LIMIT = 30;
 const BUDDY_IP_LIMIT = 100;
+
+/** The same UTC day boundary the repository computes in JavaScript. */
+function utcDayStart(now = new Date()) {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  ).toISOString();
+}
 
 async function claimBuddyTurn(
   sessionHash: string,

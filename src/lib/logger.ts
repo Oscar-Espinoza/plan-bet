@@ -19,8 +19,8 @@ const DENYLIST = new Set([
   "output",
   "sessionid",
   "email",
-  // The exact field names carried through briefings.ts, briefings-repository.ts,
-  // and briefing_runs. They are hashes, so scrubSecrets cannot catch them.
+  // The exact field names carried through buddy.ts and buddy_messages.
+  // They are hashes, so scrubSecrets cannot catch them.
   "sessionhash",
   "iphash",
   "inputhash",

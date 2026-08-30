@@ -85,6 +85,13 @@
       "when": 1787535817375,
       "tag": "0011_steady_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788131487485,
+      "tag": "0012_large_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

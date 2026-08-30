@@ -322,7 +322,7 @@ export function normalizeSoccerTeamData(input: {
         sourceId: sourceIds.standings,
         observedAt: fetchedAt.toISOString(),
       },
-      // Only on a finished fixture, so a briefing about a played match is
+      // Only on a finished fixture, so a read of a played match is
       // grounded on its score instead of previewing a game already over.
       ...(game.result
         ? [

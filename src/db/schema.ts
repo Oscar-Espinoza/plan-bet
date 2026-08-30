@@ -15,7 +15,6 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
-  Briefing,
   EvidenceFact,
   GameSchedule,
   GameSnapshot,
@@ -29,12 +28,6 @@ export const ingestionStatusEnum = pgEnum("ingestion_status", [
   "succeeded",
   "failed",
 ]);
-export const briefingStatusEnum = pgEnum("briefing_status", [
-  "running",
-  "succeeded",
-  "failed",
-]);
-export const briefingModeEnum = pgEnum("briefing_mode", ["live", "fallback"]);
 export const cacheResultEnum = pgEnum("cache_result", [
   "hit",
   "miss",
@@ -185,58 +178,6 @@ export const ingestionRuns = pgTable(
     uniqueIndex("ingestion_runs_active_lease_uidx")
       .on(table.provider, table.operation, table.scope)
       .where(sql`${table.status} = 'running'`),
-  ],
-);
-
-/**
- * One row per generation attempt. The row is also the quota counter: a claimed
- * slot is an inserted row, so counting rows for a session or IP hash over the
- * current UTC day is the quota check. No raw IP address, watchlist text, or
- * user note is ever stored here — only hashes and sanitized codes.
- *
- * ponytail: routeId + inputHash + snapshotObservedAt instead of a snapshot_id
- * foreign key. A FK would mean threading the game_snapshots row id through
- * readStoredSnapshot -> getGameDetail -> GameDetailData for no extra
- * auditability. Add the FK if a join is ever actually needed.
- */
-export const briefingRuns = pgTable(
-  "briefing_runs",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    routeId: text("route_id").notNull(),
-    sport: sportEnum("sport").notNull(),
-    sessionHash: text("session_hash").notNull(),
-    ipHash: text("ip_hash").notNull(),
-    model: text("model").notNull(),
-    promptVersion: text("prompt_version").notNull(),
-    schemaVersion: text("schema_version").notNull(),
-    inputHash: text("input_hash").notNull(),
-    snapshotObservedAt: timestamp("snapshot_observed_at", {
-      withTimezone: true,
-    }),
-    output: jsonb("output").$type<Briefing>(),
-    status: briefingStatusEnum("status").notNull(),
-    mode: briefingModeEnum("mode"),
-    validationStatus: text("validation_status"),
-    attemptCount: integer("attempt_count").default(1).notNull(),
-    latencyMs: integer("latency_ms"),
-    inputTokens: integer("input_tokens"),
-    outputTokens: integer("output_tokens"),
-    estimatedCostMicros: integer("estimated_cost_micros"),
-    errorCode: text("error_code"),
-    requestId: text("request_id").notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-  },
-  (table) => [
-    index("briefing_runs_session_day_idx").on(
-      table.sessionHash,
-      table.startedAt,
-    ),
-    index("briefing_runs_ip_day_idx").on(table.ipHash, table.startedAt),
-    index("briefing_runs_recent_idx").on(table.startedAt),
   ],
 );
 

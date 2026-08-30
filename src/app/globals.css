@@ -1282,84 +1282,6 @@ a {
   font-weight: var(--weight-medium);
 }
 
-.brief-intro {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.brief-intro > div:first-child {
-  max-width: 38rem;
-}
-
-/* One-tap target on a phone: the generate button is the only action in this
-   panel, so it takes the full width rather than hugging its own text. */
-.brief-intro > .button {
-  width: 100%;
-}
-
-@media (min-width: 640px) {
-  .brief-intro > .button {
-    width: auto;
-  }
-}
-
-.brief-intro > div:first-child > p {
-  margin: 0.4rem 0 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
-}
-
-.brief-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.85rem;
-  margin-top: 0.55rem;
-  color: var(--faint);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.brief-failure {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  border-top: 1px solid var(--rule);
-  padding: 0.7rem 1rem;
-  color: var(--sodium);
-  font-size: var(--text-sm);
-}
-
-.brief-content {
-  border-top: 1px solid var(--rule);
-}
-
-.brief-list {
-  display: grid;
-  gap: 0.85rem;
-  border-bottom: 1px solid var(--rule);
-  padding: 1rem 1rem 1.1rem;
-}
-
-.brief-list p {
-  margin: 0;
-  max-width: 46rem;
-  font-size: var(--text-base);
-  line-height: 1.6;
-}
-
-.brief-reason,
-sup.brief-reason {
-  color: var(--sodium);
-  font-weight: var(--weight-bold);
-}
-
 /* Citation marker — a number, so it is routed through the mono face rather
    than accented; muted keeps it a quiet reference, not a second accent. */
 .brief-ref {
@@ -1369,13 +1291,6 @@ sup.brief-reason {
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
-}
-
-.brief-actions {
-  display: flex;
-  justify-content: flex-end;
-  border-bottom: 1px solid var(--rule);
-  padding: 0.75rem 1rem;
 }
 
 .evidence-disclosure summary {
@@ -1435,25 +1350,6 @@ sup.brief-reason {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-}
-
-.limitations {
-  display: flex;
-  gap: 0.6rem;
-  border-top: 1px solid var(--rule);
-  background: var(--tone-warning-bg);
-  color: var(--tone-warning-text);
-  padding: 0.85rem 1rem;
-  font-size: var(--text-xs);
-}
-
-.limitations svg {
-  flex: 0 0 auto;
-}
-
-.limitations p {
-  margin: 0.2rem 0 0;
-  color: var(--muted);
 }
 
 .source-list > div {

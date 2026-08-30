@@ -1,8 +1,15 @@
-import { neutralize, TIME_TOKEN } from "@/lib/briefing-prompt";
 import type { EvidenceFact } from "@/lib/contracts";
 
 export const MAX_QUESTION_CHARS = 500;
 const MAX_HISTORY_TURNS = 6;
+
+/** The token the model writes where the reader's browser renders a local time. */
+export const TIME_TOKEN = "{time}";
+
+/** Keeps user text from closing the delimiter it is wrapped in. */
+export function neutralize(text: string) {
+  return text.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 /**
  * A discriminated union on `kind`, mirroring how `Sport` forces exhaustive

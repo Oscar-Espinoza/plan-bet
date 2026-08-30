@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { GameDetail } from "@/components/game-detail";
-import { createEvidenceBriefing } from "@/lib/briefing";
 import { allGames, getSnapshot, getTeam } from "@/lib/seed";
 import { createDefaultState } from "@/lib/storage";
 import { useMatchdayStore } from "@/lib/store";
@@ -56,20 +55,7 @@ describe("GameDetail evidence rendering", () => {
 
   it("renders datetime evidence in the browser timezone, never as a raw timestamp", () => {
     const { container } = render(
-      <GameDetail
-        data={{
-          snapshot,
-          briefing: createEvidenceBriefing(snapshot, team),
-        }}
-        team={team}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "View demo brief" }));
-
-    const brief = container.querySelector(".brief-list")!;
-    expect(brief.textContent).toContain(
-      `Scheduled time: ${formatDateTime(scheduledAt)}`,
+      <GameDetail data={{ snapshot }} team={team} />,
     );
 
     const evidence = container.querySelector(".evidence-list")!;
@@ -80,13 +66,7 @@ describe("GameDetail evidence rendering", () => {
 
   const renderGame = (game: GameSnapshot["game"]) =>
     render(
-      <GameDetail
-        data={{
-          snapshot: { ...snapshot, game },
-          briefing: createEvidenceBriefing({ ...snapshot, game }, team),
-        }}
-        team={team}
-      />,
+      <GameDetail data={{ snapshot: { ...snapshot, game } }} team={team} />,
     ).container;
 
   it("shows the final score only once a result is reported", () => {

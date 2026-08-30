@@ -431,7 +431,7 @@ export function normalizeBaseballTeamData(input: {
         sourceId: sourceIds.standings,
         observedAt: standingsObservedAt,
       },
-      // Only on a finished game, so a briefing about a played game is grounded
+      // Only on a finished game, so a read of a played game is grounded
       // on its score instead of previewing a game already over.
       ...(game.result
         ? [

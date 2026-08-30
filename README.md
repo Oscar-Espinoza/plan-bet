@@ -1,6 +1,6 @@
 # Matchday Plan
 
-Matchday Plan is a public sports preparation workspace for scanning upcoming games, reviewing source-backed context, generating cited AI briefings, keeping a browser-local watchlist, and saving recaps — without an account.
+Matchday Plan is a public sports preparation workspace for scanning upcoming games, reviewing source-backed context, and talking a call over with an AI buddy grounded in the same facts — without an account.
 
 **Live demo:** [plan-bet.vercel.app](https://plan-bet.vercel.app)
 
@@ -17,9 +17,8 @@ _Captured from the production build in deterministic demo mode._
 - Real Madrid and Barcelona schedules, La Liga standings, and recent form through football-data.org
 - Yankees and Red Sox schedules, probable pitchers, standings, and Statcast expected batting through the MLB Stats API and Baseball Savant
 - PostgreSQL-backed cache with explicit live / stale / demo freshness labels and a last-known-good fallback
-- Grounded AI briefings: 5–7 items, each citing evidence facts from the game's own saved snapshot, degrading to a deterministic evidence brief when generation is unavailable or fails validation
-- Browser-local watchlist CRUD, filters, recap notes, saved briefings, and activity totals
-- `/system` operational view: provider freshness, ingestion history, briefing latency, fallback and retry rates, and settlement run health
+- A grounded AI buddy: it reads the game's own saved evidence facts and gives a take, never inventing a statistic and never naming real money or a bookmaker
+- `/system` operational view: provider freshness, ingestion history, and settlement run health
 - Free-to-play wager simulator: sign in, place a wager at a fixed house price, and settlement grades it from the stored result — `/bets` for history and filters, `/account` for balance and record
 - Responsive, keyboard-accessible, screen-reader-tested desktop and mobile workspace
 
@@ -45,7 +44,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Missing secrets do not break builds or navigation. Soccer falls back to demo data, briefings fall back to the deterministic evidence brief, and `/api/health` reports the unavailable dependency without exposing any configuration value.
+Missing secrets do not break builds or navigation. Soccer falls back to demo data, the buddy falls back to a deterministic per-fact reply, and `/api/health` reports the unavailable dependency without exposing any configuration value.
 
 ### Environment variables
 
@@ -55,10 +54,8 @@ All are server-only except `NEXT_PUBLIC_SITE_URL`.
 | ------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`            | for live data      | PostgreSQL connection string (single Neon branch)                                                              |
 | `FOOTBALL_DATA_API_TOKEN` | for live soccer    | football-data.org token                                                                                        |
-| `OPENAI_API_KEY`          | for AI briefings   | absent means briefings serve the deterministic fallback                                                        |
+| `OPENAI_API_KEY`          | for the AI buddy   | absent means the buddy serves a deterministic per-fact reply                                                   |
 | `OPENAI_MODEL`            | no                 | defaults to `gpt-5.6-luna`                                                                                     |
-| `BRIEFING_PROMPT_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
-| `BRIEFING_SCHEMA_VERSION` | no                 | traceability stamp on every briefing run                                                                       |
 | `RATE_LIMIT_HASH_SECRET`  | in production      | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
 | `CRON_SECRET`             | in production      | bearer secret for `/api/cron/refresh` and `/api/cron/settle`; absent means the endpoint refuses to run         |
 | `MATCHDAY_DATA_MODE`      | no                 | set to `demo` for deterministic local and E2E runs                                                             |
@@ -84,7 +81,6 @@ pnpm db:migrate               # apply migrations
 pnpm db:seed                  # idempotent team seed
 pnpm data:refresh:soccer      # manual provider refresh (needs DATABASE_URL + real tokens)
 pnpm data:refresh:baseball
-pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it is live
 ```
 
 ## API
@@ -94,9 +90,8 @@ pnpm smoke:briefing <routeId> # one live AI generation, exits non-zero unless it
 | `GET /api/teams`                        | The four configured canonical teams                                           |
 | `GET /api/teams/:slug/games?limit=5`    | Validated canonical schedule and team context                                 |
 | `GET /api/games/:gameId`                | Canonical game snapshot, evidence facts, and source records                   |
-| `POST /api/games/:gameId/briefings`     | Quota-limited grounded AI briefing, cited to the saved snapshot               |
 | `GET /api/health`                       | App, database, schema currency, and provider status                           |
-| `GET /api/system/recent?limit=10`       | Bounded recent ingestion and aggregate briefing metrics                       |
+| `GET /api/system/recent?limit=10`       | Bounded recent ingestion runs and settlement health                           |
 | `GET`/`POST /api/cron/refresh`          | Scheduled refresh, `Authorization: Bearer $CRON_SECRET`                       |
 | `GET`/`POST /api/cron/settle`           | Scheduled settlement, `Authorization: Bearer $CRON_SECRET`                    |
 | `GET`/`POST /api/auth/*`                | Auth.js sign-in/callback routes; `503` when sign-in is unconfigured           |
@@ -116,7 +111,7 @@ Provider payloads are validated before normalization or persistence and are neve
 
 A game that finishes keeps its page, and gains its final score, for seven days after kickoff. Scores are only ever written from a payload that actually reported them: a finished game with no reported score carries no score at all rather than a fabricated `0 – 0`. A team's schedule still lists only its next five upcoming games.
 
-Every AI briefing item cites evidence IDs present in that game's own stored snapshot. An item citing anything else is rejected before it reaches the reader.
+Every fact marker the buddy writes must resolve against evidence IDs present in that game's own stored snapshot. A reply citing anything else is retracted before it stands on screen.
 
 ## Quality gate
 

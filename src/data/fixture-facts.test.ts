@@ -5,7 +5,7 @@ import {
   buildSummary,
   withContextFacts,
 } from "@/data/fixture-facts";
-import { evaluationSnapshots } from "@/lib/__fixtures__/briefing-evals";
+import { evaluationSnapshots } from "@/lib/__fixtures__/snapshot-evals";
 import { gameSnapshotSchema } from "@/lib/contracts";
 import apiFootballHeadToHead from "@/providers/apifootball/__fixtures__/head-to-head.json";
 import apiFootballPredictions from "@/providers/apifootball/__fixtures__/predictions.json";

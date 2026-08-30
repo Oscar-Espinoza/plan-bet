@@ -66,31 +66,27 @@ Reads use the Neon HTTP driver. Multi-table writes use `withDatabaseTransaction`
 
 ## Deterministic facts versus AI prose
 
-Every assertable claim is a stored `EvidenceFact` with a stable ID, a source reference, and an observation time. The model never sees a raw timestamp: a `datetime` fact reaches it with the value withheld, and it writes a `{time}` token plus a `timestampEvidenceId` that the server resolves for browser-timezone rendering.
+Every assertable claim is a stored `EvidenceFact` with a stable ID, a source reference, and an observation time. The model never sees a raw timestamp: a `datetime` fact reaches it with the value withheld, and it writes a `{time}` token that the server resolves for browser-timezone rendering.
 
-Generation pipeline (`src/data/briefings.ts`): claim a quota slot → build an allowlisted fact list (`briefing-prompt.ts`) → OpenAI Responses API with strict Structured Outputs, `tools: []`, `store: false` → validate → **exactly one** repair retry → deterministic fallback.
-
-`src/lib/briefing-validation.ts` is pure and I/O-free. It rejects on `schema_invalid`, `unknown_evidence`, `item_count`, `duplicate_items`, `duplicate_categories`, `oversized_output`, `category_mismatch`, `prohibited_language`, and `date_in_prose`. A briefing item that cites an evidence ID absent from its own snapshot never reaches the reader.
-
-Briefing `mode` (`demo | ai | fallback`) and freshness `mode` (`live | stale | demo`) are **separate axes** and are never merged in the UI.
+The page itself asserts nothing the snapshot does not hold — evidence facts are rendered as stored, and missing data reads "Not provided". The only prose written by a model is the buddy's, which streams from the OpenAI Responses API with `tools: []` and `store: false`, is validated on `response.completed` against the facts it was handed, and is **retracted** — the terminal SSE frame carries `{ ok: false }` — if any `[fact-id]` marker fails to resolve. Nothing ungrounded is left standing because it already appeared on screen.
 
 ## Anonymous quotas
 
-Five generations per anonymous session per UTC day, twenty per IP hash per UTC day. Both are counted from `briefing_runs` inside one transaction guarded by `pg_advisory_xact_lock`, taken session-first then IP. No raw IP address, watchlist entry, or note is ever stored — only salted hashes and sanitized codes.
+Thirty buddy turns per anonymous session per UTC day, one hundred per IP hash per UTC day. Both are counted from `buddy_messages` inside one transaction guarded by `pg_advisory_xact_lock`, taken session-first then IP. No raw IP address is ever stored — only salted hashes and sanitized codes.
 
 ## Observability
 
 | Surface                  | What it reports                                                                                                                                                      |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`        | App, database connectivity, **schema currency** (detects an unapplied migration), provider configuration, last run and last success per provider, last AI generation |
-| `GET /api/system/recent` | Bounded recent ingestion runs plus aggregate briefing metrics                                                                                                        |
+| `GET /api/system/recent` | Bounded recent ingestion runs plus settlement health                                                                                                                 |
 | `/system`                | The same data, rendered, plus settlement run status/outcome counts and the oldest open wager's age                                                                   |
 
 All application logs are single-line JSON via `src/lib/logger.ts`, carrying `timestamp`, `level`, `event`, and a `requestId` that is minted at the route or page boundary and threaded through provider, database, and AI operations. The logger redacts a key denylist and scrubs every configured secret's value out of any string before it is written.
 
 Expected degradation logs at `warn`. An uncaught exception is a bug, not a fallback.
 
-The schema-currency check in `/api/health` exists because a generated migration once went unapplied in production: `briefing_runs` did not exist, every audit write failed silently, and nothing surfaced it. CI catches the mirror-image problem — a schema edited without a generated migration — by running `pnpm db:generate` and failing if `drizzle/` becomes dirty.
+The schema-currency check in `/api/health` exists because a generated migration once went unapplied in production: an audited table did not exist, every write to it failed silently, and nothing surfaced it. CI catches the mirror-image problem — a schema edited without a generated migration — by running `pnpm db:generate` and failing if `drizzle/` becomes dirty.
 
 ## Accounts and the credit ledger
 
@@ -98,7 +94,7 @@ Auth.js 5 (`@auth/drizzle-adapter`) sits over the same Drizzle/Neon stack, entir
 
 The credit balance is never a stored column. `credit_entries` is an append-only ledger (`grant` / `stake` / `return` / `reset`); `getCreditSummary` derives balance, lifetime staked/returned, net, and reset count as `SUM`/`COUNT` aggregates over a user's rows, the same way freshness is derived from stored expiry rather than a status flag. There is no update or delete path anywhere in application code — a bankroll reset inserts a new `reset` row (even at a zero delta) instead of editing anything.
 
-The starting grant happens inside the same transaction as account creation (`withStartingGrant` wraps the adapter's `createUser`), so a user row can never exist without a grant row. The actual guarantee against a double grant under concurrency is a partial unique index, `credit_entries_user_grant_uidx` on `(user_id) where kind = 'grant'` — the same technique as `ingestion_runs_active_lease_uidx`. `resetBankroll` takes `pg_advisory_xact_lock(3, hashtext(user_id))` before counting recent resets against an hourly cap; advisory-lock classids 1 and 2 are already spoken for by the briefing session/IP quotas.
+The starting grant happens inside the same transaction as account creation (`withStartingGrant` wraps the adapter's `createUser`), so a user row can never exist without a grant row. The actual guarantee against a double grant under concurrency is a partial unique index, `credit_entries_user_grant_uidx` on `(user_id) where kind = 'grant'` — the same technique as `ingestion_runs_active_lease_uidx`. `resetBankroll` takes `pg_advisory_xact_lock(3, hashtext(user_id))` before counting recent resets against an hourly cap; advisory-lock classids 1 and 2 were the briefing quotas and are free again.
 
 `requireAccount()` (`src/lib/auth.ts`) is the auth boundary every gated route and page goes through, returning `{ ok: false, reason: "unconfigured" | "unauthenticated" }` without ever calling `auth()` when Auth.js isn't configured. `POST /api/bets/reset` composes `isSameOrigin` → `requireAccount` → `readJsonBody` (`src/lib/api-request.ts`) before touching the database — the reference order every mutating route in Sessions 07–09 follows.
 
@@ -112,7 +108,7 @@ Vercel Hobby caps cron jobs at one invocation per day, so `vercel.json` schedule
 
 Prices are a small fixed house table (`src/lib/markets.ts`), identical for every game of a sport and never recomputed from a vendor feed — there is no odds API and never was one licensed from a sportsbook. `resolveSelection` is the single lookup the slip, the placement route, and settlement all go through; an unknown market or selection id resolves to `undefined` rather than being invented. Only markets a stored result can grade are offered: corners, cards, and assists are not gradable from the current sports providers and are not modeled. Every published line ends in `.5`, so a push can never arise and `Grade` only ever needs `won | lost | void`.
 
-Placement (`src/data/wagers.ts`) re-reads the game and the house price server-side and freezes both into the `wagers` row — a client-supplied price is never trusted. `pg_advisory_xact_lock(4, hashtext(user_id))` guards the debit against a concurrent double-placement; classids 1 and 2 are the briefing session/IP quotas, 3 is the bankroll reset lock, so a Session 10+ feature claiming a new advisory lock takes classid 5.
+Placement (`src/data/wagers.ts`) re-reads the game and the house price server-side and freezes both into the `wagers` row — a client-supplied price is never trusted. `pg_advisory_xact_lock(4, hashtext(user_id))` guards the debit against a concurrent double-placement; 3 is the bankroll reset lock, 5 is group invites, 6 and 7 are the buddy's quotas, and 1 and 2 are free again since the briefing feature was removed.
 
 `wagers` is append-only: no `status` column, no `updated_at`, no update or delete path anywhere. A wager's state is derived from whether a `credit_entries` row of kind `return` exists for it — the same way freshness is derived from stored expiry rather than a flag. **There is no separate `settlements` table.** The `return` row _is_ the settlement record: `credit_entries.outcome` and `settlement_run_id` are set only on that row (null on every other kind), and `credit_entries_wager_return_uidx` — a partial unique index on `wager_id where kind = 'return'` — is what makes a repeated settlement run pay out exactly once. A second table would only ever duplicate a fact this one already holds atomically.
 
@@ -125,15 +121,14 @@ Placement (`src/data/wagers.ts`) re-reads the game and the house price server-si
 1. Apply migrations to production (`pnpm db:migrate`). **Before** deploying, never after.
 2. Deploy a preview.
 3. Smoke the preview: `PLAYWRIGHT_BASE_URL=<preview> pnpm test:e2e`.
-4. With `OPENAI_API_KEY` set, generate one live briefing per sport: `pnpm smoke:briefing <route-id>`.
-5. Confirm `/api/health` reports `database.schema: "current"`.
-6. Promote, then tag.
+4. Confirm `/api/health` reports `database.schema: "current"`.
+5. Promote, then tag.
 
 `CRON_SECRET` and `RATE_LIMIT_HASH_SECRET` must be set in the hosting environment before the first cron fires. Without `RATE_LIMIT_HASH_SECRET` the IP hash falls back to a per-process salt, so IP quotas reset on every redeploy.
 
 ## Deliberate trade-offs
 
-- **No authentication in the preparation workspace — only half true now.** Watchlists, recaps, saved briefings, and activity still live in one validated `localStorage` key, `matchday-plan:v1`, and require no account. Invalid or future-version data falls back to defaults instead of crashing, and nothing syncs across devices. Session 06 added an optional account, but only to back the credit ledger the wager simulator needs — no page in the preparation workspace itself is gated.
+- **No authentication in the preparation workspace — only half true now.** Tour state and the buddy's conversation id still live in one validated `localStorage` key, `matchday-plan:v1`, and require no account. Invalid or future-version data falls back to defaults instead of crashing, and nothing syncs across devices. Session 06 added an optional account, but only to back the credit ledger the wager simulator needs — no page in the preparation workspace itself is gated.
 - **The dashboard ships all four teams' schedules.** Switching team is then instant with no server round-trip, at the cost of roughly four times the payload for one team displayed. The trade favours the interaction the page exists for.
 - **First paint shows the default team.** The stored selection is only readable after hydration, so a returning visitor briefly sees Real Madrid before their team appears. Fixing it would require a cookie or a server read of browser-local state, which contradicts the browser-local-only rule.
 - **Fixed teams.** Team slugs are a Zod enum and provider IDs are hard-coded per adapter. Arbitrary team selection would mean a team-search surface and unbounded provider quota use.

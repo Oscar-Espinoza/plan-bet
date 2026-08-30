@@ -50,7 +50,7 @@ export type PlaceWagerResult =
  * result. The DB round trip inside `withDatabaseTransaction` is the only
  * place anything is written: balance check, wager insert, and stake ledger
  * entry happen atomically under a per-account advisory lock (classid 4 — 1
- * and 2 are the briefing session/IP quotas, 3 is the bankroll reset).
+ * and 2 are free — they were the briefing quotas — 3 is the bankroll reset).
  */
 export async function placeWager(input: {
   userId: string;

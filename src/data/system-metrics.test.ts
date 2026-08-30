@@ -78,7 +78,6 @@ describe("getSystemMetrics", () => {
       limit: 10,
       windowHours: 24,
       ingestion: { recent: [], byProvider: [] },
-      briefings: { total: 0, latencyMs: null, errors: [] },
       settlement: {
         lastRunAt: null,
         lastSuccessAt: null,

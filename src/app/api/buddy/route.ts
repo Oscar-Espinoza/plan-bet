@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { hashClientAddress } from "@/data/briefings-repository";
+import { hashClientAddress } from "@/data/buddy-repository";
 import { forgetBuddySession, prepareBuddyTurn } from "@/data/buddy";
 import { requireAccount } from "@/lib/auth";
 import { isSameOrigin, readJsonBody } from "@/lib/api-request";
@@ -12,8 +12,8 @@ import { MAX_REPLY_CHARS } from "@/lib/buddy-validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// The SSR placeholder anonymousId, exactly as rejected in the briefings
-// route: an unhydrated render must never be able to consume quota.
+// The SSR placeholder anonymousId, rejected outright: an unhydrated render
+// must never be able to consume quota.
 const SSR_PLACEHOLDER_ID = "00000000-0000-4000-8000-000000000000";
 
 const turnSchema = z.object({
