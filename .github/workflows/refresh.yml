@@ -19,3 +19,14 @@ jobs:
         run: |
           curl --fail-with-body -sS -X POST "$PRODUCTION_URL/api/cron/refresh" \
             -H "Authorization: Bearer $CRON_SECRET"
+
+      # Not a Vercel cron: Hobby rejects any schedule firing more than once a
+      # day, so the 6-hourly enrich trigger lives here. Same job as the refresh
+      # above, deliberately — enrich reads the games that refresh just wrote.
+      - name: Trigger /api/cron/enrich
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body -sS -X POST "$PRODUCTION_URL/api/cron/enrich" \
+            -H "Authorization: Bearer $CRON_SECRET"

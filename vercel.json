@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/settle",
       "schedule": "30 6 * * *"
-    },
-    {
-      "path": "/api/cron/enrich",
-      "schedule": "15 */6 * * *"
     }
   ]
 }
