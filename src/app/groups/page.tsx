@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { requireAccount } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
+export const unstable_dynamicStaleTime = 300;
 export const metadata: Metadata = { title: "Groups" };
 
 export default async function Page() {

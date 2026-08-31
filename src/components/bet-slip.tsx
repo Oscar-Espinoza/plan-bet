@@ -65,7 +65,102 @@ function clampStake(value: number, balance: number) {
   return Math.min(MAX_STAKE, balance, Math.max(MIN_STAKE, value));
 }
 
-export function BetSlip({ data }: { data: WagerPanelData }) {
+/**
+ * Exact score, typed rather than hunted for.
+ *
+ * The market still publishes the same sixteen selections at the same prices —
+ * this only changes how one of them is chosen. Two figures compose the
+ * selection id the server already knows (`"2-1"`), so nothing about pricing,
+ * placement or settlement moves. A scoreline outside the published grid
+ * resolves to no selection, which is exactly what leaves the form disabled.
+ */
+function ScoreEntry({
+  market,
+  home,
+  away,
+  armedId,
+  onArm,
+}: {
+  market: Market;
+  home: string;
+  away: string;
+  armedId?: string;
+  onArm: (selectionId?: string) => void;
+}) {
+  const [score, setScore] = useState(() => {
+    const [h, a] = armedId?.split("-") ?? [];
+    return { home: h ?? "", away: a ?? "" };
+  });
+
+  const change = (side: "home" | "away", raw: string) => {
+    const next = { ...score, [side]: raw.replace(/[^0-9]/g, "").slice(0, 1) };
+    setScore(next);
+    const id = `${next.home}-${next.away}`;
+    onArm(
+      next.home && next.away && market.selections.some((s) => s.id === id)
+        ? id
+        : undefined,
+    );
+  };
+
+  const priced = market.selections.find(
+    (s) => s.id === `${score.home}-${score.away}`,
+  );
+  const complete = score.home !== "" && score.away !== "";
+
+  return (
+    <div className="mp-score">
+      <label className="mp-score-team">
+        <span>{home}</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={3}
+          step={1}
+          placeholder="0"
+          aria-label={`${home} goals`}
+          value={score.home}
+          onChange={(event) => change("home", event.target.value)}
+        />
+      </label>
+      <span className="mp-score-dash" aria-hidden="true">
+        &ndash;
+      </span>
+      <label className="mp-score-team">
+        <span>{away}</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={3}
+          step={1}
+          placeholder="0"
+          aria-label={`${away} goals`}
+          value={score.away}
+          onChange={(event) => change("away", event.target.value)}
+        />
+      </label>
+      <p className="mp-score-price" data-unpriced={priced ? undefined : ""}>
+        {priced
+          ? `Pays ${priced.price.toFixed(2)}`
+          : complete
+            ? "Not priced — 0-0 through 3-3 only"
+            : "Type a score"}
+      </p>
+    </div>
+  );
+}
+
+export function BetSlip({
+  data,
+  matchup,
+}: {
+  data: WagerPanelData;
+  // Names for the exact-score entry. Absent in the unit tests, which render
+  // the slip on its own.
+  matchup?: { home: string; away: string };
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const advanceTour = useMatchdayStore((state) => state.advanceTour);
@@ -228,7 +323,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
       )}
 
       {confirmation && (
-        <div className="side-form">
+        <div className="side-form mp-enter-pop">
           <Banner tone="positive">{confirmation}</Banner>
         </div>
       )}
@@ -238,29 +333,47 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
           {openMarkets.map((m) => (
             <div className="selection-market" key={m.id}>
               <h3 className="field-label">{m.label}</h3>
-              <div className="selection-row" role="group" aria-label={m.label}>
-                {m.selections.map((s) => {
-                  const active =
-                    armed?.marketId === m.id && armed.selectionId === s.id;
-                  return (
-                    <button
-                      type="button"
-                      key={s.id}
-                      className={cn(
-                        "selection-button",
-                        active && "selection-button-active",
-                      )}
-                      aria-pressed={active}
-                      onClick={() => arm(m.id, s.id)}
-                    >
-                      {/* s.label already carries the line for a total market
+              {m.kind === "exact_score" ? (
+                <ScoreEntry
+                  market={m}
+                  home={matchup?.home ?? "Home"}
+                  away={matchup?.away ?? "Away"}
+                  armedId={
+                    armed?.marketId === m.id ? armed.selectionId : undefined
+                  }
+                  onArm={(selectionId) =>
+                    selectionId ? arm(m.id, selectionId) : setArmed(undefined)
+                  }
+                />
+              ) : (
+                <div
+                  className="selection-row"
+                  role="group"
+                  aria-label={m.label}
+                >
+                  {m.selections.map((s) => {
+                    const active =
+                      armed?.marketId === m.id && armed.selectionId === s.id;
+                    return (
+                      <button
+                        type="button"
+                        key={s.id}
+                        className={cn(
+                          "selection-button",
+                          active && "selection-button-active",
+                        )}
+                        aria-pressed={active}
+                        onClick={() => arm(m.id, s.id)}
+                      >
+                        {/* s.label already carries the line for a total market
                           ("Over 2.5"), so no separate lineSuffix here. */}
-                      <span>{s.label}</span>
-                      <span>{s.price.toFixed(2)}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <span>{s.label}</span>
+                        <span>{s.price.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
           {!selection && (
@@ -272,7 +385,7 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
       )}
 
       {state.kind === "open" && market && selection && (
-        <form className="side-form" onSubmit={submit}>
+        <form className="side-form mp-enter" onSubmit={submit}>
           <div className="data-pair">
             <span>{market.label}</span>
             <span>
@@ -404,28 +517,43 @@ export function BetSlip({ data }: { data: WagerPanelData }) {
         </div>
       )}
 
-      {/* Who else is in, and the argument about it — context on your own pick,
-          so it sits under the action rather than above it. */}
-      {groupPicks.length > 0 && (
-        <div className="side-form">
-          <h3 className="field-label">Group picks on this game</h3>
-          {groupPicks.map((pick) => (
-            <p className="fine-print" key={pick.wager.id}>
-              {pick.groupName} — {pick.userName ?? "A member"} has{" "}
-              {pick.wager.stake} on {pick.wager.selectionLabel}
-              {lineSuffix(pick.wager.line)}.
-            </p>
-          ))}
-        </div>
-      )}
+      {/* Who else is in, and the argument about it. Real context on your own
+          pick, but not what the page is for — one line, opened on demand,
+          rather than two more sections under the action. */}
+      {(groupPicks.length > 0 || threads.length > 0) && (
+        <details className="mp-aside">
+          <summary>
+            {[
+              groupPicks.length > 0 && `${groupPicks.length} in your groups`,
+              threads.length > 0 &&
+                `${threads.reduce((total, thread) => total + thread.comments.length, 0)} comments`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </summary>
 
-      {threads.map((thread) => (
-        <GameThread
-          key={thread.groupId}
-          routeId={data.routeId}
-          thread={thread}
-        />
-      ))}
+          {groupPicks.length > 0 && (
+            <div className="side-form">
+              <h3 className="field-label">Group picks on this game</h3>
+              {groupPicks.map((pick) => (
+                <p className="fine-print" key={pick.wager.id}>
+                  {pick.groupName} — {pick.userName ?? "A member"} has{" "}
+                  {pick.wager.stake} on {pick.wager.selectionLabel}
+                  {lineSuffix(pick.wager.line)}.
+                </p>
+              ))}
+            </div>
+          )}
+
+          {threads.map((thread) => (
+            <GameThread
+              key={thread.groupId}
+              routeId={data.routeId}
+              thread={thread}
+            />
+          ))}
+        </details>
+      )}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { formatDateTime, formatShortDate } from "@/lib/utils";
 
 /**
@@ -84,5 +84,47 @@ export function TimezoneLegend() {
     <p className="slate-tz">
       All times <span>{zone}</span> · your time
     </p>
+  );
+}
+
+/**
+ * The scorebug's clock. Ticks once a second inside a day of kickoff, where a
+ * running clock is the point; above a day it shows days and hours and the
+ * interval is wasted, so it stops there. Returns nothing before hydration for
+ * the same reason every component in this file does — the server has no idea
+ * what "now" is for the reader.
+ */
+export function Countdown({ value }: { value: string }) {
+  // `now` starts at 0 so the server render and the hydration render agree —
+  // the same reason every other component in this file waits for the browser.
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const target = new Date(value).getTime();
+    const step = () => setNow(Date.now());
+    step();
+    const remaining = target - Date.now();
+    // Nothing to animate a day out, and nothing left to count once it starts.
+    // ponytail: a page left open across the 24h boundary keeps showing days
+    // until it is navigated; re-arm on a coarse timer if that ever matters.
+    if (remaining <= 0 || remaining >= 86_400_000) return;
+    const id = setInterval(step, 1000);
+    return () => clearInterval(id);
+  }, [value]);
+
+  if (now === 0) return <time dateTime={value} />;
+
+  const remaining = new Date(value).getTime() - now;
+  if (remaining <= 0) return <time dateTime={value}>Underway</time>;
+
+  const seconds = Math.floor(remaining / 1000);
+  const days = Math.floor(seconds / 86_400);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    <time dateTime={value}>
+      {days > 0
+        ? `${days}d ${pad(Math.floor((seconds % 86_400) / 3600))}h`
+        : `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`}
+    </time>
   );
 }

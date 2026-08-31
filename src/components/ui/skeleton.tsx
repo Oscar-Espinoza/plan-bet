@@ -2,28 +2,18 @@ const LIST_ROWS = 5;
 const RECORD_ROWS = 4;
 
 /**
- * Three shapes cover every route's loading.tsx: a list of rows (the slate,
- * groups), a stat panel above a wide table (You, a group, System), or a
- * wide/narrow pair matching the game page's .detail-layout. Reuses
- * .loading-panel's pulse and .section-grid / .detail-layout rather than
- * inventing new structural classes.
+ * Two shapes cover the routes on the scoreboard system: a list of rows (the
+ * slate, groups) or a stat panel above a wide table (You, a group, System).
+ * Reuses .loading-panel's pulse and .section-grid rather than inventing new
+ * structural classes. The matchup page has its own, in its own language.
  */
 export function Skeleton({
   label,
   variant,
 }: {
   label: string;
-  variant: "list" | "record" | "detail";
+  variant: "list" | "record";
 }) {
-  if (variant === "detail") {
-    return (
-      <div className="detail-layout" role="status" aria-label={label}>
-        <div className="detail-primary panel loading-panel" />
-        <div className="detail-side panel loading-panel" />
-      </div>
-    );
-  }
-
   if (variant === "record") {
     return (
       <div className="section-grid" role="status" aria-label={label}>

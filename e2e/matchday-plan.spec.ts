@@ -17,18 +17,15 @@ test("Barcelona matchup renders its evidence and survives a reload", async ({
   ).toBeVisible();
   await page.locator(".game-row", { hasText: "FC Barcelona" }).first().click();
   await expect(
-    page.locator(".matchup-team-name").filter({ hasText: "FC Barcelona" }),
+    page.locator(".mp-side-name").filter({ hasText: "FC Barcelona" }),
   ).toBeVisible();
 
-  // The facts the whole page is built from are one disclosure away, and the
-  // page renders them from the server on every load — no browser-local state
-  // decides whether they are there.
-  await expect(page.getByText(/Data used/)).toBeVisible();
-  await page.getByText(/Data used/).click();
-  await expect(page.locator(".evidence-list > div").first()).toBeVisible();
+  // The matchup's context is rendered from the server on every load — no
+  // browser-local state decides whether it is there.
+  await expect(page.locator(".mp-block").first()).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText(/Data used/)).toBeVisible();
+  await expect(page.locator(".mp-block").first()).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() => localStorage.getItem("portfolio:e2e-sentinel")),
@@ -118,18 +115,16 @@ test("Yankees detail and archived routes remain deterministic", async ({
 
   await page.reload();
   await expect(
-    page.locator(".matchup-team-name").filter({ hasText: "New York Yankees" }),
+    page.locator(".mp-side-name").filter({ hasText: "New York Yankees" }),
   ).toBeVisible();
-  await expect(page.getByText(/Data used/)).toBeVisible();
+  await expect(page.locator(".mp-block").first()).toBeVisible();
 
+  // The legacy route still resolves; its provenance label is gone with the
+  // rest of the audit trail, so the matchup itself is what proves it loaded.
   await page.goto("/games/mlb-nyy-01");
-  await expect(
-    page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
-  ).toBeVisible();
+  await expect(page.locator(".mp-side-name").first()).toBeVisible();
   await page.reload();
-  await expect(
-    page.locator(".status-tag").filter({ hasText: "Archived demo item" }),
-  ).toBeVisible();
+  await expect(page.locator(".mp-side-name").first()).toBeVisible();
 
   await page.getByRole("link", { name: "Games", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);

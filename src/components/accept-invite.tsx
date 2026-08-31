@@ -46,6 +46,7 @@ export function AcceptInvite({
     }
 
     const data = (payload as { data: { groupSlug: string } }).data;
+    router.refresh();
     router.push(`/groups/${data.groupSlug}`);
   };
 

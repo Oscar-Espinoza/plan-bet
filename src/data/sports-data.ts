@@ -1,6 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { after } from "next/server";
 import { isDatabaseConfigured, getDatabase } from "@/db/client";
 import { seedConfiguredTeams } from "@/db/seed";
 import { readFixtureContext } from "@/data/fixture-context-repository";
@@ -59,6 +61,24 @@ function logIngestion(
 }
 
 const inProcessRefresh = new Map<Sport, Promise<RefreshOutcome>>();
+
+export const DASHBOARD_TAG = "dashboard";
+
+// after() and revalidateTag() throw outside a request context (CLI, tests).
+function refreshInBackground(sport: Sport, requestId: string, now: Date) {
+  const run = () => refreshSportData(sport, requestId, now).catch(() => {});
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
+function invalidateDashboard() {
+  try {
+    revalidateTag(DASHBOARD_TAG, "max");
+  } catch {}
+}
 
 async function cachedMetadata(
   sport: Sport,
@@ -185,6 +205,7 @@ async function performSportRefresh(
       refreshed,
       durationMs: Date.now() - startedAt,
     });
+    if (!failure && refreshed) invalidateDashboard();
     return {
       sport,
       provider: provider.provider,
@@ -269,7 +290,13 @@ export async function getTeamSchedule(
   }
 
   const cached = await storedSchedule(slug, now);
-  if (cached?.freshness.mode === "live" && !options.forceRefresh) return cached;
+  // Stale renders now, refresh goes out of band. Only a cold cache waits.
+  if (cached && !options.forceRefresh) {
+    if (cached.freshness.mode !== "live") {
+      refreshInBackground(team.sport, requestId, now);
+    }
+    return cached;
+  }
 
   try {
     await refreshSportData(team.sport, requestId, now);
@@ -285,14 +312,32 @@ export async function getDashboardData(
 ) {
   const now = options.now ?? new Date();
   const requestId = options.requestId ?? randomUUID();
-  const schedules = {} as DashboardData;
-  for (const team of teams) {
-    schedules[team.slug] = await getTeamSchedule(team.slug, {
-      now,
-      requestId,
-    });
-  }
-  return schedules;
+  const entries = await Promise.all(
+    teams.map(async (team) => {
+      const schedule = await getTeamSchedule(team.slug, { now, requestId });
+      // Board shows the next match only; providers still persist five.
+      return [team.slug, { ...schedule, games: schedule.games.slice(0, 1) }];
+    }),
+  );
+  return Object.fromEntries(entries) as DashboardData;
+}
+
+// Zero-arg on purpose: the per-call requestId would key every entry uniquely.
+const cachedDashboard = unstable_cache(
+  () => getDashboardData(),
+  ["dashboard"],
+  {
+    revalidate: 3600,
+    tags: [DASHBOARD_TAG],
+  },
+);
+
+export function getCachedDashboardData() {
+  // Demo data is in-memory and date-relative: nothing to save, and caching it
+  // would un-anchor the Playwright board.
+  return process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo"
+    ? getDashboardData()
+    : cachedDashboard();
 }
 
 async function storedSnapshot(gameId: string, now: Date) {
@@ -316,10 +361,8 @@ export async function getGameDetail(
 
   let snapshot = await storedSnapshot(gameId, now);
   if (snapshot?.freshness.mode === "stale") {
-    await refreshSportData(snapshot.game.sport, requestId, now).catch(
-      () => undefined,
-    );
-    snapshot = (await storedSnapshot(gameId, now)) ?? snapshot;
+    // Same rule as the schedule read above.
+    refreshInBackground(snapshot.game.sport, requestId, now);
   } else if (!snapshot) {
     for (const sport of ["soccer", "baseball"] as const) {
       await refreshSportData(sport, requestId, now).catch(() => undefined);

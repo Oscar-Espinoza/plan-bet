@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Receipt, Users } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -20,12 +21,17 @@ import { requireAccount } from "@/lib/auth";
 import type { WagerOutcome } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
+// Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
+export const unstable_dynamicStaleTime = 300;
+
+// generateMetadata and the page both need the group; cache() makes it one query.
+const loadGroup = cache((slug: string) => getGroupBySlug(slug));
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const group = await getGroupBySlug(slug);
+  const group = await loadGroup(slug);
   return { title: group?.name ?? "Group" };
 }
 
@@ -40,15 +46,16 @@ function lineSuffix(line: number | undefined) {
 }
 
 export default async function Page({ params }: Props) {
-  const account = await requireAccount();
+  const { slug } = await params;
+  const [account, group] = await Promise.all([
+    requireAccount(),
+    loadGroup(slug),
+  ]);
   if (!account.ok) {
     if (account.reason === "unconfigured") notFound();
-    const { slug } = await params;
     redirect(`/sign-in?callbackUrl=/groups/${slug}`);
   }
 
-  const { slug } = await params;
-  const group = await getGroupBySlug(slug);
   // A non-member sees the same not-found response as a group that does not
   // exist — membership is never disclosed to a non-member.
   if (!group || !(await isGroupMember(group.id, account.userId))) notFound();

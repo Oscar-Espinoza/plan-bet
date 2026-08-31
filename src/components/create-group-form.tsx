@@ -36,6 +36,7 @@ export function CreateGroupForm() {
     const payload = (await response.json()) as {
       data: { group: { slug: string } };
     };
+    router.refresh();
     router.push(`/groups/${payload.data.group.slug}`);
   };
 

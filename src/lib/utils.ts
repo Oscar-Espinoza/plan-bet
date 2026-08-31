@@ -4,11 +4,6 @@ import { twMerge } from "tailwind-merge";
 /** Bumped whenever the published house rules change; frozen into every wager. */
 export const RULES_VERSION = "2026-08-21";
 
-/** Session 01 demo route IDs, kept readable so browser-local links still work. */
-export function isLegacyBaseballGameId(gameId: string) {
-  return /^mlb-(nyy|bos)-\d{2}$/.test(gameId);
-}
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

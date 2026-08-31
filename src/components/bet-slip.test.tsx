@@ -164,6 +164,56 @@ describe("BetSlip - open", () => {
     );
   });
 
+  it("arms an exact score once both figures are typed, and only for a priced line", () => {
+    render(
+      <BetSlip
+        data={openData()}
+        matchup={{ home: "Real Madrid", away: "FC Barcelona" }}
+      />,
+    );
+
+    const home = screen.getByLabelText("Real Madrid goals");
+    const away = screen.getByLabelText("FC Barcelona goals");
+
+    // One figure is not a scoreline: nothing is picked and nothing is priced.
+    fireEvent.change(home, { target: { value: "2" } });
+    expect(screen.getByText("Type a score")).toBeInTheDocument();
+
+    fireEvent.change(away, { target: { value: "1" } });
+    expect(screen.getByText("Pays 8.50")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Place 1 → returns 9" }),
+    ).toBeInTheDocument();
+
+    // 4-1 is outside the published grid, so it resolves to no selection and
+    // takes the form back down with it rather than inventing a price.
+    fireEvent.change(home, { target: { value: "4" } });
+    expect(
+      screen.getByText("Not priced — 0-0 through 3-3 only"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Place/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pre-fills the score entry from the buddy's ?pick= deep link", () => {
+    searchParams = new URLSearchParams({ pick: "soccer-exact-score:2-1" });
+    render(
+      <BetSlip
+        data={openData()}
+        matchup={{ home: "Real Madrid", away: "FC Barcelona" }}
+      />,
+    );
+
+    expect(
+      (screen.getByLabelText("Real Madrid goals") as HTMLInputElement).value,
+    ).toBe("2");
+    expect(
+      (screen.getByLabelText("FC Barcelona goals") as HTMLInputElement).value,
+    ).toBe("1");
+    expect(screen.getByText("Pays 8.50")).toBeInTheDocument();
+  });
+
   it("silently ignores a ?pick= that doesn't resolve to a real market or selection", () => {
     searchParams = new URLSearchParams({ pick: "not-a-real-market:over" });
     render(<BetSlip data={openData()} />);

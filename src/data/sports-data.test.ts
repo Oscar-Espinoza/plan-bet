@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getTeamSchedule, refreshSportData } from "@/data/sports-data";
+import {
+  getDashboardData,
+  getTeamSchedule,
+  refreshSportData,
+} from "@/data/sports-data";
 import { getSportsProvider } from "@/providers/registry";
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -32,6 +36,24 @@ describe("sports data fallback", () => {
     expect(
       schedule.games.every((game) => game.teamSlug === "real-madrid"),
     ).toBe(true);
+  });
+
+  it("trims the board to each team's next match without trimming storage", async () => {
+    delete process.env.DATABASE_URL;
+    delete process.env.FOOTBALL_DATA_API_TOKEN;
+    delete process.env.MATCHDAY_DATA_MODE;
+    const now = new Date("2032-05-04T12:00:00Z");
+
+    const board = await getDashboardData({ now });
+    const stored = await getTeamSchedule("real-madrid", { now });
+
+    // The slice lives on the dashboard, not the provider: game pages and
+    // wagers on later fixtures still resolve against all five.
+    for (const schedule of Object.values(board)) {
+      expect(schedule.games).toHaveLength(1);
+    }
+    expect(stored.games).toHaveLength(5);
+    expect(board["real-madrid"]!.games[0]).toEqual(stored.games[0]);
   });
 
   it("forces deterministic demo mode without touching configured services", async () => {

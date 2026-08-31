@@ -46,21 +46,21 @@ const snapshot: GameSnapshot = {
   ],
 };
 
-describe("GameDetail evidence rendering", () => {
+describe("GameDetail", () => {
   beforeEach(() => {
     useMatchdayStore.setState({ ...createDefaultState(), hydrated: true });
   });
 
   afterEach(cleanup);
 
-  it("renders datetime evidence in the browser timezone, never as a raw timestamp", () => {
+  it("renders kickoff in the browser timezone, never as a raw timestamp", () => {
     const { container } = render(
       <GameDetail data={{ snapshot }} team={team} />,
     );
 
-    const evidence = container.querySelector(".evidence-list")!;
-    expect(evidence.textContent).toContain(formatDateTime(scheduledAt));
-
+    expect(container.textContent).toContain(formatDateTime(scheduledAt));
+    // Every surface on this page formats through LocalDateTime; a provider
+    // ISO string reaching the reader means one of them stopped.
     expect(container.textContent).not.toContain(scheduledAt);
   });
 
@@ -72,10 +72,8 @@ describe("GameDetail evidence rendering", () => {
   it("shows the final score only once a result is reported", () => {
     // No result: the matchup reads as an upcoming fixture.
     const upcoming = renderGame(snapshot.game);
-    expect(upcoming.querySelector(".matchup-vs")?.textContent).toContain("vs");
-    expect(upcoming.querySelector(".matchup-vs")?.textContent).not.toMatch(
-      /\d+\s–\s\d+/,
-    );
+    expect(upcoming.querySelector(".mp-clock")).not.toBeNull();
+    expect(upcoming.querySelectorAll(".mp-side-score")).toHaveLength(0);
     cleanup();
 
     // A goalless finished draw is a reported score, not a missing one.
@@ -89,9 +87,13 @@ describe("GameDetail evidence rendering", () => {
         observedAt: snapshot.freshness.fetchedAt,
       },
     });
-    expect(finished.querySelector(".matchup-vs")?.textContent).toContain(
-      "0 – 0",
-    );
+    expect(
+      [...finished.querySelectorAll(".mp-side-score")].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(["0", "0"]);
+    // A played game shows a score instead of a countdown, not as well as one.
+    expect(finished.querySelector(".mp-clock")).toBeNull();
     expect(finished.querySelector("h1")?.textContent).toContain("final");
   });
 
@@ -107,7 +109,7 @@ describe("GameDetail evidence rendering", () => {
         observedAt: snapshot.freshness.fetchedAt,
       },
     });
-    expect(container.querySelector(".matchup-vs")?.textContent).toContain(
+    expect(container.querySelector(".mp-aftermath")?.textContent).toContain(
       "After penalties",
     );
   });

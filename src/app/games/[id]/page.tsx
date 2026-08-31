@@ -26,9 +26,7 @@ import { getTeam } from "@/lib/seed";
 type Props = { params: Promise<{ id: string }> };
 
 export const dynamic = "force-dynamic";
-// Minting requestId inside the cached function (rather than threading it in
-// as an argument) keeps the cache key as just `id`, so generateMetadata and
-// the page component still share one underlying call.
+export const unstable_dynamicStaleTime = 300;
 const loadGame = cache((id: string) =>
   getGameDetail(id, { requestId: randomUUID() }),
 );

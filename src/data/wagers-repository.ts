@@ -339,31 +339,32 @@ export async function getRecordSlices(userId: string): Promise<RecordSlices> {
     voided: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'void')::int`,
   };
 
-  const bySportRows = await getDatabase()
-    .select({ key: wagers.sport, ...counts })
-    .from(wagers)
-    .leftJoin(
-      creditEntries,
-      and(
-        eq(creditEntries.wagerId, wagers.id),
-        eq(creditEntries.kind, "return"),
-      ),
-    )
-    .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
-    .groupBy(wagers.sport);
-
-  const byMarketRows = await getDatabase()
-    .select({ key: wagers.marketId, label: wagers.marketLabel, ...counts })
-    .from(wagers)
-    .leftJoin(
-      creditEntries,
-      and(
-        eq(creditEntries.wagerId, wagers.id),
-        eq(creditEntries.kind, "return"),
-      ),
-    )
-    .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
-    .groupBy(wagers.marketId, wagers.marketLabel);
+  const [bySportRows, byMarketRows] = await Promise.all([
+    getDatabase()
+      .select({ key: wagers.sport, ...counts })
+      .from(wagers)
+      .leftJoin(
+        creditEntries,
+        and(
+          eq(creditEntries.wagerId, wagers.id),
+          eq(creditEntries.kind, "return"),
+        ),
+      )
+      .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
+      .groupBy(wagers.sport),
+    getDatabase()
+      .select({ key: wagers.marketId, label: wagers.marketLabel, ...counts })
+      .from(wagers)
+      .leftJoin(
+        creditEntries,
+        and(
+          eq(creditEntries.wagerId, wagers.id),
+          eq(creditEntries.kind, "return"),
+        ),
+      )
+      .where(and(eq(wagers.userId, userId), isNotNull(creditEntries.outcome)))
+      .groupBy(wagers.marketId, wagers.marketLabel),
+  ]);
 
   return recordSlicesSchema.parse({
     bySport: bySportRows.map((row) => ({

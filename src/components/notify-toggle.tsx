@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ export function NotifyToggle({
   slug: string;
   enabled: boolean;
 }) {
+  const router = useRouter();
   const [on, setOn] = useState(enabled);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -31,6 +33,7 @@ export function NotifyToggle({
       return;
     }
     setOn(next);
+    router.refresh();
   };
 
   return (

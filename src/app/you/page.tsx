@@ -18,6 +18,8 @@ import { requireAccount, signOut } from "@/lib/auth";
 import type { RecordSlice } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
+// Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
+export const unstable_dynamicStaleTime = 300;
 export const metadata: Metadata = { title: "You" };
 
 const PAGE_SIZE = 20;

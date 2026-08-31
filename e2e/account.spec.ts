@@ -150,10 +150,10 @@ test("anonymous browsing survives reload and matchday-plan:v1 stays version 3", 
   page,
 }) => {
   await page.goto("/games/soc-rma-01");
-  await expect(page.getByText(/Data used/)).toBeVisible();
+  await expect(page.locator(".mp-side-name").first()).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText(/Data used/)).toBeVisible();
+  await expect(page.locator(".mp-side-name").first()).toBeVisible();
 
   const stored = await page.evaluate(() =>
     localStorage.getItem("matchday-plan:v1"),

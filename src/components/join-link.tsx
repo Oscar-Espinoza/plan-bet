@@ -50,6 +50,7 @@ export function JoinLink({
     }
     setUrl(payload.data.url);
     setInviteId(payload.data.inviteId);
+    router.refresh();
   };
 
   const copy = async () => {
