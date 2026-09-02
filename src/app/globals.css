@@ -153,6 +153,7 @@ a {
 }
 
 .app-shell {
+  container-type: inline-size;
   min-height: 100svh;
 }
 
@@ -315,9 +316,9 @@ a {
 .mobile-nav {
   position: fixed;
   z-index: 30;
-  right: 0;
   bottom: 0;
   left: 0;
+  width: 100cqw;
   display: grid;
   /* Three nav items (Games / You / Groups) — a fourth dead column left the
      nav sitting left-of-centre on every phone. */
