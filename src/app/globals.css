@@ -1,43 +1,44 @@
 @import "tailwindcss";
+@import "@fontsource-variable/archivo/wdth.css";
 @import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource-variable/big-shoulders-display";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
 
 :root {
-  /* Palette — the manual scoreboard. Ground shifts off blue-black into a
-     deep bottle green; the lit accent goes from acid to sodium. Sodium is
+  /* Palette — the broadcast scorebug. Ground is near-black, not blue-black
+     or bottle green; the lit accent is volt, not sodium or acid. Sodium is
      reserved for time (kickoff, countdowns, "next") and never for money —
      balances, stakes, prices and returns stay chalk, with field/clay only on
-     a settled outcome. */
-  --ink: #0c1210;
-  --slat: #141c18;
-  --slat-raised: #1a231e;
-  --slat-muted: #0f1512;
-  --rule: #263029;
-  --rule-strong: #384539;
-  --chalk: #efede4;
-  --muted: #9aa79c;
-  --faint: #8b9689;
-  --sodium: #e8a33d;
-  --sodium-dark: #3a2c14;
-  --field: #4fa97a;
+     a settled outcome. (The token is still named --sodium; it now holds a
+     volt green, matching the proved .mp direction — the invariant above is
+     about what the accent is *used for*, not its hue.) */
+  --ink: #08090b;
+  --slat: #101318;
+  --slat-raised: #171b21;
+  --slat-muted: #08090b;
+  --rule: #23282f;
+  --rule-strong: #333a44;
+  --chalk: #f4f6f8;
+  --muted: #98a1ae;
+  --faint: #7f8896;
+  --sodium: #d8ff3c;
+  --sodium-dark: #1b2408;
+  --field: #3ddc84;
   --field-dark: #16281f;
-  --clay: #d4685f;
+  --clay: #ff5a5f;
   --clay-dark: #2e1917;
 
   /* Semantic tone tokens — one source for the six-way status/banner hex
      duplication (positive/warning/negative × border/bg/text). */
-  --tone-positive-border: #285e45;
-  --tone-positive-bg: var(--field-dark);
-  --tone-positive-text: #8ee9b7;
-  --tone-warning-border: #6f552a;
+  --tone-positive-border: #1f5e3d;
+  --tone-positive-bg: #0c1f16;
+  --tone-positive-text: #7fe8ab;
+  --tone-warning-border: #4a5c14;
   --tone-warning-bg: var(--sodium-dark);
-  --tone-warning-text: #f0c476;
-  --tone-negative-border: #6f3035;
-  --tone-negative-bg: var(--clay-dark);
-  --tone-negative-text: #ffb8bc;
+  --tone-warning-text: #c7e85a;
+  --tone-negative-border: #6b2b2e;
+  --tone-negative-bg: #22100f;
+  --tone-negative-text: #ff9ea1;
 
   /* Type scale — 8 steps, replaces 29 ad-hoc rem literals. */
   --text-2xs: 0.65rem;
@@ -64,14 +65,13 @@
   --space-6: 2rem;
 
   /* Radii — 3 steps. */
-  --radius-sm: 0.3rem;
-  --radius-md: 0.45rem;
-  --radius-full: 99px;
+  --radius-sm: 2px;
+  --radius-md: 0;
 
   /* Type faces. */
   --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
-  --font-display: "Big Shoulders Display Variable", "Arial Narrow", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --font-display: "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
 }
 
 * {
@@ -90,7 +90,7 @@ body {
   overflow-x: hidden;
   background: var(--ink);
   color: var(--chalk);
-  font-family: "IBM Plex Sans Variable", system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -178,6 +178,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 112;
   letter-spacing: 0.05em;
 }
 
@@ -186,6 +187,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 112;
   letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
@@ -222,9 +224,9 @@ a {
   z-index: 20;
   top: 0;
   border-bottom: 1px solid var(--rule);
-  /* Was a blue-black left over from the pre-sodium palette, one shade off
-     the green-shifted --ink it sits against. */
-  background: rgba(12, 18, 16, 0.96);
+  /* Must track --ink. Can't just be var(--ink) — this needs an alpha
+     channel for the sticky blur-free translucency. */
+  background: rgba(8, 9, 11, 0.96);
 }
 
 .topbar-inner {
@@ -382,6 +384,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-display);
   font-weight: var(--weight-semibold);
+  font-variation-settings: "wdth" 118;
   letter-spacing: -0.025em;
   line-height: 0.95;
   text-transform: uppercase;
@@ -421,6 +424,7 @@ a {
 
 .section-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
   gap: 1rem;
   /* Matches the internal gap, so a panel following the grid is separated by
      the same rhythm as the cards inside it. */
@@ -495,6 +499,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 112;
   letter-spacing: 0.035em;
   text-transform: uppercase;
 }
@@ -530,7 +535,7 @@ a {
 }
 
 .button:hover:not(:disabled) {
-  background: #ecb461;
+  background: #e4ff6b;
 }
 
 .button:disabled {
@@ -579,7 +584,7 @@ a {
   width: fit-content;
   align-items: center;
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background: var(--slat-muted);
   color: var(--muted);
   padding: 0.18rem 0.48rem;
@@ -651,6 +656,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 112;
   letter-spacing: 0.025em;
 }
 
@@ -738,7 +744,9 @@ a {
 
 .empty-title {
   margin: 0;
+  font-family: var(--font-display);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 118;
 }
 
 .empty-copy {
@@ -804,6 +812,7 @@ a {
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 4vw, 2.2rem);
   font-weight: var(--weight-semibold);
+  font-variation-settings: "wdth" 118;
   line-height: 1.05;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -937,6 +946,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
+  font-variation-settings: "wdth" 112;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -957,6 +967,13 @@ a {
 
 .game-chevron {
   color: var(--faint);
+}
+
+.stat-stack,
+.source-list {
+  /* Caps the label-left/figure-right measure for the panels that render
+     full-width outside a .section-grid, same reasoning as .mp-blocks. */
+  max-width: 46rem;
 }
 
 .stat-stack {
@@ -1253,6 +1270,8 @@ a {
   padding: 0.75rem 1rem;
 }
 
+/* Caps at 3 columns: one card per settlement outcome (Won/Lost/Void),
+   hardcoded in system/page.tsx — it can never hold more than three. */
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1290,7 +1309,7 @@ a {
 
 @media (min-width: 640px) {
   .metric-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1340,6 +1359,10 @@ a {
   border-radius: var(--radius-md);
   background: var(--slat-raised);
   padding: 1.25rem;
+  /* Floats above the page, unlike every in-flow .panel/.mp-bug/.mp-block,
+     which stay flat with a hairline border. A hairline alone doesn't read
+     as "above" on a near-black ground — do not remove this for
+     consistency with the flat surfaces. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
 
@@ -1348,6 +1371,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
+  font-variation-settings: "wdth" 112;
   text-transform: uppercase;
 }
 
@@ -1374,6 +1398,8 @@ a {
   z-index: 40;
   right: max(1rem, env(safe-area-inset-right));
   bottom: calc(3.85rem + 0.75rem);
+  /* Floats above the page, same as .alert-content/.buddy-panel — a
+     hairline alone doesn't read as "above" on a near-black ground. */
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -1411,6 +1437,8 @@ a {
   border-left: 1px solid var(--rule-strong);
   background: var(--slat-raised);
   padding: var(--space-4);
+  /* Floats above the page, same as .alert-content/.buddy-launcher — a
+     hairline alone doesn't read as "above" on a near-black ground. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
 
@@ -1425,6 +1453,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
+  font-variation-settings: "wdth" 112;
   text-transform: uppercase;
 }
 
