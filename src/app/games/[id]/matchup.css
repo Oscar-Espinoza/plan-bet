@@ -1,67 +1,23 @@
 /*
  * The matchup page, and only the matchup page.
  *
- * Everything is nested under `.mp`, including the overrides of shared
- * primitives (.panel, .field, .button) that the bet slip brings with it, so
- * this file can be deleted whole without touching another screen. The rest of
- * the app is still on the manual-scoreboard system in globals.css; the two
- * clash on purpose until this direction is proved and migrated outward.
- *
- * Direction: broadcast scorebug. Near-black neutral ground, one saturated
- * accent, expanded display caps, hard edges, no shadows.
+ * This file holds this page's layout only — the visual language (colour,
+ * type, motion) lives in globals.css, on the broadcast scorebug system
+ * proved here and since migrated outward. A rule in this file that
+ * re-declares what a global class already says is a bug, not a page-scoped
+ * override: shared primitives (.panel, .field, .button, and the rest) are
+ * styled by their global rule alone. What's left under `.mp`/`.mp-*` is
+ * genuinely matchup-only structure — the scorebug, the context blocks, the
+ * skeleton and empty states.
  */
 
-@import "@fontsource-variable/archivo/wdth.css";
-@import "@fontsource/dm-mono/400.css";
-@import "@fontsource/dm-mono/500.css";
-
 .mp {
-  --mp-ground: #08090b;
-  --mp-deck: #101318;
-  --mp-deck-2: #171b21;
-  --mp-hair: #23282f;
-  --mp-line: #333a44;
-  --mp-white: #f4f6f8;
-  --mp-grey: #98a1ae;
-  /* AA against every ground on this page: the near-black, the deck, the
-     raised deck, and the app shell's own ink behind them. */
-  --mp-dim: #7f8896;
-  /* Volt is time and live state, never money. Stakes, prices, returns and
-     balances stay white; a settled outcome is the only thing that takes
-     win/loss colour. */
-  --mp-volt: #d8ff3c;
-  --mp-volt-ink: #1b2408;
-  --mp-win: #3ddc84;
-  --mp-loss: #ff5a5f;
-  --mp-club: var(--mp-line);
+  /* Per-team club colour, set inline by scorebug.tsx. Not a palette token. */
+  --mp-club: var(--rule-strong);
 
-  --mp-ease: cubic-bezier(0.23, 1, 0.32, 1);
-
-  --mp-display: "Archivo Variable", "Arial Narrow", sans-serif;
-  --mp-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
-
-  --mp-t-2xs: 0.625rem;
-  --mp-t-xs: 0.6875rem;
-  --mp-t-sm: 0.8125rem;
-  --mp-t-md: 1rem;
-  --mp-t-lg: 1.375rem;
-
-  /* Lets `block-size: auto` be a transition endpoint — inherited, so the
-     disclosures get it too. */
-  interpolate-size: allow-keywords;
-
-  font-family: var(--mp-display);
-  font-variation-settings: "wdth" 100;
-  color: var(--mp-white);
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-/* The page paints its own ground: a near-black panel floating on the app's
-   bottle green would read as a mistake rather than a new language. */
-body:has(.mp) {
-  background: var(--mp-ground);
 }
 
 .mp :is(h1, h2, h3, p, ul, ol) {
@@ -75,9 +31,9 @@ body:has(.mp) {
   align-items: center;
   gap: 6px;
   align-self: flex-start;
-  color: var(--mp-grey);
+  color: var(--muted);
   text-decoration: none;
-  font-size: var(--mp-t-xs);
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-weight: 600;
@@ -86,14 +42,14 @@ body:has(.mp) {
 
 .mp-back:hover,
 .mp-back:focus-visible {
-  color: var(--mp-volt);
+  color: var(--sodium);
 }
 
 /* ---------- scorebug ---------- */
 
 .mp-bug {
-  background: var(--mp-deck);
-  border: 1px solid var(--mp-hair);
+  background: var(--slat);
+  border: 1px solid var(--rule);
   padding: 14px 16px 18px;
 }
 
@@ -102,17 +58,17 @@ body:has(.mp) {
   flex-wrap: wrap;
   gap: 10px;
   align-items: baseline;
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--mp-hair);
+  border-bottom: 1px solid var(--rule);
 }
 
 .mp-comp-stage {
-  color: var(--mp-grey);
+  color: var(--muted);
   letter-spacing: 0.1em;
 }
 
@@ -137,11 +93,11 @@ body:has(.mp) {
 
 .mp-side-label {
   grid-column: 1;
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-side-name {
@@ -158,7 +114,7 @@ body:has(.mp) {
 .mp-side-score {
   grid-column: 2;
   grid-row: 1 / span 2;
-  font-family: var(--mp-mono);
+  font-family: var(--font-mono);
   font-size: clamp(2.25rem, 13vw, 4rem);
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -169,7 +125,7 @@ body:has(.mp) {
 .mp-versus {
   display: block;
   height: 1px;
-  background: var(--mp-hair);
+  background: var(--rule);
   margin: 14px 0 14px 15px;
   position: relative;
 }
@@ -180,20 +136,20 @@ body:has(.mp) {
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  background: var(--mp-deck);
+  background: var(--slat);
   padding-right: 10px;
-  font-size: var(--mp-t-xs);
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-aftermath {
   padding-left: 15px;
-  font-size: var(--mp-t-xs);
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--mp-grey);
+  color: var(--muted);
 }
 
 .mp-clock {
@@ -202,23 +158,23 @@ body:has(.mp) {
   gap: 2px;
   margin-top: 18px;
   padding: 14px 0 0 15px;
-  border-top: 1px solid var(--mp-hair);
+  border-top: 1px solid var(--rule);
 }
 
 .mp-clock-label {
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-clock-figure {
-  font-family: var(--mp-mono);
+  font-family: var(--font-mono);
   font-weight: 500;
   font-size: clamp(2.25rem, 13vw, 3.5rem);
   line-height: 1;
-  color: var(--mp-volt);
+  color: var(--sodium);
   font-variant-numeric: tabular-nums;
   /* The clock reserves its own height so a 1s tick never reflows the page,
      and so the pre-hydration render leaves a hole the right shape. */
@@ -231,13 +187,13 @@ body:has(.mp) {
   gap: 6px 14px;
   margin-top: 12px;
   padding-left: 15px;
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-sm);
-  color: var(--mp-grey);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .mp-venue {
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-venue::before {
@@ -248,25 +204,25 @@ body:has(.mp) {
 
 .mp-ribbon {
   padding: 9px 16px;
-  font-size: var(--mp-t-xs);
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  background: var(--mp-deck-2);
-  border: 1px solid var(--mp-hair);
-  color: var(--mp-grey);
+  background: var(--slat-raised);
+  border: 1px solid var(--rule);
+  color: var(--muted);
 }
 
 .mp-ribbon[data-status="live"] {
-  background: var(--mp-volt);
-  border-color: var(--mp-volt);
-  color: var(--mp-volt-ink);
+  background: var(--sodium);
+  border-color: var(--sodium);
+  color: var(--sodium-dark);
 }
 
 .mp-ribbon[data-status="postponed"],
 .mp-ribbon[data-status="cancelled"] {
-  color: var(--mp-loss);
-  border-color: var(--mp-loss);
+  color: var(--clay);
+  border-color: var(--clay);
 }
 
 /* ---------- layout ---------- */
@@ -300,13 +256,13 @@ body:has(.mp) {
 }
 
 .mp-block-title {
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 800;
-  color: var(--mp-volt);
+  color: var(--sodium);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--mp-line);
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .mp-row {
@@ -315,8 +271,8 @@ body:has(.mp) {
   align-items: baseline;
   column-gap: 12px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--mp-hair);
-  font-size: var(--mp-t-sm);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-sm);
 }
 
 .mp-row-vs {
@@ -326,7 +282,7 @@ body:has(.mp) {
 }
 
 .mp-row-label {
-  color: var(--mp-grey);
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
@@ -334,13 +290,13 @@ body:has(.mp) {
 .mp-row-home,
 .mp-row-away {
   text-align: right;
-  color: var(--mp-white);
+  color: var(--chalk);
   overflow-wrap: anywhere;
 }
 
 .mp-row :is([data-mono]),
 .mp-row-vs :is(.mp-row-home, .mp-row-away) {
-  font-family: var(--mp-mono);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -350,12 +306,12 @@ body:has(.mp) {
 }
 
 .mp-row-heads :is(.mp-row-home, .mp-row-away) {
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--mp-dim);
-  font-family: var(--mp-display);
+  color: var(--faint);
+  font-family: var(--font-display);
   /* Two long club names in 5.5rem columns: clip rather than wrap, so the
      figures under them stay on one baseline. */
   overflow: hidden;
@@ -366,8 +322,8 @@ body:has(.mp) {
 .mp-row-note {
   grid-column: 1 / -1;
   margin-top: 4px;
-  color: var(--mp-dim);
-  font-size: var(--mp-t-xs);
+  color: var(--faint);
+  font-size: var(--text-xs);
   line-height: 1.5;
   text-wrap: pretty;
 }
@@ -383,21 +339,21 @@ body:has(.mp) {
   place-items: center;
   width: 18px;
   height: 18px;
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
   font-weight: 500;
-  background: var(--mp-deck-2);
-  color: var(--mp-grey);
+  background: var(--slat-raised);
+  color: var(--muted);
 }
 
 .mp-form b[data-result="W"] {
-  background: var(--mp-win);
-  color: var(--mp-volt-ink);
+  background: var(--field);
+  color: var(--sodium-dark);
 }
 
 .mp-form b[data-result="L"] {
-  background: var(--mp-loss);
-  color: var(--mp-volt-ink);
+  background: var(--clay);
+  color: var(--sodium-dark);
 }
 
 .mp-deeper {
@@ -408,11 +364,11 @@ body:has(.mp) {
   cursor: pointer;
   list-style: none;
   padding: 9px 0;
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-deeper > summary::-webkit-details-marker {
@@ -421,7 +377,7 @@ body:has(.mp) {
 
 .mp-deeper > summary::after {
   content: " +";
-  font-family: var(--mp-mono);
+  font-family: var(--font-mono);
 }
 
 .mp-deeper[open] > summary::after {
@@ -430,259 +386,11 @@ body:has(.mp) {
 
 .mp-deeper > summary:hover,
 .mp-deeper > summary:focus-visible {
-  color: var(--mp-volt);
+  color: var(--sodium);
 }
 
 .mp-deeper .mp-row {
-  font-size: var(--mp-t-xs);
-}
-
-/* ---------- shared primitives, re-skinned inside this page only ---------- */
-
-.mp .panel {
-  background: var(--mp-deck);
-  border: 1px solid var(--mp-hair);
-  border-radius: 0;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.mp .panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--mp-hair);
-}
-
-.mp .panel-title {
-  font-size: var(--mp-t-lg);
-  font-variation-settings: "wdth" 112;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  color: var(--mp-white);
-}
-
-.mp .panel-purpose {
-  margin-top: 4px;
-  font-size: var(--mp-t-xs);
-  color: var(--mp-dim);
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-.mp .bet-balance {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-lg);
-  color: var(--mp-white);
-  font-variant-numeric: tabular-nums;
-}
-
-.mp .bet-balance small {
-  font-family: var(--mp-display);
-  font-size: var(--mp-t-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-weight: 700;
-  color: var(--mp-dim);
-}
-
-.mp .field-label {
-  display: block;
-  font-size: var(--mp-t-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-  color: var(--mp-dim);
-}
-
-.mp .field {
-  width: 100%;
-  background: var(--mp-ground);
-  border: 1px solid var(--mp-line);
-  border-radius: 4px;
-  padding: 10px 12px;
-  color: var(--mp-white);
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-md);
-}
-
-.mp .field:focus-visible {
-  outline: 2px solid var(--mp-volt);
-  outline-offset: 1px;
-}
-
-.mp .side-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: var(--mp-t-sm);
-  color: var(--mp-grey);
-}
-
-.mp .fine-print {
-  font-size: var(--mp-t-xs);
-  color: var(--mp-dim);
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-.mp .fine-print a,
-.mp .side-form a:not(.button) {
-  color: var(--mp-grey);
-}
-
-.mp .data-pair {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--mp-hair);
-  font-size: var(--mp-t-sm);
-}
-
-.mp .data-pair > :last-child {
-  font-family: var(--mp-mono);
-  color: var(--mp-white);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.mp .button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid var(--mp-volt);
-  border-radius: 0;
-  background: var(--mp-volt);
-  color: var(--mp-volt-ink);
-  font-family: var(--mp-display);
-  font-size: var(--mp-t-sm);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 12px 16px;
-  min-height: 44px;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 120ms ease-out;
-}
-
-.mp .button:active {
-  transform: translateY(1px);
-}
-
-.mp .button:disabled {
-  background: var(--mp-deck-2);
-  border-color: var(--mp-line);
-  color: var(--mp-dim);
-  cursor: not-allowed;
-}
-
-/* ---------- markets ---------- */
-
-.mp .selection-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.mp .selection-market {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mp .selection-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
-  gap: 1px;
-  background: var(--mp-hair);
-  border: 1px solid var(--mp-hair);
-}
-
-.mp .selection-button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-height: 56px;
-  padding: 9px 10px;
-  background: var(--mp-deck-2);
-  border: 0;
-  color: var(--mp-grey);
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background 120ms ease-out,
-    transform 120ms ease-out;
-}
-
-.mp .selection-button:active {
-  transform: translateY(1px);
-}
-
-.mp .selection-button > :first-child {
-  font-size: var(--mp-t-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 700;
-}
-
-.mp .selection-button > :last-child {
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-md);
-  color: var(--mp-white);
-  font-variant-numeric: tabular-nums;
-}
-
-.mp .selection-button:hover {
-  background: var(--mp-line);
-}
-
-.mp .selection-button-active,
-.mp .selection-button-active:hover {
-  background: var(--mp-volt);
-  color: var(--mp-volt-ink);
-}
-
-.mp .selection-button-active > :last-child {
-  color: var(--mp-volt-ink);
-}
-
-.mp .bet-hint {
-  font-size: var(--mp-t-xs);
-  color: var(--mp-dim);
-}
-
-.mp .stake-chips {
-  display: flex;
-  gap: 8px;
-}
-
-.mp .stake-chips button {
-  flex: 1;
-  min-height: 40px;
-  border: 1px solid var(--mp-line);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--mp-grey);
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-sm);
-  cursor: pointer;
-}
-
-.mp .stake-chips button:hover {
-  border-color: var(--mp-volt);
-  color: var(--mp-volt);
+  font-size: var(--text-xs);
 }
 
 /* Exact score, entered rather than hunted for: two figures the reader types,
@@ -692,8 +400,8 @@ body:has(.mp) {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--mp-hair);
-  background: var(--mp-deck-2);
+  border: 1px solid var(--rule);
+  background: var(--slat-raised);
   padding: 12px;
 }
 
@@ -705,11 +413,11 @@ body:has(.mp) {
 }
 
 .mp-score-team span {
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -718,56 +426,56 @@ body:has(.mp) {
 .mp-score input {
   width: 100%;
   min-height: 52px;
-  background: var(--mp-ground);
-  border: 1px solid var(--mp-line);
+  background: var(--ink);
+  border: 1px solid var(--rule-strong);
   border-radius: 2px;
-  color: var(--mp-white);
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-lg);
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
 .mp-score input:focus-visible {
-  outline: 2px solid var(--mp-volt);
+  outline: 2px solid var(--sodium);
   outline-offset: 1px;
 }
 
 .mp-score-dash {
-  color: var(--mp-dim);
-  font-family: var(--mp-mono);
+  color: var(--faint);
+  font-family: var(--font-mono);
   align-self: end;
   padding-bottom: 14px;
 }
 
 .mp-score-price {
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-sm);
-  color: var(--mp-white);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--chalk);
   grid-column: 1 / -1;
   text-align: center;
   padding-top: 4px;
 }
 
 .mp-score-price[data-unpriced] {
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 /* ---------- the quiet social layer ---------- */
 
 .mp-aside {
-  border-top: 1px solid var(--mp-hair);
+  border-top: 1px solid var(--rule);
   padding-top: 12px;
 }
 
 .mp-aside > summary {
   cursor: pointer;
   list-style: none;
-  font-size: var(--mp-t-xs);
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
   min-height: 32px;
   display: flex;
   align-items: center;
@@ -779,7 +487,7 @@ body:has(.mp) {
 
 .mp-aside > summary::after {
   content: " +";
-  font-family: var(--mp-mono);
+  font-family: var(--font-mono);
 }
 
 .mp-aside[open] > summary::after {
@@ -788,22 +496,7 @@ body:has(.mp) {
 
 .mp-aside > summary:hover,
 .mp-aside > summary:focus-visible {
-  color: var(--mp-volt);
-}
-
-/* ---------- status + banner, inside this page ---------- */
-
-.mp .status-tag {
-  border-radius: 2px;
-  font-family: var(--mp-mono);
-  font-size: var(--mp-t-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.mp .banner {
-  border-radius: 0;
-  font-size: var(--mp-t-sm);
+  color: var(--sodium);
 }
 
 /* ---------- desktop ---------- */
@@ -838,30 +531,11 @@ body:has(.mp) {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* Fewer and gentler, not zero: a fade still explains what changed, so only
-     the travel goes. */
-  .mp * {
-    transition-property:
-      opacity, background-color, color, border-color !important;
-    transition-duration: 120ms !important;
-  }
-
-  .mp-enter,
-  .mp-enter-pop {
-    transform: none !important;
-  }
-
-  .mp details::details-content {
-    transition: none;
-  }
-}
-
 /* ---------- loading, empty and error ---------- */
 
 .mp-skeleton {
-  background: var(--mp-deck);
-  border: 1px solid var(--mp-hair);
+  background: var(--slat);
+  border: 1px solid var(--rule);
   animation: mp-pulse 1.4s ease-in-out infinite;
 }
 
@@ -894,11 +568,11 @@ body:has(.mp) {
 }
 
 .mp-empty-eyebrow {
-  font-size: var(--mp-t-2xs);
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  color: var(--mp-dim);
+  color: var(--faint);
 }
 
 .mp-empty-title {
@@ -910,108 +584,34 @@ body:has(.mp) {
 }
 
 .mp-empty-copy {
-  color: var(--mp-grey);
-  font-size: var(--mp-t-sm);
+  color: var(--muted);
+  font-size: var(--text-sm);
   line-height: 1.6;
   text-wrap: pretty;
 }
 
 .mp-empty a:not(.button) {
-  color: var(--mp-volt);
+  color: var(--sodium);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mp-skeleton {
-    animation: none;
-  }
-}
+/* ---------- the comment form ---------- */
 
-/* ---------- secondary and ghost buttons, threads ---------- */
-
-.mp .button-secondary,
-.mp .button-ghost {
-  background: transparent;
-  border-color: var(--mp-line);
-  color: var(--mp-grey);
-}
-
-.mp .button-secondary:hover:not(:disabled),
-.mp .button-ghost:hover:not(:disabled) {
-  border-color: var(--mp-volt);
-  color: var(--mp-volt);
-}
-
-.mp .button-sm {
-  min-height: 32px;
-  padding: 6px 10px;
-  font-size: var(--mp-t-2xs);
-  letter-spacing: 0.08em;
-}
-
-.mp .button-danger {
-  background: transparent;
-  border-color: var(--mp-loss);
-  color: var(--mp-loss);
-}
-
-.mp form {
+/* No global counterpart: a bare <form> (not .side-form itself) only ever
+   appears here, nested in the aside's disclosure. Scoped to .mp-aside rather
+   than deleted outright — matchup-specific layout, not a duplicate. */
+.mp-aside form {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.mp textarea.field {
+.mp-aside textarea.field {
   min-height: 5.5rem;
-  font-family: var(--mp-display);
-  font-size: var(--mp-t-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
   resize: vertical;
 }
 
-.mp .mp-aside .side-form {
+.mp-aside .side-form {
   padding-top: 12px;
-}
-
-/* ---------- motion ---------- */
-
-/* Mounted content arrives from just above where it lands rather than
-   materialising. Never from `scale(0)` — nothing appears out of nothing. */
-.mp-enter,
-.mp-enter-pop {
-  transition:
-    opacity 200ms var(--mp-ease),
-    transform 200ms var(--mp-ease);
-}
-
-.mp-enter-pop {
-  transition-duration: 240ms;
-}
-
-@starting-style {
-  .mp-enter {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  .mp-enter-pop {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-}
-
-/* The two disclosures. `block-size` is the one layout property worth
-   animating — an accordion has no transform equivalent — and a browser
-   without ::details-content simply keeps today's instant open. */
-.mp details::details-content {
-  block-size: 0;
-  opacity: 0;
-  overflow: clip;
-  transition:
-    block-size 240ms var(--mp-ease),
-    opacity 160ms ease-out,
-    content-visibility 240ms allow-discrete;
-}
-
-.mp details[open]::details-content {
-  block-size: auto;
-  opacity: 1;
 }

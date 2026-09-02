@@ -1104,13 +1104,25 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--rule);
-  padding: 0.65rem 0;
+  gap: 12px;
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 0;
   font-size: var(--text-sm);
 }
 
 .data-pair b {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bet slip's data-pair rows are two <span>s, not a <b> — this is the
+   rule that actually matches that markup. Promoted from
+   .mp .data-pair > :last-child (matchup.css); .data-pair has no consumer
+   outside the bet slip. */
+.data-pair > :last-child {
+  font-family: var(--font-mono);
+  color: var(--chalk);
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1249,30 +1261,34 @@ a {
   margin-top: 0.25rem;
 }
 
+/* A hairline grid — 1px gaps over a rule-coloured background — rather than
+   separated buttons: the row reads as one ruled block of choices. Promoted
+   from .mp .selection-row (matchup.css); .selection-row/-button have no
+   consumer outside the bet slip, so this replaces the grid-gap version
+   outright rather than living alongside it. */
 .selection-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
-  gap: 0.4rem;
-  margin-top: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
 }
 
-/* 3.4rem ≈ 54px: a comfortable touch target, and big enough for the label
-   and the price to sit on two legible lines instead of two 11px ones. */
+/* Left-aligned, label above price — not centred. Promoted from
+   .mp .selection-button (matchup.css). */
 .selection-button {
   display: flex;
-  min-height: 3.4rem;
+  min-height: 56px;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--chalk);
-  padding: 0.4rem;
+  align-items: flex-start;
+  gap: 4px;
+  border: 0;
+  background: var(--slat-raised);
+  color: var(--muted);
+  padding: 9px 10px;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   transition:
     background-color 120ms var(--ease),
@@ -1280,50 +1296,56 @@ a {
     color 120ms var(--ease);
 }
 
+.selection-button span:first-child {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: var(--weight-bold);
+}
+
 .selection-button span:last-child {
-  color: var(--muted);
+  color: var(--chalk);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
 }
 
 .selection-button:hover {
-  border-color: var(--rule-strong);
+  background: var(--rule-strong);
 }
 
 /* The armed pick — "what's next", not a settled outcome — so it takes the
    sodium chrome. The price inside stays chalk: no sodium on the money. */
-.selection-button-active {
-  border-color: var(--sodium);
-  background: var(--sodium-dark);
+.selection-button-active,
+.selection-button-active:hover {
+  background: var(--sodium);
+  color: var(--sodium-dark);
 }
 
 .selection-button-active span:last-child {
-  color: var(--chalk);
+  color: var(--sodium-dark);
 }
 
 .stake-chips {
   display: flex;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
+  gap: 8px;
 }
 
 .stake-chips button {
-  min-height: 2.6rem;
-  min-width: 3rem;
-  border: 1px solid var(--rule);
+  flex: 1;
+  min-height: 40px;
+  border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: var(--slat-muted);
+  background: transparent;
   color: var(--muted);
-  padding: 0 0.6rem;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
 .stake-chips button:hover {
-  border-color: var(--rule-strong);
-  color: var(--chalk);
+  border-color: var(--sodium);
+  color: var(--sodium);
 }
 
 .filter-bar {
@@ -1647,14 +1669,10 @@ a {
 }
 
 /* An entering wrapper already carries the mount; a banner inside it must not
-   run its own entry as well, or the fade and the travel both double. The
-   .mp-enter-pop arm goes away in doc 07, when the markup moves to
-   .enter-pop. */
+   run its own entry as well, or the fade and the travel both double. */
 .enter
   :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
 .enter-pop
-  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
-.mp-enter-pop
   :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative) {
   transition: none;
 }
