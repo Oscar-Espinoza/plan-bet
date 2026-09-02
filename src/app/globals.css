@@ -422,6 +422,38 @@ a {
   color: var(--muted);
 }
 
+/* /you's equivalent of .mp-bug: the two facts the page exists to answer,
+   given the header's only two type sizes above 2rem. Chalk, never sodium —
+   this is money, and sodium is reserved for time. */
+.standing-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-6);
+}
+
+.standing-figure {
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  color: var(--chalk);
+}
+
+.standing-figure-minor {
+  font-size: var(--text-xl);
+}
+
+.standing-figure small {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .section-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
@@ -999,7 +1031,8 @@ a {
 }
 
 /* The list already sits above the panel's own border — the last row's divider
-   doubles it. Standing escapes this only because it ends on a .form-block. */
+   doubles it. /you's Detail card escapes this only because it ends on a
+   .form-block. */
 .stat-row:last-child {
   border-bottom: 0;
 }

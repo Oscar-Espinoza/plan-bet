@@ -107,6 +107,12 @@ export function Slate({
     <>
       {nextUp ? (
         <>
+          {/* The route's own name — stable across both branches, unlike the
+              matchup below, which changes with the board. Visually hidden:
+              .next-up-teams already carries the visual weight a page name
+              would, and printing "Upcoming games" above it a second time
+              would just be noise on a good day. */}
+          <h1 className="sr-only">Upcoming games</h1>
           <div className="next-up" aria-labelledby="next-up-heading">
             <div className="next-up-header">
               <p className="next-up-eyebrow" id="next-up-heading">
@@ -114,9 +120,9 @@ export function Slate({
               </p>
               <RelativeKickoff value={nextUp.scheduledAt} />
             </div>
-            <h1 className="next-up-teams">
+            <h2 className="next-up-teams">
               {nextUp.homeTeam} vs {nextUp.awayTeam}
-            </h1>
+            </h2>
             <div className="next-up-meta">
               <span>
                 {nextUp.competition} · {nextUp.venue ?? "Not provided"}
