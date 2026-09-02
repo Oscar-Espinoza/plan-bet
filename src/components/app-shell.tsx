@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import { Gauge, UserCircle, UsersRound } from "lucide-react";
 import { Buddy } from "@/components/buddy";
 import { HydrateStore } from "@/components/hydrate-store";
@@ -46,23 +45,6 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
-  useEffect(() => {
-    const syncMobileNavWidth = () => {
-      document.documentElement.style.setProperty(
-        "--mobile-nav-width",
-        `${document.documentElement.clientWidth}px`,
-      );
-    };
-
-    syncMobileNavWidth();
-    window.addEventListener("resize", syncMobileNavWidth);
-    window.addEventListener("orientationchange", syncMobileNavWidth);
-    return () => {
-      window.removeEventListener("resize", syncMobileNavWidth);
-      window.removeEventListener("orientationchange", syncMobileNavWidth);
-    };
-  }, []);
-
   return (
     <div className="app-shell">
       <HydrateStore />
@@ -95,42 +77,44 @@ export function AppShell({
             <WorkspaceControls accountControl={accountControl} />
           </div>
         </header>
-        <main id="main-content" className="main-content" tabIndex={-1}>
-          {children}
-        </main>
-        <footer className="app-footer">
-          <p className="fine-print">
-            Source data:{" "}
-            <a
-              href="https://www.football-data.org/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              football-data.org
-            </a>
-            ,{" "}
-            <a
-              href="https://statsapi.mlb.com/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              MLB Stats API
-            </a>
-            , and{" "}
-            <a
-              href="https://baseballsavant.mlb.com/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Baseball Savant
-            </a>
-            . <Link href="/rules">Rules</Link> ·{" "}
-            <Link href="/system">System</Link>
-          </p>
-          <p className="fine-print">
-            Credits are fictional and non-withdrawable. Not a sportsbook.
-          </p>
-        </footer>
+        <div className="workspace-scroll" key={pathname}>
+          <main id="main-content" className="main-content" tabIndex={-1}>
+            {children}
+          </main>
+          <footer className="app-footer">
+            <p className="fine-print">
+              Source data:{" "}
+              <a
+                href="https://www.football-data.org/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                football-data.org
+              </a>
+              ,{" "}
+              <a
+                href="https://statsapi.mlb.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MLB Stats API
+              </a>
+              , and{" "}
+              <a
+                href="https://baseballsavant.mlb.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Baseball Savant
+              </a>
+              . <Link href="/rules">Rules</Link> ·{" "}
+              <Link href="/system">System</Link>
+            </p>
+            <p className="fine-print">
+              Credits are fictional and non-withdrawable. Not a sportsbook.
+            </p>
+          </footer>
+        </div>
       </div>
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {navItems.map((item) => {

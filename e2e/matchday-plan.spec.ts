@@ -100,12 +100,15 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("mobile navigation remains pinned to the viewport", async ({ page }) => {
+test("mobile shell scrolls content between the header and navigation", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 375, height: 667 });
 
   for (const route of ["/", "/you", "/groups"]) {
     await page.goto(route);
     const nav = page.getByRole("navigation", { name: "Mobile navigation" });
+    const scroller = page.locator(".workspace-scroll");
     await expect(nav).toBeVisible();
     await page.evaluate(() => {
       document.documentElement.style.scrollBehavior = "auto";
@@ -115,10 +118,17 @@ test("mobile navigation remains pinned to the viewport", async ({ page }) => {
     });
 
     for (const scrollTop of [0, 250, Number.MAX_SAFE_INTEGER]) {
-      await page.evaluate((top) => window.scrollTo(0, top), scrollTop);
+      await scroller.evaluate(
+        (element, top) => element.scrollTo(0, top),
+        scrollTop,
+      );
       const dimensions = await nav.evaluate((element) => {
         const rect = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
+        const headerRect = document
+          .querySelector(".topbar")!
+          .getBoundingClientRect();
+        const scroller = document.querySelector(".workspace-scroll")!;
+        const scrollerRect = scroller.getBoundingClientRect();
         const linkWidths = Array.from(
           element.querySelectorAll("a"),
           (link) => link.getBoundingClientRect().width,
@@ -126,21 +136,27 @@ test("mobile navigation remains pinned to the viewport", async ({ page }) => {
         return {
           bottom: rect.bottom,
           left: rect.left,
-          topOffset: Number.parseFloat(style.top),
+          position: getComputedStyle(element).position,
+          top: rect.top,
           width: rect.width,
           clientHeight: document.documentElement.clientHeight,
           clientWidth: document.documentElement.clientWidth,
+          headerBottom: headerRect.bottom,
           linkWidths,
-          scrollY: window.scrollY,
+          scrollerBottom: scrollerRect.bottom,
+          scrollerScrollTop: scroller.scrollTop,
+          scrollerTop: scrollerRect.top,
         };
       });
 
-      if (scrollTop === 0) expect(dimensions.scrollY).toBe(0);
-      else expect(dimensions.scrollY).toBeGreaterThan(0);
+      if (scrollTop === 0) expect(dimensions.scrollerScrollTop).toBe(0);
+      else expect(dimensions.scrollerScrollTop).toBeGreaterThan(0);
       expect(dimensions.bottom).toBeCloseTo(dimensions.clientHeight, 0);
-      expect(dimensions.topOffset).toBeCloseTo(dimensions.clientHeight, 0);
+      expect(dimensions.position).toBe("static");
       expect(dimensions.left).toBe(0);
       expect(dimensions.width).toBe(dimensions.clientWidth);
+      expect(dimensions.scrollerTop).toBeCloseTo(dimensions.headerBottom, 0);
+      expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.top, 0);
       expect(dimensions.linkWidths).toHaveLength(3);
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),

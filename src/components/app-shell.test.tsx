@@ -27,26 +27,6 @@ afterEach(cleanup);
 // replaced them as the one way to find a game — WorkspaceControls now only
 // carries whatever the caller passes as accountControl.
 describe("workspace controls", () => {
-  it("syncs the fixed mobile nav width to the document width", () => {
-    const setProperty = vi.spyOn(document.documentElement.style, "setProperty");
-
-    render(
-      <AppShell>
-        <div />
-      </AppShell>,
-    );
-
-    const expectedWidth = `${document.documentElement.clientWidth}px`;
-    expect(setProperty).toHaveBeenLastCalledWith(
-      "--mobile-nav-width",
-      expectedWidth,
-    );
-
-    window.dispatchEvent(new Event("resize"));
-    window.dispatchEvent(new Event("orientationchange"));
-    expect(setProperty).toHaveBeenCalledTimes(3);
-  });
-
   it("renders only the account control, with no sport toggle or team select", () => {
     render(
       <AppShell accountControl={<button type="button">Account</button>}>

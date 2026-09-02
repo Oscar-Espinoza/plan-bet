@@ -153,7 +153,10 @@ a {
 }
 
 .app-shell {
-  min-height: 100svh;
+  display: grid;
+  height: 100dvh;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
 }
 
 /* Primary navigation rides in the topbar from 1024px up; below that the
@@ -224,7 +227,16 @@ a {
 }
 
 .workspace {
+  display: grid;
   min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.workspace-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .topbar {
@@ -272,15 +284,14 @@ a {
   width: 100%;
   max-width: 100rem;
   margin: 0 auto;
-  padding: 1.5rem 1rem 6rem;
+  padding: 1.5rem 1rem;
 }
 
 .tour-bar {
   position: fixed;
   z-index: 35;
   right: 0;
-  /* Clears .mobile-nav (also bottom-fixed) below the desktop breakpoint,
-     where the bottom nav takes the real bottom edge. */
+  /* Clears the mobile-nav row below the desktop breakpoint. */
   bottom: 3.85rem;
   left: 0;
   display: flex;
@@ -313,13 +324,9 @@ a {
 }
 
 .mobile-nav {
-  position: fixed;
+  position: static;
   z-index: 30;
-  top: 100dvh;
-  bottom: auto;
-  left: 0;
-  transform: translateY(-100%);
-  width: var(--mobile-nav-width, 100%);
+  width: 100%;
   display: grid;
   /* Three nav items (Games / You / Groups) — a fourth dead column left the
      nav sitting left-of-centre on every phone. */
@@ -350,9 +357,7 @@ a {
 
 .app-footer {
   border-top: 1px solid var(--rule);
-  /* Extra bottom clearance keeps this from sitting under the fixed mobile
-     nav bar; .main-content reserves the same space above 1024px removes it. */
-  padding: 1rem 1rem calc(1rem + 4.5rem);
+  padding: 1rem;
 }
 
 .app-footer p {
@@ -1612,7 +1617,7 @@ a {
 
 @media (min-width: 640px) {
   .main-content {
-    padding: 2rem 1.5rem 6rem;
+    padding: 2rem 1.5rem;
   }
 
   .topbar-inner {
@@ -1621,6 +1626,21 @@ a {
 }
 
 @media (min-width: 1024px) {
+  .app-shell {
+    display: block;
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .workspace-scroll {
+    overflow: visible;
+  }
+
   .topbar-nav {
     display: flex;
   }
