@@ -115,7 +115,13 @@ test("mobile shell scrolls content between the header and navigation", async ({
       const spacer = document.createElement("div");
       spacer.style.height = "1500px";
       document.querySelector("main")?.appendChild(spacer);
+      const buddy = document.createElement("button");
+      buddy.className = "buddy-launcher";
+      buddy.dataset.testProbe = "buddy";
+      buddy.textContent = "Buddy";
+      document.querySelector(".app-shell")?.appendChild(buddy);
     });
+    const buddy = page.locator('[data-test-probe="buddy"]');
 
     for (const scrollTop of [0, 250, Number.MAX_SAFE_INTEGER]) {
       await scroller.evaluate(
@@ -161,6 +167,17 @@ test("mobile shell scrolls content between the header and navigation", async ({
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),
       ).toBeLessThanOrEqual(1);
+
+      const buddyBox = await buddy.boundingBox();
+      expect(
+        await buddy.evaluate((element) => getComputedStyle(element).position),
+      ).toBe("absolute");
+      expect(buddyBox!.x + buddyBox!.width).toBeLessThanOrEqual(
+        dimensions.clientWidth,
+      );
+      expect(buddyBox!.y + buddyBox!.height).toBeLessThanOrEqual(
+        dimensions.top,
+      );
     }
   }
 });

@@ -194,100 +194,98 @@ export function Buddy() {
           Buddy
         </Button>
       </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="buddy-overlay" />
-        <Dialog.Content className="buddy-panel">
-          <div className="buddy-panel-header">
-            <Dialog.Title className="buddy-panel-title">Buddy</Dialog.Title>
-            <Dialog.Close asChild>
-              <Button variant="ghost" size="icon" aria-label="Close">
-                <X aria-hidden="true" size={16} />
-              </Button>
-            </Dialog.Close>
-          </div>
-          <Dialog.Description className="fine-print">
-            Casual takes on fictional credits, grounded in what&rsquo;s on this
-            page. Never advice about real-money wagering.
-          </Dialog.Description>
-          <div className="buddy-transcript" aria-live="polite">
-            {turns.length === 0 && (
-              <p className="fine-print">
-                Ask what it makes of this page — a game, your record, or a
-                group&rsquo;s board.
-              </p>
-            )}
-            {turns.map((turn, index) => (
-              <div className="buddy-turn" key={index}>
-                <span className="eyebrow">
-                  {turn.role === "user" ? "You" : "Buddy"}
-                </span>
-                <p
-                  className={
-                    turn.streaming
-                      ? "buddy-turn-text buddy-turn-streaming"
-                      : "buddy-turn-text"
-                  }
-                >
-                  {turn.text}
-                </p>
-                {turn.ok && turn.pickId && routeId && (
-                  <Link
-                    href={`/games/${routeId}?pick=${encodeURIComponent(turn.pickId)}`}
-                    onClick={() => setOpen(false)}
-                  >
-                    <Button variant="secondary" size="sm">
-                      Back this
-                    </Button>
-                  </Link>
-                )}
-                {turn.ok && turn.draft && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      draftComment(turn.draft!.groupId, turn.draft!.text);
-                      setOpen(false);
-                    }}
-                  >
-                    Use as my comment
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-          <form className="buddy-form" onSubmit={ask}>
-            <label htmlFor="buddy-question" className="sr-only">
-              Ask the buddy
-            </label>
-            <input
-              id="buddy-question"
-              className="field"
-              value={question}
-              maxLength={MAX_QUESTION_CHARS}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder="What do you make of this one?"
-              disabled={pending}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={pending || !question.trim()}
-            >
-              Ask
+      <Dialog.Overlay className="buddy-overlay" />
+      <Dialog.Content className="buddy-panel">
+        <div className="buddy-panel-header">
+          <Dialog.Title className="buddy-panel-title">Buddy</Dialog.Title>
+          <Dialog.Close asChild>
+            <Button variant="ghost" size="icon" aria-label="Close">
+              <X aria-hidden="true" size={16} />
             </Button>
-          </form>
+          </Dialog.Close>
+        </div>
+        <Dialog.Description className="fine-print">
+          Casual takes on fictional credits, grounded in what&rsquo;s on this
+          page. Never advice about real-money wagering.
+        </Dialog.Description>
+        <div className="buddy-transcript" aria-live="polite">
+          {turns.length === 0 && (
+            <p className="fine-print">
+              Ask what it makes of this page — a game, your record, or a
+              group&rsquo;s board.
+            </p>
+          )}
+          {turns.map((turn, index) => (
+            <div className="buddy-turn" key={index}>
+              <span className="eyebrow">
+                {turn.role === "user" ? "You" : "Buddy"}
+              </span>
+              <p
+                className={
+                  turn.streaming
+                    ? "buddy-turn-text buddy-turn-streaming"
+                    : "buddy-turn-text"
+                }
+              >
+                {turn.text}
+              </p>
+              {turn.ok && turn.pickId && routeId && (
+                <Link
+                  href={`/games/${routeId}?pick=${encodeURIComponent(turn.pickId)}`}
+                  onClick={() => setOpen(false)}
+                >
+                  <Button variant="secondary" size="sm">
+                    Back this
+                  </Button>
+                </Link>
+              )}
+              {turn.ok && turn.draft && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    draftComment(turn.draft!.groupId, turn.draft!.text);
+                    setOpen(false);
+                  }}
+                >
+                  Use as my comment
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+        <form className="buddy-form" onSubmit={ask}>
+          <label htmlFor="buddy-question" className="sr-only">
+            Ask the buddy
+          </label>
+          <input
+            id="buddy-question"
+            className="field"
+            value={question}
+            maxLength={MAX_QUESTION_CHARS}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="What do you make of this one?"
+            disabled={pending}
+          />
           <Button
-            type="button"
-            variant="ghost"
+            type="submit"
             size="sm"
-            disabled={forgetting}
-            onClick={forget}
+            disabled={pending || !question.trim()}
           >
-            {forgotten ? "Forgotten" : "Forget what you know about me"}
+            Ask
           </Button>
-        </Dialog.Content>
-      </Dialog.Portal>
+        </form>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={forgetting}
+          onClick={forget}
+        >
+          {forgotten ? "Forgotten" : "Forget what you know about me"}
+        </Button>
+      </Dialog.Content>
     </Dialog.Root>
   );
 }
