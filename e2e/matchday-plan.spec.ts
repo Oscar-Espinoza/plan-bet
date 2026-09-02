@@ -118,6 +118,7 @@ test("mobile navigation remains pinned to the viewport", async ({ page }) => {
       await page.evaluate((top) => window.scrollTo(0, top), scrollTop);
       const dimensions = await nav.evaluate((element) => {
         const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
         const linkWidths = Array.from(
           element.querySelectorAll("a"),
           (link) => link.getBoundingClientRect().width,
@@ -125,7 +126,9 @@ test("mobile navigation remains pinned to the viewport", async ({ page }) => {
         return {
           bottom: rect.bottom,
           left: rect.left,
+          topOffset: Number.parseFloat(style.top),
           width: rect.width,
+          clientHeight: document.documentElement.clientHeight,
           clientWidth: document.documentElement.clientWidth,
           linkWidths,
           scrollY: window.scrollY,
@@ -134,7 +137,8 @@ test("mobile navigation remains pinned to the viewport", async ({ page }) => {
 
       if (scrollTop === 0) expect(dimensions.scrollY).toBe(0);
       else expect(dimensions.scrollY).toBeGreaterThan(0);
-      expect(dimensions.bottom).toBeCloseTo(667, 0);
+      expect(dimensions.bottom).toBeCloseTo(dimensions.clientHeight, 0);
+      expect(dimensions.topOffset).toBeCloseTo(dimensions.clientHeight, 0);
       expect(dimensions.left).toBe(0);
       expect(dimensions.width).toBe(dimensions.clientWidth);
       expect(dimensions.linkWidths).toHaveLength(3);

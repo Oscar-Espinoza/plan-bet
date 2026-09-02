@@ -315,8 +315,10 @@ a {
 .mobile-nav {
   position: fixed;
   z-index: 30;
-  bottom: 0;
+  top: 100dvh;
+  bottom: auto;
   left: 0;
+  transform: translateY(-100%);
   width: var(--mobile-nav-width, 100%);
   display: grid;
   /* Three nav items (Games / You / Groups) — a fourth dead column left the
