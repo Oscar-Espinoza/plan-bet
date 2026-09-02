@@ -72,6 +72,14 @@
   --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
   --font-display: "Archivo Variable", "Arial Narrow", sans-serif;
   --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Shared easing, promoted from .mp (matchup.css --mp-ease). */
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Lets `block-size: auto` be a transition endpoint — required for the
+     disclosure animation below, and inherited, so setting it at the root
+     covers every <details> in the app. Promoted from .mp (matchup.css). */
+  interpolate-size: allow-keywords;
 }
 
 * {
@@ -656,6 +664,30 @@ a {
   padding: 0.6rem 0.8rem;
   font-size: var(--text-base);
   line-height: 1.4;
+}
+
+/* Every tone class is emitted by <Banner> in response to an action (an
+   error, a confirmation) — unlike the base .banner skin, which intro-banner
+   also reuses for a persistent, present-on-load panel. The entry lives on
+   the tone classes so it reaches every genuine Banner call site without
+   also animating intro-banner in on every page load. */
+.banner-neutral,
+.banner-positive,
+.banner-warning,
+.banner-negative {
+  transition:
+    opacity 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
+@starting-style {
+  .banner-neutral,
+  .banner-positive,
+  .banner-warning,
+  .banner-negative {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 .intro-banner {
@@ -1243,8 +1275,9 @@ a {
   text-align: center;
   cursor: pointer;
   transition:
-    border-color 150ms ease,
-    background-color 150ms ease;
+    background-color 120ms var(--ease),
+    border-color 120ms var(--ease),
+    color 120ms var(--ease);
 }
 
 .selection-button span:last-child {
@@ -1585,6 +1618,85 @@ a {
   }
 }
 
+/* ---------- motion ---------- */
+
+/* Mounted content arrives from just above where it lands rather than
+   materialising. Never from `scale(0)` — nothing appears out of nothing.
+   Promoted from .mp-enter / .mp-enter-pop (matchup.css). */
+.enter,
+.enter-pop {
+  transition:
+    opacity 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
+.enter-pop {
+  transition-duration: 240ms;
+}
+
+@starting-style {
+  .enter {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  .enter-pop {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+/* An entering wrapper already carries the mount; a banner inside it must not
+   run its own entry as well, or the fade and the travel both double. The
+   .mp-enter-pop arm goes away in doc 07, when the markup moves to
+   .enter-pop. */
+.enter
+  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
+.enter-pop
+  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
+.mp-enter-pop
+  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative) {
+  transition: none;
+}
+
+/* The two disclosures. `block-size` is the one layout property worth
+   animating — an accordion has no transform equivalent — and a browser
+   without ::details-content simply keeps today's instant open. Promoted
+   from .mp details::details-content (matchup.css). */
+details::details-content {
+  block-size: 0;
+  opacity: 0;
+  overflow: clip;
+  transition:
+    block-size 240ms var(--ease),
+    opacity 160ms ease-out,
+    content-visibility 240ms allow-discrete;
+}
+
+details[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+
+.button:active:not(:disabled),
+.selection-button:active,
+.stake-chips button:active {
+  transform: translateY(1px);
+}
+
+.nav-link,
+.slate-chip,
+.game-row,
+.stake-chips button,
+.button,
+.wager-table a,
+.app-footer a {
+  transition:
+    background-color 120ms var(--ease),
+    border-color 120ms var(--ease),
+    color 120ms var(--ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1594,8 +1706,30 @@ a {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    transition-property:
+      opacity, background-color, color, border-color !important;
+    transition-duration: 120ms !important;
+  }
+
+  .enter,
+  .enter-pop,
+  .banner-neutral,
+  .banner-positive,
+  .banner-warning,
+  .banner-negative {
+    transform: none !important;
+  }
+
+  details::details-content {
+    transition: none;
+  }
+
+  .loading-panel,
+  .mp-skeleton {
+    animation: none;
+  }
+
+  .buddy-turn-streaming::after {
+    animation: none;
   }
 }
