@@ -464,7 +464,7 @@ a {
 
 .section-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
   gap: 1rem;
   /* Matches the internal gap, so a panel following the grid is separated by
      the same rhythm as the cards inside it. */
