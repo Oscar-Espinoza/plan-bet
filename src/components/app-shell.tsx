@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { Gauge, UserCircle, UsersRound } from "lucide-react";
 import { Buddy } from "@/components/buddy";
 import { HydrateStore } from "@/components/hydrate-store";
@@ -44,6 +45,24 @@ export function AppShell({
   accountControl?: React.ReactNode;
 }) {
   const pathname = usePathname();
+
+  useEffect(() => {
+    const syncMobileNavWidth = () => {
+      document.documentElement.style.setProperty(
+        "--mobile-nav-width",
+        `${document.documentElement.clientWidth}px`,
+      );
+    };
+
+    syncMobileNavWidth();
+    window.addEventListener("resize", syncMobileNavWidth);
+    window.addEventListener("orientationchange", syncMobileNavWidth);
+    return () => {
+      window.removeEventListener("resize", syncMobileNavWidth);
+      window.removeEventListener("orientationchange", syncMobileNavWidth);
+    };
+  }, []);
+
   return (
     <div className="app-shell">
       <HydrateStore />
