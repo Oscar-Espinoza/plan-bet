@@ -323,7 +323,7 @@ export function BetSlip({
       )}
 
       {confirmation && (
-        <div className="side-form mp-enter-pop">
+        <div className="side-form enter-pop">
           <Banner tone="positive">{confirmation}</Banner>
         </div>
       )}
@@ -385,7 +385,7 @@ export function BetSlip({
       )}
 
       {state.kind === "open" && market && selection && (
-        <form className="side-form mp-enter" onSubmit={submit}>
+        <form className="side-form enter" onSubmit={submit}>
           <div className="data-pair">
             <span>{market.label}</span>
             <span>

@@ -1,5 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SystemLoading() {
-  return <Skeleton label="Loading system" variant="record" />;
+  // panelCount must track /system's section count (Provider freshness,
+  // Ingestion, Settlement).
+  return <Skeleton label="Loading system" variant="record" panelCount={3} />;
 }

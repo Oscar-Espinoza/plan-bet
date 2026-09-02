@@ -97,7 +97,7 @@ export default async function Page({ searchParams }: Props) {
         <header className="page-heading">
           <div>
             <p className="eyebrow">Free-to-play record</p>
-            <h1 className="display-title">You</h1>
+            <h1 className="display-title">Where you stand</h1>
             <p className="page-description">
               Balance, record, open wagers, and history — one surface for where
               you stand.
@@ -181,45 +181,31 @@ export default async function Page({ searchParams }: Props) {
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Free-to-play record</p>
-          <h1 className="display-title">
-            {account.name ?? account.email ?? "You"}
-          </h1>
+          <p className="eyebrow">
+            {account.name ?? account.email ?? "Free-to-play record"}
+          </p>
+          <h1 className="display-title">Where you stand</h1>
+          <div className="standing-lead">
+            <div>
+              <p className="eyebrow">Balance</p>
+              <p className="standing-figure">
+                {summary.balance.toLocaleString()} <small>credits</small>
+              </p>
+            </div>
+            <div>
+              <p className="eyebrow">Record</p>
+              <p className="standing-figure standing-figure-minor">
+                {summary.won}W {summary.lost}L {summary.voided}V
+              </p>
+            </div>
+          </div>
           <p className="page-description">
-            Balance, record, open wagers, and history — one surface for where
-            you stand. Fictional credits, house prices, never real money.
+            Fictional credits, house prices, never real money.
           </p>
         </div>
       </header>
 
       <div className="section-grid">
-        <Card title="Standing" titleId="standing-heading">
-          <div className="stat-row">
-            <span>Balance</span>
-            <strong>{summary.balance.toLocaleString()} credits</strong>
-          </div>
-          <div className="stat-row">
-            <span>Record</span>
-            <strong>
-              {summary.won}W {summary.lost}L {summary.voided}V
-            </strong>
-          </div>
-          <div className="stat-row">
-            <span>Hit rate</span>
-            <strong>{hitRateLabel(summary.won, summary.lost)}</strong>
-          </div>
-          <div className="stat-row">
-            <span>Net</span>
-            <strong>{summary.net.toLocaleString()} credits</strong>
-          </div>
-          <div className="form-block">
-            <span>
-              Times reset: {summary.resetCount.toLocaleString()} — a reset makes
-              this record less meaningful.
-            </span>
-          </div>
-        </Card>
-
         <Card
           title="Open wagers"
           titleId="open-wagers-heading"
@@ -269,6 +255,23 @@ export default async function Page({ searchParams }: Props) {
               </p>
             </div>
           )}
+        </Card>
+
+        <Card title="Detail" titleId="detail-heading">
+          <div className="stat-row">
+            <span>Hit rate</span>
+            <strong>{hitRateLabel(summary.won, summary.lost)}</strong>
+          </div>
+          <div className="stat-row">
+            <span>Net</span>
+            <strong>{summary.net.toLocaleString()} credits</strong>
+          </div>
+          <div className="form-block">
+            <span>
+              Times reset: {summary.resetCount.toLocaleString()} — a reset makes
+              this record less meaningful.
+            </span>
+          </div>
         </Card>
       </div>
 
