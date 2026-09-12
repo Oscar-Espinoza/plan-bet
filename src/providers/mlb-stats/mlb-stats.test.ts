@@ -81,6 +81,14 @@ describe("MLB and Savant normalization", () => {
       "mlb-900001-new-york-yankees",
       "mlb-900002-new-york-yankees",
     ]);
+    expect(data.schedule.games[0]).toMatchObject({
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/147.svg",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/111.svg",
+    });
+    expect(data.snapshots[0]?.snapshot.game).toMatchObject({
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/147.svg",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/111.svg",
+    });
     expect(data.schedule.context).toMatchObject({
       kind: "baseball",
       divisionRank: 2,

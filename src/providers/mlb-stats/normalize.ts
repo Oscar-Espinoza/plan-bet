@@ -1,3 +1,4 @@
+import { mlbTeamLogoUrl } from "@/lib/team-logos";
 import {
   gameScheduleSchema,
   gameSnapshotSchema,
@@ -252,6 +253,8 @@ export function normalizeBaseballTeamData(input: {
     competition: `MLB · ${raw.seriesDescription ?? raw.description ?? "Regular or postseason"}`,
     homeTeam: raw.teams.home.team.name,
     awayTeam: raw.teams.away.team.name,
+    homeTeamCrestUrl: mlbTeamLogoUrl(raw.teams.home.team.id),
+    awayTeamCrestUrl: mlbTeamLogoUrl(raw.teams.away.team.id),
     homeTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.home.team.id),
     awayTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.away.team.id),
     scheduledAt: raw.gameDate,

@@ -641,7 +641,7 @@
 }
 
 .mp-side-name {
-  max-width: 8ch;
+  max-width: 12ch;
 }
 
 .mp-bug {
@@ -677,4 +677,16 @@
 }
 .mp-venue::before {
   content: none;
+}
+
+.mp-side-team {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+.mp-side-name {
+  overflow-wrap: anywhere;
 }

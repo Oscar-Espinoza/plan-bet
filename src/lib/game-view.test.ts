@@ -30,6 +30,31 @@ function find(blocks: ReturnType<typeof buildMatchView>["blocks"], id: string) {
 }
 
 describe("buildMatchView", () => {
+  it("keeps tracked crests for old snapshots and uses supplied opponent crests", () => {
+    const team = getTeam(soccerBase.game.teamSlug)!;
+    const snapshot = {
+      ...soccerBase,
+      game: {
+        ...soccerBase.game,
+        homeTeamCrestUrl: undefined,
+        awayTeamCrestUrl: undefined,
+      },
+    };
+    expect(buildMatchView(snapshot, team).identity).toMatchObject({
+      homeTeamLogo: "/team-logos/real-madrid.svg",
+      awayTeamLogo: undefined,
+    });
+    expect(buildMatchView(soccerBase, team).identity.awayTeamLogo).toBe(
+      soccerBase.game.awayTeamCrestUrl,
+    );
+    expect(
+      buildMatchView(getSnapshot("soc-rma-02")!, team).identity,
+    ).toMatchObject({
+      homeTeamLogo: "https://crests.football-data.org/108.svg",
+      awayTeamLogo: "/team-logos/real-madrid.svg",
+    });
+  });
+
   it("merges the opponent's enrichment facts against the tracked team's context", () => {
     const team = getTeam(soccerBase.game.teamSlug)!;
     const { homeTeam, awayTeam } = soccerBase.game;

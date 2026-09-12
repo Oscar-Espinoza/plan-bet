@@ -1,4 +1,5 @@
 import { Countdown, LocalDateTime } from "@/components/local-date-time";
+import { TeamLogo } from "@/components/team-logo";
 import type { MatchView } from "@/lib/game-view";
 
 /**
@@ -28,7 +29,12 @@ export function Scorebug({ identity, timing }: MatchView) {
       <span className="mp-side-label">
         {which === "home" ? "Home" : "Away"}
       </span>
-      <span className="mp-side-name">{name}</span>
+      <span className="mp-side-team">
+        <span className="mp-side-name">{name}</span>
+        <TeamLogo
+          src={which === "home" ? identity.homeTeamLogo : identity.awayTeamLogo}
+        />
+      </span>
       {result && (
         <span className="mp-side-score">
           {which === "home" ? result.homeScore : result.awayScore}

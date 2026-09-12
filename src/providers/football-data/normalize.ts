@@ -168,6 +168,8 @@ export function normalizeSoccerTeamData(input: {
     competition: match.competition.name,
     homeTeam: match.homeTeam.name,
     awayTeam: match.awayTeam.name,
+    homeTeamCrestUrl: match.homeTeam.crest ?? undefined,
+    awayTeamCrestUrl: match.awayTeam.crest ?? undefined,
     homeTeamSlug: TRACKED_SLUGS_BY_ID.get(match.homeTeam.id),
     awayTeamSlug: TRACKED_SLUGS_BY_ID.get(match.awayTeam.id),
     scheduledAt: match.utcDate,

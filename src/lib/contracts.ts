@@ -65,6 +65,8 @@ export const gameSummarySchema = z.object({
   awayTeam: z.string().min(1),
   homeTeamSlug: teamSlugSchema.optional(),
   awayTeamSlug: teamSlugSchema.optional(),
+  homeTeamCrestUrl: z.url().optional(),
+  awayTeamCrestUrl: z.url().optional(),
   scheduledAt: z.iso.datetime(),
   venue: z.string().optional(),
   status: gameStatusSchema,

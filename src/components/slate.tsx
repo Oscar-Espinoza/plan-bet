@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ChevronRight, MapPin } from "lucide-react";
 import { BoardClock } from "@/components/ribbon";
+import { TeamLogo } from "@/components/team-logo";
+import { gameTeamLogo } from "@/lib/team-logos";
 import { Button } from "@/components/ui/button";
 import { DemoStamp } from "@/components/demo-stamp";
 import {
@@ -124,12 +126,18 @@ export function Slate({
               <RelativeKickoff value={nextUp.scheduledAt} />
             </div>
             <h2 className="next-up-teams">
-              <span>{nextUp.homeTeam}</span>
+              <span className="next-up-team">
+                <span>{nextUp.homeTeam}</span>
+                <TeamLogo src={gameTeamLogo(nextUp, "home")} />
+              </span>
               <span className="next-up-versus">
                 <span className="sr-only">versus</span>
                 <span aria-hidden="true">V</span>
               </span>
-              <span className="next-up-away">{nextUp.awayTeam}</span>
+              <span className="next-up-team next-up-away">
+                <span>{nextUp.awayTeam}</span>
+                <TeamLogo src={gameTeamLogo(nextUp, "away")} />
+              </span>
             </h2>
             <div className="next-up-meta">
               <span>
@@ -230,7 +238,15 @@ export function Slate({
                     </div>
                     <div className="game-matchup">
                       <div className="game-opponent">
-                        {game.homeTeam} vs {game.awayTeam}
+                        <span className="game-team">
+                          <TeamLogo src={gameTeamLogo(game, "home")} />
+                          <span>{game.homeTeam}</span>
+                        </span>{" "}
+                        <span className="game-versus">vs</span>{" "}
+                        <span className="game-team">
+                          <TeamLogo src={gameTeamLogo(game, "away")} />
+                          <span>{game.awayTeam}</span>
+                        </span>
                       </div>
                       <div className="game-meta">
                         {game.competition} ·{" "}

@@ -324,3 +324,49 @@ test("a request completing after navigation cannot repopulate the ribbon", async
   await expect(action(page)).toHaveText("Choose a selection");
   await expect(page.locator(".ribbon-feedback")).toBeEmpty();
 });
+
+test("team crests load, follow route changes, and fail without hiding names", async ({
+  page,
+}) => {
+  // Keep external availability out of the interaction suite; bundled originals
+  // still load from the real public directory.
+  await page.route(
+    /^https:\/\/(?:crests\.football-data\.org|www\.mlbstatic\.com)\//,
+    (route) =>
+      route.fulfill({
+        contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="gold"/></svg>',
+      }),
+  );
+  for (const [route, slug] of [
+    ["soc-rma-01", "real-madrid"],
+    ["soc-fcb-01", "barcelona"],
+    ["mlb-nyy-01", "new-york-yankees"],
+    ["mlb-bos-01", "boston-red-sox"],
+  ]) {
+    await page.goto(`/games/${route}`);
+    const logo = page.locator(`.mp-bug img[src="/team-logos/${slug}.svg"]`);
+    await expect(logo).toHaveCount(1);
+    await expect(logo).toHaveJSProperty("complete", true);
+    expect(
+      await logo.evaluate((img: HTMLImageElement) => img.naturalWidth),
+    ).toBeGreaterThan(0);
+  }
+  await page.setViewportSize({ width: 320, height: 568 });
+  await open(page);
+  await expect(page.locator(".mp-bug .team-logo")).toHaveCount(2);
+  await expect(page.locator(".mp-side-name").last()).toHaveText("Villarreal");
+  await axe(page);
+  await page.route("https://crests.football-data.org/**", (route) =>
+    route.abort(),
+  );
+  await page.reload();
+  await expect(page.locator(".mp-bug .team-logo")).toHaveCount(1);
+  await expect(page.locator(".mp-side-name").last()).toHaveText("Villarreal");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    320,
+  );
+  await page.getByRole("link", { name: "Back to games" }).click();
+  await expect(page.locator(".next-up-team .team-logo").first()).toBeVisible();
+  await expect(page.locator(".game-team .team-logo").first()).toBeVisible();
+});

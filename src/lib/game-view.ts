@@ -1,3 +1,4 @@
+import { gameTeamLogo } from "@/lib/team-logos";
 import type {
   BaseballContext,
   EvidenceFact,
@@ -44,6 +45,8 @@ export type MatchView = {
     stage?: string;
     homeTeam: string;
     awayTeam: string;
+    homeTeamLogo?: string;
+    awayTeamLogo?: string;
     trackedSide: "home" | "away";
     clubColor: string;
   };
@@ -428,6 +431,8 @@ export function buildMatchView(snapshot: GameSnapshot, team: Team): MatchView {
       stage: plain(facts, "Competition stage") ?? plain(facts, "Series"),
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
+      homeTeamLogo: gameTeamLogo(game, "home"),
+      awayTeamLogo: gameTeamLogo(game, "away"),
       trackedSide,
       clubColor: team.colors.primary,
     },

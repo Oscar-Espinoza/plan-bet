@@ -46,6 +46,14 @@ describe("football-data normalization", () => {
       "football-data-600001-real-madrid",
       "football-data-600002-real-madrid",
     ]);
+    expect(data.schedule.games[0]).toMatchObject({
+      homeTeamCrestUrl: "https://crests.football-data.org/86.png",
+      awayTeamCrestUrl: "https://crests.football-data.org/90.png",
+    });
+    expect(data.snapshots[0]?.snapshot.game).toMatchObject({
+      homeTeamCrestUrl: "https://crests.football-data.org/86.png",
+      awayTeamCrestUrl: "https://crests.football-data.org/90.png",
+    });
     expect(data.schedule.context.recentForm).toEqual(["W", "W", "L", "D", "W"]);
     expect(data.schedule.context.availability).toEqual([]);
     expect(
