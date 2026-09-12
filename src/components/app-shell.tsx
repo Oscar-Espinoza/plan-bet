@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { RibbonContext, useBandHeight } from "@/components/ribbon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gauge, UserCircle, UsersRound } from "lucide-react";
+import { ArrowLeft, Gauge, UserCircle, UsersRound } from "lucide-react";
 import { Buddy } from "@/components/buddy";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
@@ -28,14 +30,6 @@ function isCurrent(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
-function WorkspaceControls({
-  accountControl,
-}: {
-  accountControl?: React.ReactNode;
-}) {
-  return <div className="topbar-controls">{accountControl}</div>;
-}
-
 export function AppShell({
   children,
   accountControl,
@@ -44,99 +38,143 @@ export function AppShell({
   accountControl?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [clock, setClock] = useState<HTMLDivElement | null>(null);
+  const [returns, setReturns] = useState<HTMLDivElement | null>(null);
+  const [action, setAction] = useState<HTMLDivElement | null>(null);
+  const [feedback, setFeedback] = useState<HTMLDivElement | null>(null);
+  const targets = useMemo(
+    () => ({ clock, returns, action, feedback }),
+    [clock, returns, action, feedback],
+  );
+  const ribbonRef = useBandHeight("--ribbon-h");
+  const navRef = useBandHeight("--nav-h");
 
   return (
     <div className="app-shell">
-      <HydrateStore />
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <div className="workspace">
-        <header className="topbar">
-          <div className="topbar-inner">
-            <Link href="/" className="brand" aria-label="Matchday Plan home">
-              <span className="brand-mark">MP</span>
-              <span className="brand-name">Matchday Plan</span>
-            </Link>
-            <nav className="topbar-nav" aria-label="Primary navigation">
-              {navItems.map((item) => {
-                const active = isCurrent(pathname, item.href);
-                return (
-                  <Link
-                    className={cn("nav-link", active && "nav-link-active")}
-                    href={item.href}
-                    key={item.href}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <item.icon aria-hidden="true" size={17} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-            <WorkspaceControls accountControl={accountControl} />
-          </div>
-        </header>
-        <div className="workspace-scroll" key={pathname}>
-          <main id="main-content" className="main-content" tabIndex={-1}>
-            {children}
-          </main>
-          <footer className="app-footer">
-            <p className="fine-print">
-              Source data:{" "}
-              <a
-                href="https://www.football-data.org/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                football-data.org
-              </a>
-              ,{" "}
-              <a
-                href="https://statsapi.mlb.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                MLB Stats API
-              </a>
-              , and{" "}
-              <a
-                href="https://baseballsavant.mlb.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Baseball Savant
-              </a>
-              . <Link href="/rules">Rules</Link> ·{" "}
-              <Link href="/system">System</Link>
-            </p>
-            <p className="fine-print">
-              Credits are fictional and non-withdrawable. Not a sportsbook.
-            </p>
-          </footer>
-        </div>
-      </div>
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {navItems.map((item) => {
-          const active = isCurrent(pathname, item.href);
-          return (
-            <Link
-              className={cn(
-                "mobile-nav-link",
-                active && "mobile-nav-link-active",
+      <RibbonContext value={targets}>
+        <HydrateStore />
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
+        <div className="workspace">
+          <header className="topbar">
+            <div className="topbar-inner">
+              {pathname.startsWith("/games/") ? (
+                <Link href="/" className="shell-back">
+                  <ArrowLeft aria-hidden="true" size={14} />
+                  Back to games
+                </Link>
+              ) : (
+                <Link
+                  href="/"
+                  className="brand"
+                  aria-label="Matchday Plan home"
+                >
+                  <span className="brand-mark">
+                    <span>MP</span>
+                  </span>
+                  <span className="brand-name">Matchday Plan</span>
+                </Link>
               )}
-              href={item.href}
-              key={item.href}
-              aria-current={active ? "page" : undefined}
-            >
-              <item.icon aria-hidden="true" size={18} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <TourBar />
-      <Buddy />
+              <nav className="topbar-nav" aria-label="Primary navigation">
+                {navItems.map((item) => {
+                  const active = isCurrent(pathname, item.href);
+                  return (
+                    <Link
+                      className={cn("nav-link", active && "nav-link-active")}
+                      href={item.href}
+                      key={item.href}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <span className="plate-content">
+                        <item.icon aria-hidden="true" size={17} />
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </header>
+          <div className="workspace-scroll" key={pathname}>
+            <main id="main-content" className="main-content" tabIndex={-1}>
+              {children}
+            </main>
+            <footer className="app-footer">
+              <p className="fine-print">
+                Source data:{" "}
+                <a
+                  href="https://www.football-data.org/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  football-data.org
+                </a>
+                ,{" "}
+                <a
+                  href="https://statsapi.mlb.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  MLB Stats API
+                </a>
+                , and{" "}
+                <a
+                  href="https://baseballsavant.mlb.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Baseball Savant
+                </a>
+                . <Link href="/rules">Rules</Link> ·{" "}
+                <Link href="/system">System</Link>
+              </p>
+              <p className="fine-print">
+                Credits are fictional and non-withdrawable. Not a sportsbook.
+              </p>
+            </footer>
+          </div>
+        </div>
+        <aside
+          className="ribbon"
+          aria-label="Matchday controls"
+          ref={ribbonRef}
+        >
+          <div className="ribbon-inner">
+            <div className="ribbon-clock" ref={setClock} />
+            <div className="ribbon-returns" ref={setReturns} />
+            <div className="ribbon-account">{accountControl}</div>
+            <div className="ribbon-action" ref={setAction} />
+            <div className="ribbon-feedback" ref={setFeedback} />
+          </div>
+          <div className="ribbon-disclaimer">
+            Fictional credits · Not a sportsbook
+          </div>
+        </aside>
+        <nav ref={navRef} className="mobile-nav" aria-label="Mobile navigation">
+          {navItems.map((item) => {
+            const active = isCurrent(pathname, item.href);
+            return (
+              <Link
+                className={cn(
+                  "mobile-nav-link",
+                  active && "mobile-nav-link-active",
+                )}
+                href={item.href}
+                key={item.href}
+                aria-current={active ? "page" : undefined}
+              >
+                <span className="plate-content">
+                  <item.icon aria-hidden="true" size={18} />
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+        <TourBar />
+        <Buddy />
+      </RibbonContext>
     </div>
   );
 }

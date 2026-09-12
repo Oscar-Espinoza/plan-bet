@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { ContextBlocks } from "@/components/matchup/context-blocks";
 import { Scorebug } from "@/components/matchup/scorebug";
@@ -40,9 +38,6 @@ export function GameDetail({
           ? `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}, final`
           : `${game.homeTeam} vs ${game.awayTeam}`}
       </h1>
-      <Link href="/" className="mp-back">
-        <ArrowLeft aria-hidden="true" size={14} /> Back to games
-      </Link>
 
       <Scorebug {...view} />
       <StatusRibbon status={view.timing.status} />

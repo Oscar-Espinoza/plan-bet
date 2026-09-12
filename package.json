@@ -28,13 +28,14 @@
     "data:apisports:teams": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-teams.ts",
     "data:apisports:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-probe.ts",
     "data:mcp:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/mcp-probe.ts",
-    "data:enrich": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/enrich.ts"
+    "data:enrich": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/enrich.ts",
+    "test:fixtures": "playwright test --config playwright.fixtures.config.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource-variable/ibm-plex-sans": "5.3.0",
-    "@fontsource/big-shoulders-display": "^5.3.0",
+    "@fontsource/archivo": "5.3.0",
     "@fontsource/dm-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@neondatabase/serverless": "1.1.0",
@@ -75,6 +76,7 @@
     "tailwindcss": "4.3.3",
     "tsx": "4.23.12",
     "typescript": "6.0.3",
+    "vite": "8.2.1",
     "vitest": "4.1.10"
   }
 }

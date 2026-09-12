@@ -148,7 +148,7 @@ describe("BetSlip - open", () => {
       "2",
     ); // round(1 * 2.4)
     expect(
-      screen.getByRole("button", { name: "Place 1 → returns 2" }),
+      screen.getByRole("button", { name: "Place 1 credits" }),
     ).toBeInTheDocument();
   });
 
@@ -182,7 +182,7 @@ describe("BetSlip - open", () => {
     fireEvent.change(away, { target: { value: "1" } });
     expect(screen.getByText("Pays 8.50")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Place 1 → returns 9" }),
+      screen.getByRole("button", { name: "Place 1 credits" }),
     ).toBeInTheDocument();
 
     // 4-1 is outside the published grid, so it resolves to no selection and

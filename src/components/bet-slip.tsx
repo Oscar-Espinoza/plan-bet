@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { RibbonPortal } from "@/components/ribbon";
 import { GameThread, type CommentThreadView } from "@/components/game-thread";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
@@ -162,6 +163,7 @@ export function BetSlip({
   matchup?: { home: string; away: string };
 }) {
   const router = useRouter();
+  const formId = useId();
   const searchParams = useSearchParams();
   const advanceTour = useMatchdayStore((state) => state.advanceTour);
   const openMarkets =
@@ -218,7 +220,7 @@ export function BetSlip({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!market || !selection) return;
+    if (!market || !selection || pending || insufficientCredits) return;
     setPending(true);
     setError("");
     const response = await fetch("/api/bets", {
@@ -233,9 +235,8 @@ export function BetSlip({
         groupId: groupId || undefined,
       }),
     }).catch(() => null);
-    setPending(false);
-
     const payload: unknown = await response?.json().catch(() => null);
+    setPending(false);
     if (!response?.ok) {
       const text =
         payload && typeof payload === "object" && "error" in payload
@@ -264,22 +265,25 @@ export function BetSlip({
 
   if (!data.signedIn) {
     return (
-      <section className="panel">
+      <section className="panel wager-panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Your bet</h2>
+            <h2 className="panel-title">
+              <span>Your bet</span>
+            </h2>
             <p className="panel-purpose">
               Free-to-play, on fictional credits. Nothing real is staked.
             </p>
           </div>
         </div>
         <div className="side-form">
-          <Link
-            className="button w-full"
-            href={`/sign-in?callbackUrl=/games/${data.routeId}`}
-          >
-            Sign in
-          </Link>
+          <RibbonPortal area="action">
+            <Button asChild className="w-full">
+              <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
+                Sign in
+              </Link>
+            </Button>
+          </RibbonPortal>
           <p className="fine-print">
             Signing in only unlocks the credit ledger — the rest of the page
             works signed out.
@@ -292,11 +296,11 @@ export function BetSlip({
   const { state, wagers } = data;
 
   return (
-    <section className="panel" aria-labelledby="wager-heading">
+    <section className="panel wager-panel" aria-labelledby="wager-heading">
       <div className="panel-header">
         <div>
           <h2 className="panel-title" id="wager-heading">
-            Your bet
+            <span>Your bet</span>
           </h2>
           <p className="panel-purpose">
             {state.kind === "open"
@@ -306,7 +310,7 @@ export function BetSlip({
         </div>
         {/* The balance used to appear only after a selection was armed, so the
             one number you need before choosing a stake was the one number the
-            panel hid. Chalk, never sodium: it is money, not time. */}
+            panel hid. Ink on concrete: money stays quiet. */}
         {state.kind === "open" && (
           <span className="bet-balance">
             <small>Balance</small>
@@ -322,10 +326,50 @@ export function BetSlip({
         <p className="side-form">{CLOSED_COPY[state.reason]}</p>
       )}
 
-      {confirmation && (
-        <div className="side-form enter-pop">
-          <Banner tone="positive">{confirmation}</Banner>
+      <RibbonPortal area="feedback">
+        <div className="wager-feedback" aria-live="polite" aria-atomic="true">
+          {confirmation && (
+            <div className="enter-pop">
+              <Banner tone="positive" role="status">
+                {confirmation}
+              </Banner>
+            </div>
+          )}
+          {error && (
+            <Banner tone="negative" role="alert">
+              {error}
+            </Banner>
+          )}
+          {state.kind === "open" && insufficientCredits && selection && (
+            <Banner tone="negative" role="alert">
+              Stake exceeds your balance of {balance}.
+            </Banner>
+          )}
         </div>
+      </RibbonPortal>
+      {state.kind === "open" && (
+        <>
+          <RibbonPortal area="returns">
+            <span className="ribbon-label">Returns</span>
+            <span className="return-figure">
+              {selection ? potentialReturn : "—"}
+            </span>
+          </RibbonPortal>
+          <RibbonPortal area="action">
+            <Button
+              type="submit"
+              form={formId}
+              className="w-full"
+              disabled={!selection || pending || insufficientCredits}
+            >
+              {pending
+                ? "Placing…"
+                : selection
+                  ? `Place ${stake} credits`
+                  : "Choose a selection"}
+            </Button>
+          </RibbonPortal>
+        </>
       )}
 
       {state.kind === "open" && (
@@ -367,8 +411,10 @@ export function BetSlip({
                       >
                         {/* s.label already carries the line for a total market
                           ("Over 2.5"), so no separate lineSuffix here. */}
-                        <span>{s.label}</span>
-                        <span>{s.price.toFixed(2)}</span>
+                        <span className="plate-content">
+                          <span>{s.label}</span>
+                          <span>{s.price.toFixed(2)}</span>
+                        </span>
                       </button>
                     );
                   })}
@@ -385,7 +431,7 @@ export function BetSlip({
       )}
 
       {state.kind === "open" && market && selection && (
-        <form className="side-form enter" onSubmit={submit}>
+        <form id={formId} className="side-form enter" onSubmit={submit}>
           <div className="data-pair">
             <span>{market.label}</span>
             <span>
@@ -419,16 +465,16 @@ export function BetSlip({
           />
           <div className="stake-chips">
             <button type="button" onClick={() => addStake(5)}>
-              +5
+              <span>+5</span>
             </button>
             <button type="button" onClick={() => addStake(25)}>
-              +25
+              <span>+25</span>
             </button>
             <button
               type="button"
               onClick={() => setStake(clampStake(MAX_STAKE, balance))}
             >
-              max
+              <span>max</span>
             </button>
           </div>
 
@@ -457,33 +503,10 @@ export function BetSlip({
           )}
 
           <div className="data-pair">
-            <span>Returns</span>
-            <span>{potentialReturn}</span>
-          </div>
-          <div className="data-pair">
             <span>Balance after</span>
             <span>{balanceAfter}</span>
           </div>
 
-          {insufficientCredits && (
-            <Banner tone="negative" role="alert">
-              Stake exceeds your balance of {balance}.
-            </Banner>
-          )}
-
-          {error && (
-            <Banner tone="negative" role="alert">
-              {error}
-            </Banner>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={pending || insufficientCredits}
-          >
-            Place {stake} → returns {potentialReturn}
-          </Button>
           <p className="fine-print">
             Fictional credits, house prices. See the{" "}
             <Link href="/rules">rules</Link>.

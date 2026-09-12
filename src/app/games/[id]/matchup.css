@@ -2,8 +2,7 @@
  * The matchup page, and only the matchup page.
  *
  * This file holds this page's layout only — the visual language (colour,
- * type, motion) lives in globals.css, on the broadcast scorebug system
- * proved here and since migrated outward. A rule in this file that
+ * type, motion) lives in globals.css, on the Slant system. A rule in this file that
  * re-declares what a global class already says is a bug, not a page-scoped
  * override: shared primitives (.panel, .field, .button, and the rest) are
  * styled by their global rule alone. What's left under `.mp`/`.mp-*` is
@@ -24,31 +23,10 @@
   margin: 0;
 }
 
-/* ---------- back ---------- */
-
-.mp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  color: var(--muted);
-  text-decoration: none;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  padding: 4px 0;
-}
-
-.mp-back:hover,
-.mp-back:focus-visible {
-  color: var(--sodium);
-}
-
 /* ---------- scorebug ---------- */
 
 .mp-bug {
-  background: var(--slat);
+  background: var(--concrete);
   border: 1px solid var(--rule);
   padding: 14px 16px 18px;
 }
@@ -62,13 +40,13 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
   padding-bottom: 12px;
   border-bottom: 1px solid var(--rule);
 }
 
 .mp-comp-stage {
-  color: var(--muted);
+  color: var(--ink-soft);
   letter-spacing: 0.1em;
 }
 
@@ -84,7 +62,7 @@
   align-items: center;
   column-gap: 12px;
   padding-left: 12px;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
 }
 
 .mp-side[data-tracked] {
@@ -97,13 +75,14 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-side-name {
   grid-column: 1;
-  font-size: clamp(1.75rem, 9.5vw, 3.5rem);
-  font-variation-settings: "wdth" 118;
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-variation-settings: "wdth" var(--wdth-cond);
   font-weight: 800;
   line-height: 0.92;
   letter-spacing: -0.015em;
@@ -136,12 +115,12 @@
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  background: var(--slat);
+  background: var(--concrete);
   padding-right: 10px;
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-aftermath {
@@ -149,7 +128,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .mp-clock {
@@ -166,15 +145,15 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-clock-figure {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: clamp(2.25rem, 13vw, 3.5rem);
+  font-size: clamp(2rem, 8.5vw, 3.5rem);
   line-height: 1;
-  color: var(--sodium);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   /* The clock reserves its own height so a 1s tick never reflows the page,
      and so the pre-hydration render leaves a hole the right shape. */
@@ -189,11 +168,11 @@
   padding-left: 15px;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .mp-venue {
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-venue::before {
@@ -208,15 +187,15 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  background: var(--slat-raised);
+  background: var(--concrete-raised);
   border: 1px solid var(--rule);
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .mp-ribbon[data-status="live"] {
-  background: var(--sodium);
-  border-color: var(--sodium);
-  color: var(--sodium-dark);
+  background: var(--volt);
+  border-color: var(--volt);
+  color: var(--volt-ink);
 }
 
 .mp-ribbon[data-status="postponed"],
@@ -260,7 +239,7 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 800;
-  color: var(--sodium);
+  color: var(--ink);
   padding-bottom: 8px;
   border-bottom: 1px solid var(--rule-strong);
 }
@@ -282,7 +261,7 @@
 }
 
 .mp-row-label {
-  color: var(--muted);
+  color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
@@ -290,7 +269,7 @@
 .mp-row-home,
 .mp-row-away {
   text-align: right;
-  color: var(--chalk);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 
@@ -310,7 +289,7 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-family: var(--font-display);
   /* Two long club names in 5.5rem columns: clip rather than wrap, so the
      figures under them stay on one baseline. */
@@ -322,7 +301,7 @@
 .mp-row-note {
   grid-column: 1 / -1;
   margin-top: 4px;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-xs);
   line-height: 1.5;
   text-wrap: pretty;
@@ -342,18 +321,18 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: 500;
-  background: var(--slat-raised);
-  color: var(--muted);
+  background: var(--concrete-raised);
+  color: var(--ink-soft);
 }
 
 .mp-form b[data-result="W"] {
   background: var(--field);
-  color: var(--sodium-dark);
+  color: var(--chalk);
 }
 
 .mp-form b[data-result="L"] {
   background: var(--clay);
-  color: var(--sodium-dark);
+  color: var(--chalk);
 }
 
 .mp-deeper {
@@ -368,7 +347,7 @@
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-deeper > summary::-webkit-details-marker {
@@ -386,7 +365,7 @@
 
 .mp-deeper > summary:hover,
 .mp-deeper > summary:focus-visible {
-  color: var(--sodium);
+  color: var(--ink);
 }
 
 .mp-deeper .mp-row {
@@ -401,7 +380,7 @@
   align-items: center;
   gap: 10px;
   border: 1px solid var(--rule);
-  background: var(--slat-raised);
+  background: var(--concrete-raised);
   padding: 12px;
 }
 
@@ -417,7 +396,7 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -426,10 +405,10 @@
 .mp-score input {
   width: 100%;
   min-height: 52px;
-  background: var(--ink);
+  background: var(--concrete-raised);
   border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  color: var(--chalk);
+  border-radius: 0;
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-lg);
   text-align: center;
@@ -437,12 +416,12 @@
 }
 
 .mp-score input:focus-visible {
-  outline: 2px solid var(--sodium);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
 .mp-score-dash {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-family: var(--font-mono);
   align-self: end;
   padding-bottom: 14px;
@@ -451,14 +430,14 @@
 .mp-score-price {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--chalk);
+  color: var(--ink);
   grid-column: 1 / -1;
   text-align: center;
   padding-top: 4px;
 }
 
 .mp-score-price[data-unpriced] {
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 /* ---------- the quiet social layer ---------- */
@@ -475,7 +454,7 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
   min-height: 32px;
   display: flex;
   align-items: center;
@@ -496,7 +475,7 @@
 
 .mp-aside > summary:hover,
 .mp-aside > summary:focus-visible {
-  color: var(--sodium);
+  color: var(--ink);
 }
 
 /* ---------- desktop ---------- */
@@ -534,7 +513,7 @@
 /* ---------- loading, empty and error ---------- */
 
 .mp-skeleton {
-  background: var(--slat);
+  background: var(--concrete);
   border: 1px solid var(--rule);
   animation: mp-pulse 1.4s ease-in-out infinite;
 }
@@ -572,26 +551,26 @@
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-weight: 700;
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .mp-empty-title {
   font-size: clamp(2rem, 9vw, 3.25rem);
-  font-variation-settings: "wdth" 118;
+  font-variation-settings: "wdth" var(--wdth-cond);
   font-weight: 800;
   line-height: 0.94;
   text-transform: uppercase;
 }
 
 .mp-empty-copy {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
   line-height: 1.6;
   text-wrap: pretty;
 }
 
 .mp-empty a:not(.button) {
-  color: var(--sodium);
+  color: var(--ink);
 }
 
 /* ---------- the comment form ---------- */
@@ -614,4 +593,88 @@
 
 .mp-aside .side-form {
   padding-top: 12px;
+}
+
+/* Reversed text is scoped to the ink wedge. */
+.mp-bug {
+  background: var(--ink);
+  color: var(--chalk);
+  border: 0;
+  padding-bottom: calc(1.25rem + var(--wedge-drop));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--wedge-drop)), 0 100%);
+}
+.mp-comp,
+.mp-clock {
+  border-color: var(--rule-ink);
+}
+.mp-comp,
+.mp-side-label,
+.mp-clock-label,
+.mp-venue {
+  color: var(--chalk-faint);
+}
+.mp-comp-stage,
+.mp-when,
+.mp-aftermath {
+  color: var(--chalk-soft);
+}
+.mp-side:last-child .mp-side-name {
+  color: var(--chalk-soft);
+}
+.mp-versus {
+  background: var(--rule-ink);
+}
+.mp-versus::after {
+  background: var(--ink);
+  color: var(--chalk-faint);
+}
+.mp-clock-figure {
+  color: var(--volt);
+}
+.mp-score input {
+  border-color: var(--ink-faint);
+}
+@media (max-width: 639px) {
+  .mp-bug {
+    margin-inline: -1rem;
+  }
+}
+
+.mp-side-name {
+  max-width: 8ch;
+}
+
+.mp-bug {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 0 0.5rem;
+}
+.mp-comp,
+.mp-sides,
+.mp-aftermath {
+  grid-column: 1 / -1;
+}
+.mp-comp {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.mp-clock {
+  border-top: 0;
+  padding: 0;
+  margin-top: 1rem;
+}
+.mp-when {
+  align-self: end;
+  justify-content: flex-end;
+  padding: 0;
+  margin-top: 1rem;
+  font-size: var(--text-xs);
+  text-align: right;
+  text-transform: uppercase;
+}
+.mp-bug:not(:has(.mp-clock)) .mp-when {
+  grid-column: 1 / -1;
+}
+.mp-venue::before {
+  content: none;
 }

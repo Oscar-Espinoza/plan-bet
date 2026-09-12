@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Matchday Plan",
     description:
-      "Turn the next fixture into a clear, evidence-linked preparation plan.",
+      "Real fixtures. Your call. Practice on fictional credits with source-backed context.",
     siteName: "Matchday Plan",
     type: "website",
     images: [
@@ -57,8 +57,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c1210",
-  colorScheme: "dark",
+  themeColor: "#d6d7d9",
+  colorScheme: "light",
 };
 
 export default function RootLayout({

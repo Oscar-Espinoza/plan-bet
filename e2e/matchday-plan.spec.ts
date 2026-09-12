@@ -100,7 +100,7 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("mobile shell scrolls content between the header and navigation", async ({
+test("mobile shell scrolls content between the header and ribbon", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 667 });
@@ -137,7 +137,7 @@ test("mobile shell scrolls content between the header and navigation", async ({
         const scrollerRect = scroller.getBoundingClientRect();
         const linkWidths = Array.from(
           element.querySelectorAll("a"),
-          (link) => link.getBoundingClientRect().width,
+          (link) => link.offsetWidth,
         );
         return {
           bottom: rect.bottom,
@@ -149,6 +149,11 @@ test("mobile shell scrolls content between the header and navigation", async ({
           clientWidth: document.documentElement.clientWidth,
           headerBottom: headerRect.bottom,
           linkWidths,
+          ribbonTop: document.querySelector(".ribbon")!.getBoundingClientRect()
+            .top,
+          ribbonBottom: document
+            .querySelector(".ribbon")!
+            .getBoundingClientRect().bottom,
           scrollerBottom: scrollerRect.bottom,
           scrollerScrollTop: scroller.scrollTop,
           scrollerTop: scrollerRect.top,
@@ -162,7 +167,8 @@ test("mobile shell scrolls content between the header and navigation", async ({
       expect(dimensions.left).toBe(0);
       expect(dimensions.width).toBe(dimensions.clientWidth);
       expect(dimensions.scrollerTop).toBeCloseTo(dimensions.headerBottom, 0);
-      expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.top, 0);
+      expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.ribbonTop, 0);
+      expect(dimensions.ribbonBottom).toBeCloseTo(dimensions.top, 0);
       expect(dimensions.linkWidths).toHaveLength(3);
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),

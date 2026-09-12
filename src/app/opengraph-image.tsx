@@ -15,7 +15,7 @@ async function loadFonts() {
     readFile(
       path.join(
         process.cwd(),
-        "node_modules/@fontsource/big-shoulders-display/files/big-shoulders-display-latin-700-normal.woff",
+        "node_modules/@fontsource/archivo/files/archivo-latin-700-normal.woff",
       ),
     ),
     readFile(
@@ -38,11 +38,10 @@ export default async function OpenGraphImage() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "#0c1210",
-        color: "#efede4",
+        background: "#d6d7d9",
+        color: "#0b0b0c",
         fontFamily: "IBM Plex Sans",
         padding: "70px",
-        border: "1px solid #263029",
       }}
     >
       <div
@@ -62,21 +61,31 @@ export default async function OpenGraphImage() {
             height: 64,
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 12,
-            background: "#e8a33d",
-            color: "#0c1210",
-            fontFamily: "Big Shoulders Display",
+            transform: "skewX(-10deg)",
+            background: "#d8ff3c",
+            color: "#0b0b0c",
+            fontFamily: "Archivo",
             fontWeight: 700,
           }}
         >
-          MP
+          <span style={{ transform: "skewX(10deg)" }}>MP</span>
         </div>
         Matchday Plan
       </div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          background: "#0b0b0c",
+          color: "#f4f6f8",
+          padding: "28px 32px 48px",
+          transform: "skewY(-3deg)",
+        }}
+      >
         <div
           style={{
-            color: "#e8a33d",
+            color: "#d8ff3c",
+            transform: "skewY(3deg)",
             fontSize: 22,
             letterSpacing: 5,
             textTransform: "uppercase",
@@ -87,8 +96,9 @@ export default async function OpenGraphImage() {
         <div
           style={{
             maxWidth: 900,
-            fontFamily: "Big Shoulders Display",
-            fontSize: 82,
+            transform: "skewY(3deg)",
+            fontFamily: "Archivo",
+            fontSize: 72,
             fontWeight: 700,
             lineHeight: 0.96,
             textTransform: "uppercase",
@@ -97,7 +107,7 @@ export default async function OpenGraphImage() {
           Back a side. Watch how your read ages.
         </div>
       </div>
-      <div style={{ display: "flex", color: "#9aa79c", fontSize: 22 }}>
+      <div style={{ display: "flex", color: "#4b4d51", fontSize: 22 }}>
         Soccer · Baseball · Fictional credits, not a sportsbook
       </div>
     </div>,
@@ -105,7 +115,7 @@ export default async function OpenGraphImage() {
       ...size,
       fonts: [
         {
-          name: "Big Shoulders Display",
+          name: "Archivo",
           data: display,
           weight: 700,
           style: "normal",

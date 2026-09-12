@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, MapPin } from "lucide-react";
+import { BoardClock } from "@/components/ribbon";
+import { Button } from "@/components/ui/button";
 import { DemoStamp } from "@/components/demo-stamp";
 import {
   KickoffTime,
@@ -113,6 +115,7 @@ export function Slate({
               would, and printing "Upcoming games" above it a second time
               would just be noise on a good day. */}
           <h1 className="sr-only">Upcoming games</h1>
+          <BoardClock key={nextUp.id} value={nextUp.scheduledAt} />
           <div className="next-up" aria-labelledby="next-up-heading">
             <div className="next-up-header">
               <p className="next-up-eyebrow" id="next-up-heading">
@@ -121,7 +124,12 @@ export function Slate({
               <RelativeKickoff value={nextUp.scheduledAt} />
             </div>
             <h2 className="next-up-teams">
-              {nextUp.homeTeam} vs {nextUp.awayTeam}
+              <span>{nextUp.homeTeam}</span>
+              <span className="next-up-versus">
+                <span className="sr-only">versus</span>
+                <span aria-hidden="true">V</span>
+              </span>
+              <span className="next-up-away">{nextUp.awayTeam}</span>
             </h2>
             <div className="next-up-meta">
               <span>
@@ -132,6 +140,9 @@ export function Slate({
                 <small>your time</small>
               </span>
             </div>
+            <Button asChild>
+              <Link href={`/games/${nextUp.id}`}>Open matchup</Link>
+            </Button>
           </div>
           <div className="slate-freshness slate-freshness-standalone">
             {/* One stamp per sport actually on the board — under a sport
@@ -183,7 +194,7 @@ export function Slate({
             )}
             aria-current={sport === filter.value ? "page" : undefined}
           >
-            {filter.label}
+            <span>{filter.label}</span>
           </Link>
         ))}
         <TimezoneLegend />
@@ -199,7 +210,7 @@ export function Slate({
             >
               <div className="panel-header">
                 <h2 className="panel-title" id={`day-${group.key}`}>
-                  {group.label}
+                  <span>{group.label}</span>
                 </h2>
                 <StatusTag>
                   {group.games.length}{" "}
@@ -209,10 +220,7 @@ export function Slate({
               <div className="game-list">
                 {group.games.map((game) => (
                   <Link
-                    className={cn(
-                      "game-row",
-                      game.id === nextUp?.id && "slate-row-live",
-                    )}
+                    className="game-row"
                     href={`/games/${game.id}`}
                     key={game.id}
                     aria-label={`Open ${game.homeTeam} versus ${game.awayTeam}`}

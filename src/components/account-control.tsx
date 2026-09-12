@@ -34,12 +34,17 @@ export async function AccountControl() {
 
   return (
     <Link
-      className="button button-secondary button-sm"
+      className="account-standing"
       href="/you"
       aria-label={`Balance ${balance} credits, record ${summary.won} won ${summary.lost} lost${openCount > 0 ? `, ${openCount} open wagers` : ""}`}
     >
-      {balance} · {record}
-      {openSuffix}
+      <span>
+        {balance} <small>CR</small>
+      </span>
+      <small>
+        {record}
+        {openSuffix}
+      </small>
     </Link>
   );
 }

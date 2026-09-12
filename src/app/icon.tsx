@@ -13,7 +13,7 @@ async function loadDisplayFont() {
   return readFile(
     path.join(
       process.cwd(),
-      "node_modules/@fontsource/big-shoulders-display/files/big-shoulders-display-latin-700-normal.woff",
+      "node_modules/@fontsource/archivo/files/archivo-latin-700-normal.woff",
     ),
   );
 }
@@ -28,21 +28,32 @@ export default async function Icon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#e8a33d",
-        color: "#0c1210",
-        borderRadius: 12,
-        fontFamily: "Big Shoulders Display",
-        fontSize: 30,
-        fontWeight: 700,
+        background: "#d6d7d9",
       }}
     >
-      MP
+      <div
+        style={{
+          width: 52,
+          height: 44,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#0b0b0c",
+          color: "#d8ff3c",
+          transform: "skewX(-10deg)",
+          fontFamily: "Archivo",
+          fontSize: 26,
+          fontWeight: 700,
+        }}
+      >
+        <span style={{ transform: "skewX(10deg)" }}>MP</span>
+      </div>
     </div>,
     {
       ...size,
       fonts: [
         {
-          name: "Big Shoulders Display",
+          name: "Archivo",
           data: displayFont,
           weight: 700,
           style: "normal",

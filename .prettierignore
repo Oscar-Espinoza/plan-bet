@@ -1,2 +1,5 @@
 # Tooling cache, gitignored but still visible to prettier.
 .impeccable/
+
+# Local browser-tool captures, not application source
+.playwright-mcp/

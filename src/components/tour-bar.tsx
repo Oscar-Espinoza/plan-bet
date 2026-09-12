@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useBandHeight } from "@/components/ribbon";
 import { Button } from "@/components/ui/button";
 import { useMatchdayStore } from "@/lib/store";
 
@@ -17,6 +18,7 @@ const STEPS = [
 
 export function TourBar() {
   const pathname = usePathname();
+  const tourRef = useBandHeight("--tour-h");
   const hydrated = useMatchdayStore((state) => state.hydrated);
   const tourStep = useMatchdayStore((state) => state.tourStep);
   const advanceTour = useMatchdayStore((state) => state.advanceTour);
@@ -31,7 +33,12 @@ export function TourBar() {
   if (!hydrated || tourStep >= STEPS.length) return null;
 
   return (
-    <div className="tour-bar" role="region" aria-label="Getting started tour">
+    <div
+      ref={tourRef}
+      className="tour-bar"
+      role="region"
+      aria-label="Getting started tour"
+    >
       <p className="tour-bar-copy">
         <span className="tour-bar-count">
           {tourStep + 1} of {STEPS.length}

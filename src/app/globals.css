@@ -5,42 +5,73 @@
 @import "@fontsource/dm-mono/500.css";
 
 :root {
-  /* Palette — the broadcast scorebug. Ground is near-black, not blue-black
-     or bottle green; the lit accent is volt, not sodium or acid. Sodium is
-     reserved for time (kickoff, countdowns, "next") and never for money —
-     balances, stakes, prices and returns stay chalk, with field/clay only on
-     a settled outcome. (The token is still named --sodium; it now holds a
-     volt green, matching the proved .mp direction — the invariant above is
-     about what the accent is *used for*, not its hue.) */
-  --ink: #08090b;
-  --slat: #101318;
-  --slat-raised: #171b21;
-  --slat-muted: #08090b;
-  --rule: #23282f;
-  --rule-strong: #333a44;
-  --chalk: #f4f6f8;
-  --muted: #98a1ae;
-  --faint: #7f8896;
-  --sodium: #d8ff3c;
-  --sodium-dark: #1b2408;
-  --field: #3ddc84;
-  --field-dark: #16281f;
-  --clay: #ff5a5f;
-  --clay-dark: #2e1917;
+  /* ---------- ground and planes ---------- */
+  /* Warm-neutral concrete, not blue-grey. The page, and the two planes that
+     sit above and below it. */
+  --concrete: #d6d7d9;
+  --concrete-raised: #e2e3e5; /* an armed input, a lifted cell */
+  --concrete-sunk: #c8cacd; /* filter bars, table heads */
 
-  /* Semantic tone tokens — one source for the six-way status/banner hex
-     duplication (positive/warning/negative × border/bg/text). */
-  --tone-positive-border: #1f5e3d;
-  --tone-positive-bg: #0c1f16;
-  --tone-positive-text: #7fe8ab;
-  --tone-warning-border: #4a5c14;
-  --tone-warning-bg: var(--sodium-dark);
-  --tone-warning-text: #c7e85a;
-  --tone-negative-border: #6b2b2e;
-  --tone-negative-bg: #22100f;
-  --tone-negative-text: #ff9ea1;
+  /* ---------- ink: text and black surfaces on the light ground ---------- */
+  /* --ink flips meaning from the previous palette: it was the page ground,
+     it is now the type and the wedges. Every comment left in globals.css that
+     argues the opposite is stale — rewrite it, do not preserve it. */
+  --ink: #0b0b0c; /* 13.66:1 on concrete */
+  --ink-soft: #4b4d51; /*  5.88:1 on concrete, 5.16:1 on sunk */
+  --ink-faint: #5a5c62; /*  4.64:1 on concrete */
 
-  /* Type scale — 8 steps, replaces 29 ad-hoc rem literals. */
+  /* ---------- chalk: text reversed out of an ink surface ---------- */
+  --chalk: #f4f6f8; /* 18.16:1 on ink */
+  --chalk-soft: #9a9da2; /*  7.23:1 on ink */
+  --chalk-faint: #878b90; /*  5.74:1 on ink */
+
+  /* ---------- rules ---------- */
+  --rule: #b7b9bd; /* hairline between rows */
+  --rule-strong: #9b9da1; /* decorative separators; controls use ink */
+  --rule-ink: #26282b; /* a hairline inside an ink surface */
+
+  /* ---------- accent ---------- */
+  --volt: #d8ff3c;
+  --volt-ink: #0b0b0c; /* 17.13:1 — the only text colour on volt */
+
+  /* ---------- outcome ---------- */
+  /* Two pairs: one legible on concrete, one legible inside an ink surface.
+     Picking the wrong pair is the most likely way to fail the axe gate. */
+  --field: #0d6339; /*  5.10:1 on concrete */
+  --clay: #a81f26; /*  5.05:1 on concrete */
+  --field-lit: #3ddc84; /* 11.03:1 on ink */
+  --clay-lit: #ff5a5f; /*  6.45:1 on ink */
+
+  /* ---------- semantic tones (status tags, banners) ---------- */
+  --tone-positive-border: #9ccdb4;
+  --tone-positive-bg: #dfeee7;
+  --tone-positive-text: #0e5c38; /* 6.72:1 on its bg */
+  --tone-warning-border: #c3d872;
+  --tone-warning-bg: #f0f7cf;
+  --tone-warning-text: #43520f; /* 7.71:1 on its bg */
+  --tone-negative-border: #e0a4a6;
+  --tone-negative-bg: #f8dede;
+  --tone-negative-text: #8f1f24; /* 6.90:1 on its bg */
+
+  /* ---------- geometry ---------- */
+  --shear: -10deg; /* every sheared box; the sign matters */
+  --unshear: 10deg; /* the counter-shear on the box's content */
+  --wedge-drop: 44px; /* fall of a wedge's diagonal bottom edge */
+  --ribbon-rise: 24px; /* rise of the ribbon's diagonal top edge */
+  --nav-h: 4rem; /* the three-up nav row */
+  --ribbon-h: 5.25rem; /* initial estimate; measured on the shell */
+
+  /* ---------- type ---------- */
+  --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
+  --font-display: "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Archivo's width axis. Slant runs narrow: 78 for anything set large,
+     108 for micro-caps labels. The previous design ran 112–118 throughout. */
+  --wdth-cond: 78;
+  --wdth-label: 108;
+
+  --text-3xs: 0.5625rem; /* 9px — ribbon and plate micro-caps */
   --text-2xs: 0.65rem;
   --text-xs: 0.7rem;
   --text-sm: 0.76rem;
@@ -48,15 +79,14 @@
   --text-md: 1rem;
   --text-lg: 1.2rem;
   --text-xl: 1.5rem;
-  --text-display: clamp(2.1rem, 5vw, 3.4rem);
+  --text-display: clamp(2rem, 8.5vw, 3rem); /* wedge team names */
 
-  /* Weight scale — 4 steps, replaces 8 hand-picked values. */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
+  --weight-black: 800; /* wedge names and plate labels */
 
-  /* Spacing — 6 steps. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -64,21 +94,10 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
 
-  /* Radii — 3 steps. */
-  --radius-sm: 2px;
+  --radius-sm: 0;
   --radius-md: 0;
 
-  /* Type faces. */
-  --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
-  --font-display: "Archivo Variable", "Arial Narrow", sans-serif;
-  --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
-
-  /* Shared easing, promoted from .mp (matchup.css --mp-ease). */
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
-
-  /* Lets `block-size: auto` be a transition endpoint — required for the
-     disclosure animation below, and inherited, so setting it at the root
-     covers every <details> in the app. Promoted from .mp (matchup.css). */
   interpolate-size: allow-keywords;
 }
 
@@ -87,8 +106,8 @@
 }
 
 html {
-  background: var(--ink);
-  color-scheme: dark;
+  background: var(--concrete);
+  color-scheme: light;
   scroll-behavior: smooth;
 }
 
@@ -96,8 +115,8 @@ body {
   min-width: 320px;
   margin: 0;
   overflow-x: hidden;
-  background: var(--ink);
-  color: var(--chalk);
+  background: var(--concrete);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
@@ -121,13 +140,13 @@ summary {
 }
 
 :focus-visible {
-  outline: 2px solid var(--sodium);
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: var(--sodium);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--chalk);
 }
 
 a {
@@ -142,7 +161,7 @@ a {
   left: 0.75rem;
   transform: translateY(-200%);
   border-radius: var(--radius-md);
-  background: var(--chalk);
+  background: var(--concrete);
   color: var(--ink);
   padding: 0.65rem 0.9rem;
   font-weight: var(--weight-bold);
@@ -156,7 +175,7 @@ a {
   position: relative;
   display: grid;
   height: 100dvh;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   overflow: clip;
 }
 
@@ -177,20 +196,18 @@ a {
   gap: 0.6rem;
 }
 
-/* Filled sodium plate, not an outline — the mark is the one piece of chrome
-   allowed to carry the brand's lit accent permanently. */
 .brand-mark {
   display: grid;
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
   border-radius: var(--radius-md);
-  background: var(--sodium);
+  background: var(--volt);
   color: var(--ink);
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   letter-spacing: 0.05em;
 }
 
@@ -199,7 +216,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
@@ -211,20 +228,20 @@ a {
   align-items: center;
   gap: 0.45rem;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
+  color: var(--ink-soft);
   padding: 0.6rem 0.75rem;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
 }
 
 .nav-link:hover {
-  background: var(--slat);
-  color: var(--chalk);
+  background: var(--concrete);
+  color: var(--ink);
 }
 
 .nav-link-active {
-  border-bottom-color: var(--sodium);
-  color: var(--chalk);
+  border-bottom-color: var(--volt);
+  color: var(--ink);
 }
 
 .workspace {
@@ -245,9 +262,7 @@ a {
   z-index: 20;
   top: 0;
   border-bottom: 1px solid var(--rule);
-  /* Must track --ink. Can't just be var(--ink) — this needs an alpha
-     channel for the sticky blur-free translucency. */
-  background: rgba(8, 9, 11, 0.96);
+  background: var(--concrete);
 }
 
 .topbar-inner {
@@ -261,21 +276,13 @@ a {
   padding: 0.65rem 1rem;
 }
 
-.topbar-controls {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
 .control-select {
   min-width: 0;
   height: 2.45rem;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: var(--slat);
-  color: var(--chalk);
+  background: var(--concrete);
+  color: var(--ink);
   padding: 0 2rem 0 0.65rem;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
@@ -293,7 +300,7 @@ a {
   z-index: 35;
   right: 0;
   /* Clears the mobile-nav row below the desktop breakpoint. */
-  bottom: 3.85rem;
+  bottom: calc(var(--nav-h) + var(--ribbon-h));
   left: 0;
   display: flex;
   flex-wrap: wrap;
@@ -301,26 +308,26 @@ a {
   justify-content: space-between;
   gap: 0.75rem;
   border-top: 1px solid var(--rule-strong);
-  background: var(--slat-raised);
+  background: var(--concrete-raised);
   padding: 0.65rem 1rem;
 }
 
 .tour-bar-copy {
   margin: 0;
-  color: var(--chalk);
+  color: var(--ink);
   font-size: var(--text-base);
 }
 
 .tour-bar-count {
   margin-right: 0.5rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 1024px) {
   .tour-bar {
-    bottom: 0;
+    bottom: var(--ribbon-h);
   }
 }
 
@@ -333,7 +340,7 @@ a {
      nav sitting left-of-centre on every phone. */
   grid-template-columns: repeat(3, 1fr);
   border-top: 1px solid var(--rule);
-  background: var(--ink);
+  background: var(--concrete);
   padding: 0.35rem max(0.35rem, env(safe-area-inset-right))
     max(0.35rem, env(safe-area-inset-bottom))
     max(0.35rem, env(safe-area-inset-left));
@@ -346,14 +353,14 @@ a {
   align-content: center;
   gap: 0.15rem;
   border-radius: var(--radius-sm);
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
 }
 
 .mobile-nav-link-active {
-  background: var(--slat-raised);
-  color: var(--sodium);
+  background: var(--concrete-raised);
+  color: var(--volt);
 }
 
 .app-footer {
@@ -373,7 +380,7 @@ a {
 }
 
 .app-footer a:hover {
-  color: var(--chalk);
+  color: var(--ink);
 }
 
 .page-heading {
@@ -388,7 +395,7 @@ a {
 /* Neutral by default — one accent doing thirteen jobs meant nothing could be
    emphasised. */
 .eyebrow {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
@@ -400,7 +407,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-display);
   font-weight: var(--weight-semibold);
-  font-variation-settings: "wdth" 118;
+  font-variation-settings: "wdth" var(--wdth-cond);
   letter-spacing: -0.025em;
   line-height: 0.95;
   text-transform: uppercase;
@@ -409,7 +416,7 @@ a {
 .page-description {
   max-width: 42rem;
   margin: 0.65rem 0 0;
-  color: var(--muted);
+  color: var(--ink-soft);
   line-height: 1.65;
 }
 
@@ -418,7 +425,7 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
@@ -431,16 +438,13 @@ a {
 }
 
 .demo-stamp[data-mode="stale"] svg {
-  color: var(--sodium);
+  color: var(--volt);
 }
 
 .demo-stamp[data-mode="demo"] svg {
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
-/* /you's equivalent of .mp-bug: the two facts the page exists to answer,
-   given the header's only two type sizes above 2rem. Chalk, never sodium —
-   this is money, and sodium is reserved for time. */
 .standing-lead {
   display: flex;
   flex-wrap: wrap;
@@ -454,7 +458,7 @@ a {
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
   line-height: 1;
-  color: var(--chalk);
+  color: var(--ink);
 }
 
 .standing-figure-minor {
@@ -462,7 +466,7 @@ a {
 }
 
 .standing-figure small {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
@@ -483,7 +487,7 @@ a {
   min-width: 0;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
-  background: var(--slat);
+  background: var(--concrete);
 }
 
 .loading-panel {
@@ -513,10 +517,10 @@ a {
 
 @keyframes loading-pulse {
   from {
-    background: var(--slat);
+    background: var(--concrete);
   }
   to {
-    background: var(--slat-muted);
+    background: var(--concrete-sunk);
   }
 }
 
@@ -537,7 +541,7 @@ a {
 .panel-purpose {
   max-width: 46ch;
   margin: 0.25rem 0 0;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
   line-height: 1.45;
 }
@@ -547,7 +551,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   letter-spacing: 0.035em;
   text-transform: uppercase;
 }
@@ -557,11 +561,11 @@ a {
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .fine-print {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-sm);
 }
 
@@ -571,9 +575,9 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border: 1px solid var(--sodium);
+  border: 1px solid var(--volt);
   border-radius: var(--radius-sm);
-  background: var(--sodium);
+  background: var(--volt);
   color: var(--ink);
   padding: 0.55rem 0.9rem;
   font-size: var(--text-sm);
@@ -583,7 +587,7 @@ a {
 }
 
 .button:hover:not(:disabled) {
-  background: #e4ff6b;
+  background: var(--volt);
 }
 
 .button:disabled {
@@ -593,20 +597,20 @@ a {
 
 .button-secondary {
   border-color: var(--rule-strong);
-  background: var(--slat-raised);
-  color: var(--chalk);
+  background: var(--concrete-raised);
+  color: var(--ink);
 }
 
 .button-secondary:hover:not(:disabled),
 .button-ghost:hover:not(:disabled) {
-  background: var(--rule-strong);
-  color: var(--chalk);
+  background: var(--concrete-sunk);
+  color: var(--ink);
 }
 
 .button-ghost {
   border-color: transparent;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .button-danger {
@@ -633,14 +637,24 @@ a {
   align-items: center;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--muted);
+  background: var(--concrete-sunk);
+  color: var(--ink-soft);
   padding: 0.18rem 0.48rem;
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.05em;
   line-height: 1.2;
   text-transform: uppercase;
+}
+
+.banner {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--concrete-sunk);
+  color: var(--ink);
+  padding: 0.6rem 0.8rem;
+  font-size: var(--text-base);
+  line-height: 1.4;
 }
 
 .status-positive,
@@ -662,16 +676,6 @@ a {
   border-color: var(--tone-negative-border);
   background: var(--tone-negative-bg);
   color: var(--tone-negative-text);
-}
-
-.banner {
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-md);
-  background: var(--slat-muted);
-  color: var(--chalk);
-  padding: 0.6rem 0.8rem;
-  font-size: var(--text-base);
-  line-height: 1.4;
 }
 
 /* Every tone class is emitted by <Banner> in response to an action (an
@@ -716,38 +720,10 @@ a {
   gap: 0.4rem;
 }
 
-.team-mark {
-  display: inline-grid;
-  flex: 0 0 auto;
-  width: 2.5rem;
-  height: 2.5rem;
-  place-items: center;
-  border: 1px solid;
-  border-radius: 50%;
-  background: var(--slat-muted);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
-  letter-spacing: 0.025em;
-}
-
-.team-mark-sm {
-  width: 1.8rem;
-  height: 1.8rem;
-  font-size: var(--text-2xs);
-}
-
-.team-mark-lg {
-  width: 4.2rem;
-  height: 4.2rem;
-  font-size: var(--text-lg);
-}
-
 .field-label {
   display: block;
   margin-bottom: 0.4rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
@@ -764,8 +740,8 @@ a {
   margin-bottom: 0.75rem;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--chalk);
+  background: var(--concrete-sunk);
+  color: var(--ink);
   padding: 0.5rem 0.75rem;
   font-size: var(--text-base);
   font-weight: var(--weight-regular);
@@ -774,12 +750,12 @@ a {
 }
 
 .field::placeholder {
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .field:focus-visible {
-  border-color: var(--sodium);
-  outline: 2px solid var(--sodium);
+  border-color: var(--volt);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
@@ -811,20 +787,20 @@ a {
   margin: 0 auto 0.75rem;
   border: 1px solid var(--rule);
   border-radius: 50%;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .empty-title {
   margin: 0;
   font-family: var(--font-display);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 118;
+  font-variation-settings: "wdth" var(--wdth-cond);
 }
 
 .empty-copy {
   max-width: 26rem;
   margin: 0.35rem auto 0;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-base);
 }
 
@@ -849,17 +825,13 @@ a {
   margin-bottom: 1.25rem;
 }
 
-/* The one lit plate on the page — the nearest upcoming fixture. A solid
-   sodium left rule and a sodium countdown; everything else on the board
-   stays chalk on slat. */
 .next-up {
   position: relative;
-  margin-bottom: 1.25rem;
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--sodium);
-  border-radius: var(--radius-md);
-  background: var(--slat);
-  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--ink);
+  color: var(--chalk);
+  padding: 1.1rem 1.25rem calc(1.25rem + var(--wedge-drop));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--wedge-drop)), 0 100%);
 }
 
 .next-up-header {
@@ -871,7 +843,7 @@ a {
 }
 
 .next-up-eyebrow {
-  color: var(--sodium);
+  color: var(--volt);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
@@ -879,16 +851,14 @@ a {
 }
 
 .next-up-teams {
-  overflow: hidden;
   margin: 0.5rem 0 0;
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 4vw, 2.2rem);
-  font-weight: var(--weight-semibold);
-  font-variation-settings: "wdth" 118;
-  line-height: 1.05;
-  text-overflow: ellipsis;
+  font-size: var(--text-display);
+  font-weight: var(--weight-black);
+  font-variation-settings: "wdth" var(--wdth-cond);
+  line-height: 0.95;
   text-transform: uppercase;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .next-up-meta {
@@ -898,12 +868,12 @@ a {
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
 .next-up-meta time {
-  color: var(--chalk);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -915,7 +885,7 @@ a {
 }
 
 .next-up-meta-clock small {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -931,14 +901,14 @@ a {
 
 .slate-tz {
   margin-left: auto;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .slate-tz span {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -949,8 +919,8 @@ a {
   align-items: center;
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--muted);
+  background: var(--concrete-sunk);
+  color: var(--ink-soft);
   padding: 0 0.85rem;
   font-size: var(--text-sm);
   font-weight: var(--weight-bold);
@@ -958,8 +928,8 @@ a {
 
 .slate-chip-active {
   border-color: var(--rule-strong);
-  background: var(--slat-raised);
-  color: var(--chalk);
+  background: var(--concrete-raised);
+  color: var(--ink);
 }
 
 .slate-groups {
@@ -988,25 +958,14 @@ a {
 }
 
 .game-row:hover {
-  background: var(--slat-raised);
-}
-
-/* The nearest upcoming fixture also carries a quiet version of the hero's
-   lit rule — the same game, not a second lit thing. */
-.slate-row-live {
-  border-left: 2px solid var(--sodium);
-  padding-left: calc(0.8rem - 2px);
+  background: var(--concrete-raised);
 }
 
 .game-time {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
-}
-
-.slate-row-live .game-time {
-  color: var(--sodium);
 }
 
 .game-matchup {
@@ -1018,7 +977,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1029,7 +988,7 @@ a {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
 }
 
@@ -1038,7 +997,7 @@ a {
 }
 
 .game-chevron {
-  color: var(--faint);
+  color: var(--ink-faint);
 }
 
 .stat-stack,
@@ -1058,7 +1017,7 @@ a {
   justify-content: space-between;
   border-bottom: 1px solid var(--rule);
   padding: 0.75rem 1rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
@@ -1066,7 +1025,7 @@ a {
    1rem gutter instead of the panel edge, and breathes off the row above. */
 .stat-group-label {
   padding: 0.9rem 1rem 0.35rem;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-sm);
 }
 
@@ -1078,7 +1037,7 @@ a {
 }
 
 .stat-row strong {
-  color: var(--chalk);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
@@ -1090,18 +1049,18 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
 .mini-empty {
   padding: 1rem;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
 .data-pair span {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.05em;
@@ -1129,13 +1088,13 @@ a {
    outside the bet slip. */
 .data-pair > :last-child {
   font-family: var(--font-mono);
-  color: var(--chalk);
+  color: var(--ink);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .not-provided {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-style: italic;
   font-weight: var(--weight-medium);
 }
@@ -1153,7 +1112,7 @@ a {
 }
 
 .source-index {
-  color: var(--faint);
+  color: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -1165,13 +1124,13 @@ a {
 
 .source-list p {
   margin: 0.2rem 0 0;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
 }
 
 .source-list time {
   grid-column: 2;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
 }
@@ -1197,7 +1156,7 @@ a {
 }
 
 .wager-table th {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.04em;
@@ -1208,10 +1167,10 @@ a {
   border-bottom: 0;
 }
 
-/* A table link, not the money in the row — chalk with an underline rather
+/* A table link, not the money in the row — ink with an underline rather
    than an accent colour. */
 .wager-table a {
-  color: var(--chalk);
+  color: var(--ink);
   font-weight: var(--weight-semibold);
   text-decoration: underline;
   text-underline-offset: 0.15em;
@@ -1230,12 +1189,12 @@ a {
   text-align: center;
 }
 
-/* No sodium edge here: sodium is reserved for time, and this panel is money.
+/* Money stays ink on concrete.
    Being first on the page and the only panel with a filled button is what
    marks it as the action. */
 .bet-balance {
   display: grid;
-  color: var(--chalk);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
@@ -1245,7 +1204,7 @@ a {
 }
 
 .bet-balance small {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
@@ -1255,7 +1214,7 @@ a {
 
 .bet-hint {
   margin: 0;
-  color: var(--faint);
+  color: var(--ink-faint);
   font-size: var(--text-sm);
 }
 
@@ -1269,17 +1228,12 @@ a {
   margin-top: 0.25rem;
 }
 
-/* A hairline grid — 1px gaps over a rule-coloured background — rather than
-   separated buttons: the row reads as one ruled block of choices. Promoted
-   from .mp .selection-row (matchup.css); .selection-row/-button have no
-   consumer outside the bet slip, so this replaces the grid-gap version
-   outright rather than living alongside it. */
+/* Separate outlined tiles keep all four borders when sheared. */
 .selection-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
-  gap: 1px;
-  background: var(--rule);
-  border: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 9px;
+  padding-inline: 5px;
 }
 
 /* Left-aligned, label above price — not centred. Promoted from
@@ -1290,9 +1244,10 @@ a {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  border: 0;
-  background: var(--slat-raised);
-  color: var(--muted);
+  min-width: 0;
+  border: 1px solid var(--ink-faint);
+  background: transparent;
+  color: var(--ink);
   padding: 9px 10px;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
@@ -1304,15 +1259,15 @@ a {
     color 120ms var(--ease);
 }
 
-.selection-button span:first-child {
+.selection-button .plate-content > :first-child {
   font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: var(--weight-bold);
 }
 
-.selection-button span:last-child {
-  color: var(--chalk);
+.selection-button .plate-content > :last-child {
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
@@ -1322,16 +1277,15 @@ a {
   background: var(--rule-strong);
 }
 
-/* The armed pick — "what's next", not a settled outcome — so it takes the
-   sodium chrome. The price inside stays chalk: no sodium on the money. */
+/* A volt fill and ink boundary identify the selected tile. */
 .selection-button-active,
 .selection-button-active:hover {
-  background: var(--sodium);
-  color: var(--sodium-dark);
+  background: var(--volt);
+  color: var(--volt-ink);
 }
 
 .selection-button-active span:last-child {
-  color: var(--sodium-dark);
+  color: var(--volt-ink);
 }
 
 .stake-chips {
@@ -1345,15 +1299,15 @@ a {
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   cursor: pointer;
 }
 
 .stake-chips button:hover {
-  border-color: var(--sodium);
-  color: var(--sodium);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .filter-bar {
@@ -1362,7 +1316,7 @@ a {
   align-items: flex-end;
   gap: 0.6rem;
   border-bottom: 1px solid var(--rule);
-  background: var(--slat-muted);
+  background: var(--concrete-sunk);
   padding: 0.75rem 1rem;
 }
 
@@ -1386,7 +1340,7 @@ a {
 
 .metric-card svg {
   grid-row: 1 / span 2;
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .metric-card strong {
@@ -1398,7 +1352,7 @@ a {
 }
 
 .metric-card span {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   text-transform: uppercase;
 }
@@ -1453,11 +1407,11 @@ a {
   transform: translate(-50%, -50%);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-md);
-  background: var(--slat-raised);
+  background: var(--concrete-raised);
   padding: 1.25rem;
   /* Floats above the page, unlike every in-flow .panel/.mp-bug/.mp-block,
      which stay flat with a hairline border. A hairline alone doesn't read
-     as "above" on a near-black ground — do not remove this for
+     as "above" on a light ground — do not remove this for
      consistency with the flat surfaces. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
@@ -1467,13 +1421,13 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   text-transform: uppercase;
 }
 
 .alert-description {
   margin: 0.5rem 0 0;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: var(--text-base);
 }
 
@@ -1484,32 +1438,19 @@ a {
   margin-top: 1.25rem;
 }
 
-/* The same Dialog.Trigger button, floated instead of docked in the topbar.
-   z-40 sits above .mobile-nav (30) and below .alert-overlay/.buddy-overlay
-   (80) and the skip link (100). Below 1024px it clears .mobile-nav's own
-   fixed bar; buddy-launcher-raised additionally clears .tour-bar while the
-   first-run tour is up, by roughly the tour bar's own height. */
 .buddy-launcher {
   position: absolute;
   z-index: 40;
   right: max(1rem, env(safe-area-inset-right));
-  bottom: calc(3.85rem + 0.75rem);
+  bottom: calc(var(--nav-h) + var(--ribbon-h) + var(--tour-h) + 0.75rem);
   /* Floats above the page, same as .alert-content/.buddy-panel — a
-     hairline alone doesn't read as "above" on a near-black ground. */
+     hairline alone doesn't read as "above" on a light ground. */
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-}
-
-.buddy-launcher-raised {
-  bottom: calc(3.85rem + 0.75rem + 3rem);
 }
 
 @media (min-width: 1024px) {
   .buddy-launcher {
-    bottom: 1.5rem;
-  }
-
-  .buddy-launcher-raised {
-    bottom: calc(1.5rem + 3rem);
+    bottom: calc(var(--ribbon-h) + var(--tour-h) + 0.75rem);
   }
 }
 
@@ -1531,10 +1472,10 @@ a {
   gap: var(--space-3);
   width: 100%;
   border-left: 1px solid var(--rule-strong);
-  background: var(--slat-raised);
+  background: var(--concrete-raised);
   padding: var(--space-4);
   /* Floats above the page, same as .alert-content/.buddy-launcher — a
-     hairline alone doesn't read as "above" on a near-black ground. */
+     hairline alone doesn't read as "above" on a light ground. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
 
@@ -1549,7 +1490,7 @@ a {
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
-  font-variation-settings: "wdth" 112;
+  font-variation-settings: "wdth" var(--wdth-label);
   text-transform: uppercase;
 }
 
@@ -1577,14 +1518,14 @@ a {
 
 .buddy-turn-text {
   margin: 0;
-  color: var(--chalk);
+  color: var(--ink);
   font-size: var(--text-base);
 }
 
 /* Provisional until the terminal frame confirms it — dimmed with a caret,
    never left standing at full opacity as though it were already settled. */
 .buddy-turn-streaming {
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .buddy-turn-streaming::after {
@@ -1728,7 +1669,7 @@ details[open]::details-content {
 .button:active:not(:disabled),
 .selection-button:active,
 .stake-chips button:active {
-  transform: translateY(1px);
+  transform: translateY(1px) skewX(var(--plate-shear, 0deg));
 }
 
 .nav-link,
@@ -1778,5 +1719,405 @@ details[open]::details-content {
 
   .buddy-turn-streaming::after {
     animation: none;
+  }
+}
+
+/* ---------- Slant geometry and measured shell ---------- */
+.app-shell {
+  --nav-h: 4rem;
+  --ribbon-h: 5.25rem;
+  --tour-h: 0px;
+}
+.button,
+.slate-chip,
+.brand-mark,
+.nav-link-active,
+.mobile-nav-link-active,
+.selection-button,
+.stake-chips button,
+.slate-groups .panel-title {
+  --plate-shear: var(--shear);
+  transform: skewX(var(--plate-shear));
+}
+.plate-content,
+.slate-chip > span,
+.brand-mark > span,
+.stake-chips button > span,
+.slate-groups .panel-title > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transform: skewX(var(--unshear));
+}
+.nav-link:not(.nav-link-active) .plate-content,
+.mobile-nav-link:not(.mobile-nav-link-active) .plate-content,
+.button-ghost .plate-content {
+  transform: none;
+}
+.button-ghost {
+  --plate-shear: 0deg;
+}
+.button,
+.slate-chip,
+.nav-link,
+.mobile-nav-link {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" var(--wdth-label);
+  font-weight: var(--weight-black);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.button-secondary,
+.slate-chip,
+.stake-chips button,
+.field,
+.control-select {
+  border-color: var(--ink-faint);
+}
+.field {
+  background: var(--concrete-raised);
+}
+.field:focus-visible {
+  border-color: var(--ink);
+}
+.brand-mark {
+  background: var(--ink);
+  color: var(--volt);
+  width: 2.9rem;
+  height: 1.7rem;
+}
+.brand-name {
+  font-variation-settings: "wdth" var(--wdth-cond);
+}
+.nav-link-active,
+.slate-chip-active {
+  background: var(--ink);
+  color: var(--chalk);
+  border-color: var(--ink);
+}
+.mobile-nav {
+  background: var(--ink);
+  gap: 0.75rem;
+  padding-inline: 1rem;
+  border-color: var(--rule-ink);
+}
+.mobile-nav-link {
+  color: var(--chalk-soft);
+}
+.mobile-nav-link-active {
+  background: var(--volt);
+  color: var(--volt-ink);
+}
+.mobile-nav-link svg {
+  display: none;
+}
+.mobile-nav-link .plate-content {
+  flex-direction: column;
+}
+.next-up-teams > span {
+  display: block;
+}
+.next-up-away {
+  color: var(--chalk-soft);
+}
+.next-up-versus {
+  display: flex !important;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.8rem 0;
+  color: var(--chalk-faint);
+  font: 700 var(--text-xs) var(--font-body);
+}
+.next-up-versus::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--rule-ink);
+}
+.next-up-meta {
+  margin: 1rem 0;
+  color: var(--chalk-soft);
+}
+.next-up-meta time {
+  color: var(--chalk);
+}
+.next-up-meta-clock small {
+  color: var(--chalk-faint);
+}
+.next-up-header > time {
+  color: var(--chalk-soft);
+  font-family: var(--font-mono);
+}
+.slate-filters {
+  gap: 12px;
+  padding-inline: 5px;
+}
+.slate-chip {
+  min-height: 2.8rem;
+  background: transparent;
+}
+.slate-chip-active {
+  background: var(--ink);
+}
+.slate-groups .panel {
+  border-inline: 0;
+}
+.slate-groups .panel-title {
+  background: var(--ink);
+  color: var(--chalk);
+  padding: 0.4rem 0.8rem;
+  font-size: var(--text-base);
+}
+.next-up-teams > :not(.next-up-versus) {
+  max-width: 12ch;
+}
+.next-up-meta {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+}
+.game-opponent {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.wager-table
+  :is(td:nth-child(4), td:nth-child(5), td:nth-child(8), td:nth-child(9)) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+@media (max-width: 639px) {
+  .main-content:has(> .mp),
+  .main-content:has(> .next-up) {
+    padding-top: 0;
+  }
+}
+
+.next-up {
+  margin-bottom: 0.5rem;
+  padding-bottom: calc(0.75rem + var(--wedge-drop));
+}
+.next-up-header > time {
+  font-size: var(--text-xs);
+}
+.next-up-versus {
+  margin-block: 0.6rem;
+}
+.next-up-meta {
+  margin-block: 0.6rem;
+}
+.slate-freshness-standalone {
+  margin-bottom: 0.5rem;
+}
+.slate-filters {
+  gap: 8px 12px;
+  margin-bottom: 0.5rem;
+}
+.slate-groups .panel-header {
+  padding-block: 0.5rem;
+  min-height: 0;
+}
+.wager-panel {
+  border-inline: 0;
+  border-top: 0;
+}
+.wager-panel .panel-header {
+  padding: 0.5rem 1rem;
+}
+.wager-panel .panel-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.wager-panel .panel-title {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--chalk);
+  padding: 0.4rem 0.8rem;
+  transform: skewX(var(--shear));
+  font-size: var(--text-base);
+}
+.wager-panel .panel-title > span {
+  display: inline-block;
+  transform: skewX(var(--unshear));
+}
+
+/* Ribbon bands grow with their contents; only desktop positioning is fixed. */
+.game-time {
+  color: var(--ink);
+}
+.selection-button .plate-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.selection-button .plate-content > :first-child {
+  font: 800 var(--text-xs) var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.selection-button .plate-content > :last-child {
+  font: 500 var(--text-xl) var(--font-mono);
+  color: inherit;
+}
+.selection-button:hover {
+  background: var(--concrete-raised);
+}
+.selection-button-active,
+.selection-button-active:hover {
+  background: var(--volt);
+  border-color: var(--ink);
+}
+.stake-chips {
+  gap: 9px;
+  padding-inline: 4px;
+}
+.filter-bar,
+.wager-table th {
+  color: var(--ink-soft);
+}
+.filter-bar .fine-print {
+  color: var(--ink-soft);
+}
+.demo-stamp[data-mode="stale"] svg {
+  color: var(--ink-soft);
+}
+.ribbon {
+  z-index: 30;
+  min-width: 0;
+  background: var(--ink);
+  color: var(--chalk);
+  padding-top: var(--ribbon-rise);
+  clip-path: polygon(0 var(--ribbon-rise), 100% 0, 100% 100%, 0 100%);
+}
+.ribbon-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  max-width: 100rem;
+  margin: auto;
+  padding: 0.5rem 1.25rem 0.75rem;
+}
+.ribbon-clock,
+.ribbon-returns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.ribbon-label {
+  font: 700 var(--text-3xs) var(--font-body);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.ribbon .ribbon-label {
+  color: var(--chalk-soft);
+}
+.ribbon-countdown {
+  color: var(--volt);
+  font: 500 1.5rem var(--font-mono);
+}
+.return-figure {
+  font: 500 var(--text-xl) var(--font-mono);
+}
+.ribbon-account {
+  min-width: 0;
+  margin-left: auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.account-standing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  font: 500 var(--text-md) var(--font-mono);
+}
+.account-standing small {
+  color: var(--chalk-soft);
+  font-size: var(--text-2xs);
+}
+.ribbon-action,
+.ribbon-feedback {
+  width: 100%;
+  min-width: 0;
+}
+.ribbon-action .button {
+  min-height: 2.85rem;
+}
+.ribbon-feedback {
+  overflow-wrap: anywhere;
+}
+.ribbon-inner > :empty,
+.ribbon-feedback:not(:has(.banner)),
+.wager-feedback:empty {
+  display: none;
+}
+.ribbon-disclaimer {
+  padding: 0.2rem 0.5rem;
+  background: var(--volt);
+  color: var(--volt-ink);
+  text-align: center;
+  font: 800 var(--text-3xs) var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.ribbon :focus-visible,
+.next-up :focus-visible,
+.mobile-nav :focus-visible {
+  outline-color: var(--chalk);
+}
+.ribbon .button-secondary {
+  background: var(--ink);
+  border-color: var(--chalk-soft);
+  color: var(--chalk);
+}
+.workspace-scroll {
+  scroll-padding-bottom: calc(var(--tour-h) + 1rem);
+}
+.app-footer {
+  padding-bottom: calc(1rem + var(--tour-h));
+}
+@media (max-width: 639px) {
+  .main-content {
+    padding-top: 1rem;
+  }
+  .main-content:has(> .mp),
+  .main-content:has(> .next-up) {
+    padding-top: 0;
+  }
+  .next-up {
+    margin-inline: -1rem;
+  }
+  .topbar-inner {
+    min-height: 3.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .ribbon {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ribbon-action {
+    width: min(28rem, 45%);
+    margin-left: auto;
+  }
+  .workspace {
+    padding-bottom: var(--ribbon-h);
   }
 }

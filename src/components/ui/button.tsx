@@ -16,9 +16,21 @@ export function Button({
   size = "default",
   type = "button",
   ref,
+  children,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
+  const content =
+    asChild &&
+    React.isValidElement<{ children?: React.ReactNode }>(children) ? (
+      React.cloneElement(
+        children,
+        {},
+        <span className="plate-content">{children.props.children}</span>,
+      )
+    ) : (
+      <span className="plate-content">{children}</span>
+    );
   return (
     <Comp
       ref={ref}
@@ -33,6 +45,8 @@ export function Button({
         className,
       )}
       {...props}
-    />
+    >
+      {content}
+    </Comp>
   );
 }
