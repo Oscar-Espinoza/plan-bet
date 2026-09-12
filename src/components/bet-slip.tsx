@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { RibbonPortal } from "@/components/ribbon";
+import { ActionPortal } from "@/components/action-bar";
 import { GameThread, type CommentThreadView } from "@/components/game-thread";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
@@ -14,7 +14,7 @@ import {
   type RecordSlice,
   type Wager,
 } from "@/lib/contracts";
-import { MAX_STAKE, MIN_STAKE, type Market } from "@/lib/markets";
+import { MIN_STAKE, type Market } from "@/lib/markets";
 import { useMatchdayStore } from "@/lib/store";
 import {
   CLOSED_COPY,
@@ -62,8 +62,9 @@ function lineSuffix(line: number | undefined) {
   return typeof line === "number" ? ` ${line}` : "";
 }
 
+/** The only ceiling is the balance; MAX_STAKE is a column bound, not a rule. */
 function clampStake(value: number, balance: number) {
-  return Math.min(MAX_STAKE, balance, Math.max(MIN_STAKE, value));
+  return Math.min(balance, Math.max(MIN_STAKE, value));
 }
 
 /**
@@ -199,7 +200,12 @@ export function BetSlip({
   const hasReaction =
     reaction && reaction.won + reaction.lost + reaction.voided > 0;
 
-  const [stake, setStake] = useState(MIN_STAKE);
+  // Held as text so an empty field is a legal intermediate state. Storing a
+  // number here meant `Number("") || MIN_STAKE` snapped the input back to 1
+  // the instant you cleared it, so a custom amount could only ever be appended
+  // to whatever was already there.
+  const [stakeText, setStakeText] = useState(String(MIN_STAKE));
+  const stake = Number.parseInt(stakeText, 10) || 0;
   const [groupId, setGroupId] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
@@ -208,6 +214,7 @@ export function BetSlip({
   const potentialReturn = selection ? Math.round(stake * selection.price) : 0;
   const balanceAfter = balance - stake;
   const insufficientCredits = stake > balance;
+  const stakeEntered = stake >= MIN_STAKE;
 
   const arm = (marketId: string, selectionId: string) => {
     setArmed({ marketId, selectionId });
@@ -216,11 +223,12 @@ export function BetSlip({
   };
 
   const addStake = (amount: number) =>
-    setStake((current) => clampStake(current + amount, balance));
+    setStakeText(String(clampStake(stake + amount, balance)));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!market || !selection || pending || insufficientCredits) return;
+    if (!stakeEntered) return;
     setPending(true);
     setError("");
     const response = await fetch("/api/bets", {
@@ -257,7 +265,7 @@ export function BetSlip({
       )} → returns ${result.wager.potentialReturn}. New balance: ${result.summary.balance}.`,
     );
     setArmed(undefined);
-    setStake(MIN_STAKE);
+    setStakeText(String(MIN_STAKE));
     setGroupId("");
     advanceTour(2);
     router.refresh();
@@ -277,13 +285,13 @@ export function BetSlip({
           </div>
         </div>
         <div className="side-form">
-          <RibbonPortal area="action">
+          <ActionPortal area="action">
             <Button asChild className="w-full">
               <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
                 Sign in
               </Link>
             </Button>
-          </RibbonPortal>
+          </ActionPortal>
           <p className="fine-print">
             Signing in only unlocks the credit ledger — the rest of the page
             works signed out.
@@ -326,7 +334,7 @@ export function BetSlip({
         <p className="side-form">{CLOSED_COPY[state.reason]}</p>
       )}
 
-      <RibbonPortal area="feedback">
+      <ActionPortal area="feedback">
         <div className="wager-feedback" aria-live="polite" aria-atomic="true">
           {confirmation && (
             <div className="enter-pop">
@@ -346,29 +354,74 @@ export function BetSlip({
             </Banner>
           )}
         </div>
-      </RibbonPortal>
+      </ActionPortal>
       {state.kind === "open" && (
         <>
-          <RibbonPortal area="returns">
-            <span className="ribbon-label">Returns</span>
+          <ActionPortal area="returns">
+            <span className="action-bar-label">Returns</span>
             <span className="return-figure">
               {selection ? potentialReturn : "—"}
             </span>
-          </RibbonPortal>
-          <RibbonPortal area="action">
+          </ActionPortal>
+          <ActionPortal area="action">
+            {/* The stake rides in the bar beside the button it feeds. It stays
+                associated with the form in the panel by id, so native
+                validation and Enter-to-submit are unchanged by the move. */}
+            {selection && (
+              <div className="action-bar-stake">
+                <label className="action-bar-label" htmlFor="wager-stake">
+                  Stake
+                </label>
+                <input
+                  id="wager-stake"
+                  form={formId}
+                  className="field"
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_STAKE}
+                  // Native validity agrees with the app-level check rather
+                  // than with a published cap: the balance is the limit.
+                  max={balance}
+                  step={1}
+                  value={stakeText}
+                  onChange={(event) => setStakeText(event.target.value)}
+                  required
+                />
+                <div className="stake-chips">
+                  <button type="button" onClick={() => addStake(5)}>
+                    +5
+                  </button>
+                  <button type="button" onClick={() => addStake(25)}>
+                    +25
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStakeText(String(clampStake(balance, balance)))
+                    }
+                  >
+                    max
+                  </button>
+                </div>
+              </div>
+            )}
             <Button
               type="submit"
               form={formId}
               className="w-full"
-              disabled={!selection || pending || insufficientCredits}
+              disabled={
+                !selection || pending || insufficientCredits || !stakeEntered
+              }
             >
               {pending
                 ? "Placing…"
-                : selection
-                  ? `Place ${stake} credits`
-                  : "Choose a selection"}
+                : !selection
+                  ? "Choose a selection"
+                  : stakeEntered
+                    ? `Place ${stake} credits`
+                    : "Enter a stake"}
             </Button>
-          </RibbonPortal>
+          </ActionPortal>
         </>
       )}
 
@@ -411,10 +464,8 @@ export function BetSlip({
                       >
                         {/* s.label already carries the line for a total market
                           ("Over 2.5"), so no separate lineSuffix here. */}
-                        <span className="plate-content">
-                          <span>{s.label}</span>
-                          <span>{s.price.toFixed(2)}</span>
-                        </span>
+                        <span>{s.label}</span>
+                        <span>{s.price.toFixed(2)}</span>
                       </button>
                     );
                   })}
@@ -445,38 +496,6 @@ export function BetSlip({
               .
             </p>
           )}
-
-          <label htmlFor="wager-stake" className="field-label">
-            Stake
-          </label>
-          <input
-            id="wager-stake"
-            className="field"
-            type="number"
-            inputMode="numeric"
-            min={MIN_STAKE}
-            max={MAX_STAKE}
-            step={1}
-            value={stake}
-            onChange={(event) =>
-              setStake(Number(event.target.value) || MIN_STAKE)
-            }
-            required
-          />
-          <div className="stake-chips">
-            <button type="button" onClick={() => addStake(5)}>
-              <span>+5</span>
-            </button>
-            <button type="button" onClick={() => addStake(25)}>
-              <span>+25</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setStake(clampStake(MAX_STAKE, balance))}
-            >
-              <span>max</span>
-            </button>
-          </div>
 
           <span className="field-label">Place</span>
           {groups.length > 0 ? (

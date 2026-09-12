@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { ChevronRight, MapPin } from "lucide-react";
-import { BoardClock } from "@/components/ribbon";
+import { ChevronRight } from "lucide-react";
+import { PitchArt } from "@/components/pitch-art";
 import { TeamLogo } from "@/components/team-logo";
+import { clubAccentStyle } from "@/lib/club-accent";
+import { teams } from "@/lib/seed";
 import { gameTeamLogo } from "@/lib/team-logos";
 import { Button } from "@/components/ui/button";
 import { DemoStamp } from "@/components/demo-stamp";
 import {
+  Countdown,
   KickoffTime,
   RelativeKickoff,
   TimezoneLegend,
@@ -106,9 +109,17 @@ export function Slate({
   }
 
   const nextUp = games[0];
+  // The page accent follows the tracked team of the nearest fixture, and is
+  // set on the server so the club colour paints on first byte. A board with
+  // nothing on it falls back to the neutral defaults in globals.css.
+  const heroSide =
+    nextUp && nextUp.homeTeamSlug === nextUp.teamSlug ? "home" : "away";
+  const accent = clubAccentStyle(
+    teams.find((team) => team.slug === nextUp?.teamSlug),
+  );
 
   return (
-    <>
+    <div className="board" style={accent}>
       {nextUp ? (
         <>
           {/* The route's own name — stable across both branches, unlike the
@@ -117,35 +128,54 @@ export function Slate({
               would, and printing "Upcoming games" above it a second time
               would just be noise on a good day. */}
           <h1 className="sr-only">Upcoming games</h1>
-          <BoardClock key={nextUp.id} value={nextUp.scheduledAt} />
-          <div className="next-up" aria-labelledby="next-up-heading">
-            <div className="next-up-header">
-              <p className="next-up-eyebrow" id="next-up-heading">
-                Next up
-              </p>
-              <RelativeKickoff value={nextUp.scheduledAt} />
-            </div>
-            <h2 className="next-up-teams">
+          {/* The hero the club site leads with: the tracked team's own crest
+              blown up behind the fixture it is about. Every word is a fact
+              already on the board — day, competition, the two names, the
+              venue — so nothing here is editorial copy. */}
+          <section className="board-hero" aria-labelledby="next-up-heading">
+            <PitchArt sport={nextUp.sport} />
+            <TeamLogo src={gameTeamLogo(nextUp, heroSide)} />
+            <span className="board-hero-scrim" aria-hidden="true" />
+            <p className="board-hero-kicker">
+              {groups[0]?.label} · {nextUp.competition}
+            </p>
+            <h2 className="board-hero-title" id="next-up-heading">
+              {nextUp.homeTeam} v {nextUp.awayTeam}
+            </h2>
+            <p className="board-hero-sub">{nextUp.venue ?? "Not provided"}</p>
+          </section>
+
+          <div className="next-up" aria-labelledby="next-match-heading">
+            <p className="next-up-eyebrow" id="next-match-heading">
+              <span>Next</span> Match
+            </p>
+            <h3 className="next-up-teams">
               <span className="next-up-team">
-                <span>{nextUp.homeTeam}</span>
                 <TeamLogo src={gameTeamLogo(nextUp, "home")} />
+                <span>{nextUp.homeTeam}</span>
               </span>
               <span className="next-up-versus">
                 <span className="sr-only">versus</span>
                 <span aria-hidden="true">V</span>
               </span>
               <span className="next-up-team next-up-away">
-                <span>{nextUp.awayTeam}</span>
                 <TeamLogo src={gameTeamLogo(nextUp, "away")} />
+                <span>{nextUp.awayTeam}</span>
               </span>
-            </h2>
+            </h3>
             <div className="next-up-meta">
-              <span>
-                {nextUp.competition} · {nextUp.venue ?? "Not provided"}
-              </span>
               <span className="next-up-meta-clock">
                 <KickoffTime value={nextUp.scheduledAt} />
                 <small>your time</small>
+              </span>
+              <span className="next-up-meta-count">
+                <span className="next-up-label">Kickoff in</span>
+                <span className="next-up-countdown">
+                  <Countdown value={nextUp.scheduledAt} />
+                </span>
+                <span className="sr-only">
+                  <RelativeKickoff value={nextUp.scheduledAt} />
+                </span>
               </span>
             </div>
             <Button asChild>
@@ -228,40 +258,41 @@ export function Slate({
               <div className="game-list">
                 {group.games.map((game) => (
                   <Link
-                    className="game-row"
+                    className={cn(
+                      "game-row",
+                      game.id === nextUp?.id && "game-row-next",
+                    )}
                     href={`/games/${game.id}`}
                     key={game.id}
                     aria-label={`Open ${game.homeTeam} versus ${game.awayTeam}`}
                   >
+                    {/* One line, the reference's table. Competition and
+                        venue left the row with the meta line: both still show
+                        in the hero above and on every matchup page. */}
+                    <div className="game-opponent">
+                      <span className="game-team">
+                        <TeamLogo src={gameTeamLogo(game, "home")} />
+                        <span>{game.homeTeam}</span>
+                      </span>{" "}
+                      <span className="game-versus">vs</span>{" "}
+                      <span className="game-team">
+                        <TeamLogo src={gameTeamLogo(game, "away")} />
+                        <span>{game.awayTeam}</span>
+                      </span>
+                      {/* Normally inert — the schedule holds upcoming games
+                          only — but a game that finishes while still in the
+                          window reads honestly instead of as a stale
+                          kickoff. */}
+                      {game.result && (
+                        <span className="game-final">
+                          {" "}
+                          Final {game.result.homeScore}&ndash;
+                          {game.result.awayScore}
+                        </span>
+                      )}
+                    </div>
                     <div className="game-time">
                       <KickoffTime value={game.scheduledAt} />
-                    </div>
-                    <div className="game-matchup">
-                      <div className="game-opponent">
-                        <span className="game-team">
-                          <TeamLogo src={gameTeamLogo(game, "home")} />
-                          <span>{game.homeTeam}</span>
-                        </span>{" "}
-                        <span className="game-versus">vs</span>{" "}
-                        <span className="game-team">
-                          <TeamLogo src={gameTeamLogo(game, "away")} />
-                          <span>{game.awayTeam}</span>
-                        </span>
-                      </div>
-                      <div className="game-meta">
-                        {game.competition} ·{" "}
-                        <RelativeKickoff value={game.scheduledAt} />
-                        {/* Normally inert — the schedule holds upcoming games
-                            only — but a game that finishes while still in the
-                            window reads honestly instead of as a stale
-                            kickoff. */}
-                        {game.result &&
-                          ` · Final ${game.result.homeScore}–${game.result.awayScore}`}
-                      </div>
-                    </div>
-                    <div className="game-venue">
-                      <MapPin aria-hidden="true" size={14} />{" "}
-                      {game.venue ?? "Not provided"}
                     </div>
                     <ChevronRight
                       className="game-chevron"
@@ -284,6 +315,6 @@ export function Slate({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -100,7 +100,7 @@ test("keyboard, reduced motion, 404, and responsive layouts remain usable", asyn
   expect(browserErrors).toEqual([]);
 });
 
-test("mobile shell scrolls content between the header and ribbon", async ({
+test("mobile shell scrolls content between the header and the nav", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 667 });
@@ -149,11 +149,9 @@ test("mobile shell scrolls content between the header and ribbon", async ({
           clientWidth: document.documentElement.clientWidth,
           headerBottom: headerRect.bottom,
           linkWidths,
-          ribbonTop: document.querySelector(".ribbon")!.getBoundingClientRect()
-            .top,
-          ribbonBottom: document
-            .querySelector(".ribbon")!
-            .getBoundingClientRect().bottom,
+          // None of these routes has an action bar: it exists on a game
+          // page only, so the nav is the one band under the scroller here.
+          hasActionBar: Boolean(document.querySelector(".action-bar")),
           scrollerBottom: scrollerRect.bottom,
           scrollerScrollTop: scroller.scrollTop,
           scrollerTop: scrollerRect.top,
@@ -167,8 +165,8 @@ test("mobile shell scrolls content between the header and ribbon", async ({
       expect(dimensions.left).toBe(0);
       expect(dimensions.width).toBe(dimensions.clientWidth);
       expect(dimensions.scrollerTop).toBeCloseTo(dimensions.headerBottom, 0);
-      expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.ribbonTop, 0);
-      expect(dimensions.ribbonBottom).toBeCloseTo(dimensions.top, 0);
+      expect(dimensions.hasActionBar).toBe(false);
+      expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.top, 0);
       expect(dimensions.linkWidths).toHaveLength(3);
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),

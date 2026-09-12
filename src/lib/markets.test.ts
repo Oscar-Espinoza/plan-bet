@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   gameSummarySchema,
+  wagerPlacementSchema,
   type GameResult,
   type GameSummary,
 } from "@/lib/contracts";
@@ -8,6 +9,10 @@ import {
   gradeSelection,
   marketsFor,
   resolveSelection,
+  HIGHEST_PRICE,
+  INT4_MAX,
+  MAX_STAKE,
+  MIN_STAKE,
   type Market,
 } from "@/lib/markets";
 
@@ -309,5 +314,51 @@ describe("gradeSelection - unknown selection", () => {
     const market = findMarket("soccer", "match_result");
     const game = makeGame({ result: makeResult(1, 0, "regulation") });
     expect(() => gradeSelection(market, "not-a-real-id", game)).toThrow();
+  });
+});
+
+/**
+ * The stake bounds live in two places by necessity: contracts.ts cannot import
+ * markets.ts without a cycle, so it repeats them as literals. These assertions
+ * are what keeps the two honest — a comment saying "keep in sync" never has.
+ */
+describe("stake bounds", () => {
+  const placement = {
+    routeId: "soc-rma-01",
+    marketId: "soccer-match-result",
+    selectionId: "home",
+    price: 2.4,
+  };
+
+  it("mirrors markets.ts into the placement schema", () => {
+    expect(
+      wagerPlacementSchema.safeParse({ ...placement, stake: MIN_STAKE })
+        .success,
+    ).toBe(true);
+    expect(
+      wagerPlacementSchema.safeParse({ ...placement, stake: MAX_STAKE })
+        .success,
+    ).toBe(true);
+    expect(
+      wagerPlacementSchema.safeParse({ ...placement, stake: MIN_STAKE - 1 })
+        .success,
+    ).toBe(false);
+    expect(
+      wagerPlacementSchema.safeParse({ ...placement, stake: MAX_STAKE + 1 })
+        .success,
+    ).toBe(false);
+  });
+
+  it("keeps a maximum return inside the int4 column it is stored in", () => {
+    expect(MAX_STAKE * HIGHEST_PRICE).toBeLessThanOrEqual(INT4_MAX);
+  });
+
+  it("publishes no price above the one the ceiling is derived from", () => {
+    const prices = (["soccer", "baseball"] as const).flatMap((sport) =>
+      marketsFor(sport).flatMap((market) =>
+        market.selections.map((selection) => selection.price),
+      ),
+    );
+    expect(Math.max(...prices)).toBe(HIGHEST_PRICE);
   });
 });

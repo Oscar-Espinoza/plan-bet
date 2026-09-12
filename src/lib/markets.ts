@@ -18,11 +18,24 @@ export type Market = {
 // Selection shape here is what the wager schema will keep once it arrives.
 export const HOUSE_PRICES_VERSION = "2026-08-20";
 
-// Published stake bounds. contracts.ts mirrors these as literal zod bounds
-// (it cannot import this module without a cycle, since this module already
-// imports Sport/GameSummary from contracts.ts) — keep the two in sync.
+/**
+ * Stake bounds. contracts.ts mirrors these as literal zod bounds (it cannot
+ * import this module without a cycle, since this module already imports
+ * Sport/GameSummary from contracts.ts) — `markets.test.ts` asserts the two
+ * still agree rather than leaving it to this comment.
+ *
+ * **The only limit on a stake is your balance**, summed from the ledger and
+ * checked inside the placement transaction in `src/data/wagers.ts` before any
+ * row is written. MAX_STAKE is not a product rule: it is the column bound.
+ * `wagers.stake` and `wagers.potential_return` are both `integer` (int4), and
+ * the highest published price is the 3-3 exact score at 34, so a stake above
+ * this would overflow the *return* column before the balance check could ever
+ * reject it.
+ */
 export const MIN_STAKE = 1;
-export const MAX_STAKE = 500;
+export const INT4_MAX = 2_147_483_647;
+export const HIGHEST_PRICE = 34;
+export const MAX_STAKE = Math.floor(INT4_MAX / HIGHEST_PRICE); // 63_161_283
 
 const SOCCER_EXACT_SCORE_PRICES = {
   "0-0": 11,

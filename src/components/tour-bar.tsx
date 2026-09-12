@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useBandHeight } from "@/components/ribbon";
+import { useBandHeight } from "@/components/action-bar";
 import { Button } from "@/components/ui/button";
 import { useMatchdayStore } from "@/lib/store";
 

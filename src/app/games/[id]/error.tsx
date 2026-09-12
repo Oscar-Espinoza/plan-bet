@@ -13,7 +13,7 @@ export default function GameError({ reset }: { reset: () => void }) {
           else is on.
         </p>
         <button type="button" className="button" onClick={reset}>
-          <span className="plate-content">Try again</span>
+          Try again
         </button>
       </div>
     </div>

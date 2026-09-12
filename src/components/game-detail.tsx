@@ -5,6 +5,7 @@ import { ContextBlocks } from "@/components/matchup/context-blocks";
 import { Scorebug } from "@/components/matchup/scorebug";
 import { StatusRibbon } from "@/components/matchup/status-ribbon";
 import type { GameDetailData, Team } from "@/lib/contracts";
+import { clubAccentStyle } from "@/lib/club-accent";
 import { buildMatchView } from "@/lib/game-view";
 
 /**
@@ -32,7 +33,9 @@ export function GameDetail({
   const { game } = data.snapshot;
 
   return (
-    <div className="mp">
+    // The page accent follows this game's tracked team, server-rendered so the
+    // club colour is painted on first byte rather than after hydration.
+    <div className="mp" style={clubAccentStyle(team)}>
       <h1 className="sr-only">
         {game.result
           ? `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}, final`

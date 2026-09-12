@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { AppShell } from "@/components/app-shell";
 import { GameDetail } from "@/components/game-detail";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
-import { RibbonContext } from "@/components/ribbon";
+import { ActionBarContext } from "@/components/action-bar";
 import { Slate, type SportFilter } from "@/components/slate";
 import { BetsHistory } from "@/components/bets-history";
 import { getSnapshot, getTeam } from "@/lib/seed";
@@ -40,13 +40,13 @@ function DelayedTargets() {
   }, []);
   return (
     <main>
-      <h1>Delayed ribbon</h1>
-      <RibbonContext
-        value={{ clock: null, returns: null, feedback: null, action: target }}
+      <h1>Delayed action bar</h1>
+      <ActionBarContext
+        value={{ returns: null, feedback: null, action: target }}
       >
         <BetSlip data={open} />
-        {ready && <div className="ribbon-action" ref={setTarget} />}
-      </RibbonContext>
+        {ready && <div className="action-bar-action" ref={setTarget} />}
+      </ActionBarContext>
     </main>
   );
 }

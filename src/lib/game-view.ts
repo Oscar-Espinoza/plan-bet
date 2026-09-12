@@ -6,6 +6,7 @@ import type {
   GameSnapshot,
   GameStatus,
   SoccerContext,
+  Sport,
   StatcastBatting,
   Team,
 } from "@/lib/contracts";
@@ -41,6 +42,7 @@ export type ContextBlock = {
 
 export type MatchView = {
   identity: {
+    sport: Sport;
     competition: string;
     stage?: string;
     homeTeam: string;
@@ -427,6 +429,7 @@ export function buildMatchView(snapshot: GameSnapshot, team: Team): MatchView {
 
   return {
     identity: {
+      sport: game.sport,
       competition: game.competition,
       stage: plain(facts, "Competition stage") ?? plain(facts, "Series"),
       homeTeam: game.homeTeam,

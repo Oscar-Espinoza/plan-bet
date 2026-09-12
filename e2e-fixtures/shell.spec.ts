@@ -2,7 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { placement } from "../browser-fixtures/data";
 
-const action = (page: Page) => page.locator(".ribbon-action button");
+// The submit button (or the sign-in link that replaces it), not the stake
+// chips that now share the bar with it.
+const action = (page: Page) => page.locator(".action-bar-action > .button");
 const home = (page: Page) => page.getByRole("button", { name: /Home\s*2.40/ });
 async function open(page: Page, query = "") {
   await page.goto(`/games/soc-rma-01${query}`);
@@ -24,18 +26,25 @@ test("native form: unselected, stake increments, group, pending and success", as
   await open(page);
   await expect(action(page)).toHaveText("Choose a selection");
   await expect(action(page)).toBeDisabled();
-  await expect(page.locator(".ribbon-returns")).toContainText("—");
+  await expect(page.locator(".action-bar-returns")).toContainText("—");
   await home(page).click();
   await expect(action(page)).toHaveText("Place 1 credits");
   await page.getByRole("button", { name: "+5", exact: true }).click();
   await expect(page.getByLabel("Stake")).toHaveValue("6");
   await page.getByRole("button", { name: "+25", exact: true }).click();
   await expect(page.getByLabel("Stake")).toHaveValue("31");
+  // The balance, not a published cap: there is no ceiling above it any more.
   await page.getByRole("button", { name: "max", exact: true }).click();
-  await expect(page.getByLabel("Stake")).toHaveValue("500");
+  await expect(page.getByLabel("Stake")).toHaveValue("1000");
+  // Clearing the field must hold, or a custom amount can only be appended to
+  // whatever is already there.
+  await page.getByLabel("Stake").fill("");
+  await expect(page.getByLabel("Stake")).toHaveValue("");
+  await expect(action(page)).toHaveText("Enter a stake");
+  await expect(action(page)).toBeDisabled();
   await page.getByLabel("Stake").fill("25");
   await page.getByLabel("Place", { exact: true }).selectOption("group-1");
-  await expect(page.locator(".ribbon-returns")).toContainText("60");
+  await expect(page.locator(".action-bar-returns")).toContainText("60");
   expect(
     await action(page).evaluate((button: HTMLButtonElement) => button.form?.id),
   ).toBe(await page.locator("form.side-form").getAttribute("id"));
@@ -61,9 +70,9 @@ test("native form: unselected, stake increments, group, pending and success", as
     price: 2.4,
   });
   release();
-  await expect(page.locator(".ribbon-feedback [role=status]")).toContainText(
-    "Placed 25 on Home",
-  );
+  await expect(
+    page.locator(".action-bar-feedback [role=status]"),
+  ).toContainText("Placed 25 on Home");
   await expect(action(page)).toHaveText("Choose a selection");
   await expect(page.getByLabel("Stake")).toHaveCount(0);
   await axe(page);
@@ -92,12 +101,12 @@ test("native invalid input, insufficient credits, server and network errors", as
   expect(requests).toBe(0);
   await page.getByLabel("Stake").fill("21");
   await expect(action(page)).toBeDisabled();
-  await expect(page.locator(".ribbon-feedback")).toContainText(
+  await expect(page.locator(".action-bar-feedback")).toContainText(
     "Stake exceeds your balance of 20",
   );
   await page.getByLabel("Stake").fill("10");
   await action(page).click();
-  await expect(page.locator(".ribbon-feedback [role=alert]")).toContainText(
+  await expect(page.locator(".action-bar-feedback [role=alert]")).toContainText(
     "already started",
   );
   await expect(action(page)).toBeEnabled();
@@ -105,7 +114,7 @@ test("native invalid input, insufficient credits, server and network errors", as
   await page.unroute("**/api/bets");
   await page.route("**/api/bets", (route) => route.abort());
   await action(page).click();
-  await expect(page.locator(".ribbon-feedback [role=alert]")).toContainText(
+  await expect(page.locator(".action-bar-feedback [role=alert]")).toContainText(
     "did not go through",
   );
 });
@@ -114,7 +123,7 @@ test("exact score and deep link use house prices", async ({ page }) => {
   await open(page, "?pick=soccer-exact-score:2-1");
   await expect(page.getByLabel("Real Madrid goals")).toHaveValue("2");
   await expect(page.getByLabel("Villarreal goals")).toHaveValue("1");
-  await expect(page.locator(".ribbon-returns")).toContainText("9");
+  await expect(page.locator(".action-bar-returns")).toContainText("9");
   await page.getByLabel("Real Madrid goals").fill("4");
   await expect(
     page.getByText("Not priced — 0-0 through 3-3 only"),
@@ -137,31 +146,33 @@ for (const [state, copy] of [
     await expect(page.getByText(copy, { exact: false })).toBeVisible();
     await expect(page.locator(".selection-button")).toHaveCount(0);
     if (state === "signed-out")
-      await expect(page.locator(".ribbon-action a")).toHaveAttribute(
-        "href",
-        "/sign-in?callbackUrl=/games/soc-rma-01",
-      );
+      await expect(
+        page.locator(".action-bar-action > a.button"),
+      ).toHaveAttribute("href", "/sign-in?callbackUrl=/games/soc-rma-01");
     else await expect(action(page)).toHaveCount(0);
     await axe(page);
   });
 
-test("route cleanup and sport changes leave only the current ribbon content", async ({
+test("route cleanup and sport changes leave only the current action bar content", async ({
   page,
 }) => {
   await page.goto("/");
-  const clock = page.locator(".ribbon-clock time");
+  // The board's countdown is part of the next-match card, not the bar: the
+  // bar does not exist off a game page at all.
+  const clock = page.locator(".next-up-countdown time");
   await expect(clock).toHaveCount(1);
+  await expect(page.locator(".action-bar")).toHaveCount(0);
   await page.getByRole("link", { name: "Soccer", exact: true }).click();
   expect(await clock.getAttribute("datetime")).toBe(
-    await page.locator(".next-up-meta time").getAttribute("datetime"),
+    await page.locator(".next-up-meta time").first().getAttribute("datetime"),
   );
   await page.getByRole("link", { name: "Open matchup" }).click();
   await expect(clock).toHaveCount(0);
+  await expect(page.locator(".action-bar")).toHaveCount(1);
   await home(page).click();
   await page.getByRole("link", { name: "Back to games" }).click();
   await expect(action(page)).toHaveCount(0);
-  await expect(page.locator(".ribbon-returns")).toBeEmpty();
-  await expect(page.locator(".ribbon-feedback")).toBeEmpty();
+  await expect(page.locator(".action-bar")).toHaveCount(0);
   await expect(clock).toHaveCount(1);
   await page.goto("/?empty=1");
   await expect(clock).toHaveCount(0);
@@ -180,14 +191,14 @@ test("hydration and delayed targets never duplicate the action", async ({
   await expect(
     page.locator(".panel button", { hasText: "Choose a selection" }),
   ).toHaveCount(1);
-  await expect(page.locator(".ribbon-action button")).toHaveCount(1);
+  await expect(action(page)).toHaveCount(1);
   await expect(
     page.getByRole("button", { name: "Choose a selection" }),
   ).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
-test("all plate borders, keyboard focus, press transform and reduced motion", async ({
+test("ruled selection grid, keyboard focus, press transform and reduced motion", async ({
   page,
 }) => {
   await open(page);
@@ -199,18 +210,27 @@ test("all plate borders, keyboard focus, press transform and reduced motion", as
       (element) => getComputedStyle(element).outlineWidth,
     ),
   ).toBe("2px");
+  // The prices read as one ruled block: the row paints the hairlines through
+  // its own gaps, the buttons carry no border of their own, and nothing on
+  // this design is sheared or clipped.
   for (const tile of await page.locator(".selection-button").all()) {
-    const borders = await tile.evaluate((element) => {
+    const geometry = await tile.evaluate((element) => {
       const css = getComputedStyle(element);
-      return [
-        css.borderTopWidth,
-        css.borderRightWidth,
-        css.borderBottomWidth,
-        css.borderLeftWidth,
-        css.clipPath,
-      ];
+      return {
+        border:
+          css.borderTopWidth +
+          css.borderRightWidth +
+          css.borderBottomWidth +
+          css.borderLeftWidth,
+        clipPath: css.clipPath,
+        transform: css.transform,
+      };
     });
-    expect(borders).toEqual(["1px", "1px", "1px", "1px", "none"]);
+    expect(geometry).toEqual({
+      border: "0px0px0px0px",
+      clipPath: "none",
+      transform: "none",
+    });
   }
   await home(page).evaluate((element) =>
     element.scrollIntoView({ block: "center", behavior: "instant" }),
@@ -224,7 +244,10 @@ test("all plate borders, keyboard focus, press transform and reduced motion", as
   const during = await home(page).evaluate(
     (element) => getComputedStyle(element).transform,
   );
-  expect(during).toBe(before.replace(", 0, 0)", ", 0, 1)"));
+  // Nothing on this design is transformed at rest, so the press is the whole
+  // transform rather than a translate composed onto a shear.
+  expect(before).toBe("none");
+  expect(during).toBe("matrix(1, 0, 0, 1, 0, 1)");
   await page.mouse.up();
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(
@@ -242,7 +265,7 @@ for (const size of [
   { width: 768, height: 900 },
   { width: 1280, height: 900 },
 ]) {
-  test(`shell clears ribbon, tour and buddy at ${size.width}×${size.height}`, async ({
+  test(`shell clears action bar, tour and buddy at ${size.width}×${size.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(size);
@@ -251,10 +274,10 @@ for (const size of [
     await expect(page.locator(".buddy-launcher")).toBeVisible();
     await expect
       .poll(() =>
-        page.locator(".ribbon").evaluate((element) => {
+        page.locator(".action-bar").evaluate((element) => {
           const shell = element.closest(".app-shell")!;
           return Math.abs(
-            parseFloat(getComputedStyle(shell).getPropertyValue("--ribbon-h")) -
+            parseFloat(getComputedStyle(shell).getPropertyValue("--action-h")) -
               element.getBoundingClientRect().height,
           );
         }),
@@ -264,22 +287,22 @@ for (const size of [
       const box = (selector: string) =>
         document.querySelector(selector)!.getBoundingClientRect();
       return {
-        ribbon: box(".ribbon").top,
+        actionTop: box(".action-bar").top,
         tourBottom: box(".tour-bar").bottom,
         tourTop: box(".tour-bar").top,
         buddyBottom: box(".buddy-launcher").bottom,
         scrollerBottom: box(".workspace-scroll").bottom,
         navTop: box(".mobile-nav").top,
-        ribbonBottom: box(".ribbon").bottom,
+        actionBottom: box(".action-bar").bottom,
         overflow: document.documentElement.scrollWidth - innerWidth,
       };
     });
-    expect(geometry.tourBottom).toBeCloseTo(geometry.ribbon, 0);
+    expect(geometry.tourBottom).toBeCloseTo(geometry.actionTop, 0);
     expect(geometry.buddyBottom).toBeLessThanOrEqual(geometry.tourTop);
     expect(geometry.overflow).toBe(0);
     if (size.width < 1024) {
-      expect(geometry.scrollerBottom).toBeCloseTo(geometry.ribbon, 0);
-      expect(geometry.ribbonBottom).toBeCloseTo(geometry.navTop, 0);
+      expect(geometry.scrollerBottom).toBeCloseTo(geometry.actionTop, 0);
+      expect(geometry.actionBottom).toBeCloseTo(geometry.navTop, 0);
     }
   });
 }
@@ -300,7 +323,7 @@ test("won, lost and void history and the board pass axe", async ({ page }) => {
   await axe(page);
 });
 
-test("a request completing after navigation cannot repopulate the ribbon", async ({
+test("a request completing after navigation cannot repopulate the action bar", async ({
   page,
 }) => {
   await open(page);
@@ -317,12 +340,11 @@ test("a request completing after navigation cannot repopulate the ribbon", async
   await expect(action(page)).toHaveText("Placing…");
   await page.getByRole("link", { name: "Back to games" }).click();
   release();
-  await expect(page.locator(".ribbon-clock time")).toHaveCount(1);
-  await expect(action(page)).toHaveCount(0);
-  await expect(page.locator(".ribbon-feedback")).toBeEmpty();
+  await expect(page.locator(".next-up-countdown time")).toHaveCount(1);
+  await expect(page.locator(".action-bar")).toHaveCount(0);
   await page.getByRole("link", { name: "Open matchup" }).click();
   await expect(action(page)).toHaveText("Choose a selection");
-  await expect(page.locator(".ribbon-feedback")).toBeEmpty();
+  await expect(page.locator(".action-bar-feedback")).toBeEmpty();
 });
 
 test("team crests load, follow route changes, and fail without hiding names", async ({

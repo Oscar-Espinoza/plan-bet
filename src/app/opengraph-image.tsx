@@ -38,8 +38,8 @@ export default async function OpenGraphImage() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "#d6d7d9",
-        color: "#0b0b0c",
+        background: "#08090b",
+        color: "#f4f6f8",
         fontFamily: "IBM Plex Sans",
         padding: "70px",
       }}
@@ -61,14 +61,13 @@ export default async function OpenGraphImage() {
             height: 64,
             alignItems: "center",
             justifyContent: "center",
-            transform: "skewX(-10deg)",
-            background: "#d8ff3c",
-            color: "#0b0b0c",
+            background: "#f4f6f8",
+            color: "#08090b",
             fontFamily: "Archivo",
             fontWeight: 700,
           }}
         >
-          <span style={{ transform: "skewX(10deg)" }}>MP</span>
+          MP
         </div>
         Matchday Plan
       </div>
@@ -76,16 +75,15 @@ export default async function OpenGraphImage() {
         style={{
           display: "flex",
           flexDirection: "column",
-          background: "#0b0b0c",
+          background: "#101318",
           color: "#f4f6f8",
-          padding: "28px 32px 48px",
-          transform: "skewY(-3deg)",
+          borderLeft: "6px solid #f4f6f8",
+          padding: "28px 32px 40px",
         }}
       >
         <div
           style={{
-            color: "#d8ff3c",
-            transform: "skewY(3deg)",
+            color: "#98a1ae",
             fontSize: 22,
             letterSpacing: 5,
             textTransform: "uppercase",
@@ -96,7 +94,6 @@ export default async function OpenGraphImage() {
         <div
           style={{
             maxWidth: 900,
-            transform: "skewY(3deg)",
             fontFamily: "Archivo",
             fontSize: 72,
             fontWeight: 700,
@@ -107,7 +104,7 @@ export default async function OpenGraphImage() {
           Back a side. Watch how your read ages.
         </div>
       </div>
-      <div style={{ display: "flex", color: "#4b4d51", fontSize: 22 }}>
+      <div style={{ display: "flex", color: "#7f8896", fontSize: 22 }}>
         Soccer · Baseball · Fictional credits, not a sportsbook
       </div>
     </div>,

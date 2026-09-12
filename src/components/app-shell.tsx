@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RibbonContext, useBandHeight } from "@/components/ribbon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Gauge, UserCircle, UsersRound } from "lucide-react";
+import { ActionBarContext, useBandHeight } from "@/components/action-bar";
 import { Buddy } from "@/components/buddy";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
@@ -38,20 +38,22 @@ export function AppShell({
   accountControl?: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [clock, setClock] = useState<HTMLDivElement | null>(null);
+  // The bar exists on a game page and nowhere else: it is the wager action,
+  // not shell furniture. The board deliberately ends at the nav.
+  const onGame = pathname.startsWith("/games/");
   const [returns, setReturns] = useState<HTMLDivElement | null>(null);
   const [action, setAction] = useState<HTMLDivElement | null>(null);
   const [feedback, setFeedback] = useState<HTMLDivElement | null>(null);
   const targets = useMemo(
-    () => ({ clock, returns, action, feedback }),
-    [clock, returns, action, feedback],
+    () => ({ returns, action, feedback }),
+    [returns, action, feedback],
   );
-  const ribbonRef = useBandHeight("--ribbon-h");
+  const actionRef = useBandHeight("--action-h");
   const navRef = useBandHeight("--nav-h");
 
   return (
     <div className="app-shell">
-      <RibbonContext value={targets}>
+      <ActionBarContext value={targets}>
         <HydrateStore />
         <a className="skip-link" href="#main-content">
           Skip to main content
@@ -59,7 +61,7 @@ export function AppShell({
         <div className="workspace">
           <header className="topbar">
             <div className="topbar-inner">
-              {pathname.startsWith("/games/") ? (
+              {onGame ? (
                 <Link href="/" className="shell-back">
                   <ArrowLeft aria-hidden="true" size={14} />
                   Back to games
@@ -70,9 +72,7 @@ export function AppShell({
                   className="brand"
                   aria-label="Matchday Plan home"
                 >
-                  <span className="brand-mark">
-                    <span>MP</span>
-                  </span>
+                  <span className="brand-mark">MP</span>
                   <span className="brand-name">Matchday Plan</span>
                 </Link>
               )}
@@ -86,14 +86,13 @@ export function AppShell({
                       key={item.href}
                       aria-current={active ? "page" : undefined}
                     >
-                      <span className="plate-content">
-                        <item.icon aria-hidden="true" size={17} />
-                        {item.label}
-                      </span>
+                      <item.icon aria-hidden="true" size={17} />
+                      {item.label}
                     </Link>
                   );
                 })}
               </nav>
+              <div className="topbar-controls">{accountControl}</div>
             </div>
           </header>
           <div className="workspace-scroll" key={pathname}>
@@ -135,22 +134,19 @@ export function AppShell({
             </footer>
           </div>
         </div>
-        <aside
-          className="ribbon"
-          aria-label="Matchday controls"
-          ref={ribbonRef}
-        >
-          <div className="ribbon-inner">
-            <div className="ribbon-clock" ref={setClock} />
-            <div className="ribbon-returns" ref={setReturns} />
-            <div className="ribbon-account">{accountControl}</div>
-            <div className="ribbon-action" ref={setAction} />
-            <div className="ribbon-feedback" ref={setFeedback} />
-          </div>
-          <div className="ribbon-disclaimer">
-            Fictional credits · Not a sportsbook
-          </div>
-        </aside>
+        {onGame && (
+          <aside
+            className="action-bar"
+            aria-label="Wager controls"
+            ref={actionRef}
+          >
+            <div className="action-bar-feedback" ref={setFeedback} />
+            <div className="action-bar-inner">
+              <div className="action-bar-returns" ref={setReturns} />
+              <div className="action-bar-action" ref={setAction} />
+            </div>
+          </aside>
+        )}
         <nav ref={navRef} className="mobile-nav" aria-label="Mobile navigation">
           {navItems.map((item) => {
             const active = isCurrent(pathname, item.href);
@@ -164,17 +160,15 @@ export function AppShell({
                 key={item.href}
                 aria-current={active ? "page" : undefined}
               >
-                <span className="plate-content">
-                  <item.icon aria-hidden="true" size={18} />
-                  {item.label}
-                </span>
+                <item.icon aria-hidden="true" size={18} />
+                {item.label}
               </Link>
             );
           })}
         </nav>
         <TourBar />
         <Buddy />
-      </RibbonContext>
+      </ActionBarContext>
     </div>
   );
 }

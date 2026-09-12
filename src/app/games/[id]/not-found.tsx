@@ -11,7 +11,7 @@ export default function GameNotFound() {
           the games board.
         </p>
         <Link className="button" href="/">
-          <span className="plate-content">Back to the games board</span>
+          Back to the games board
         </Link>
       </div>
     </div>

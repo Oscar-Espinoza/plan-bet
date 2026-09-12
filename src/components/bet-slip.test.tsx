@@ -256,6 +256,51 @@ describe("BetSlip - open", () => {
     );
   });
 
+  it("lets the field be cleared and retyped, which snapping to 1 prevented", () => {
+    render(<BetSlip data={openData({ balance: 1000 })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    const stakeInput = screen.getByLabelText("Stake") as HTMLInputElement;
+
+    // Clearing used to be impossible: `Number("") || MIN_STAKE` put 1 back.
+    fireEvent.change(stakeInput, { target: { value: "" } });
+    expect(stakeInput.value).toBe("");
+    expect(
+      screen.getByRole("button", { name: "Enter a stake" }),
+    ).toBeDisabled();
+
+    fireEvent.change(stakeInput, { target: { value: "750" } });
+    expect(stakeInput.value).toBe("750");
+    expect(
+      screen.getByRole("button", { name: "Place 750 credits" }),
+    ).toBeEnabled();
+  });
+
+  it("accepts a stake far above the old published cap", () => {
+    render(<BetSlip data={openData({ balance: 20000 })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    fireEvent.change(screen.getByLabelText("Stake"), {
+      target: { value: "12345" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Place 12345 credits" }),
+    ).toBeEnabled();
+  });
+
+  it("warns and disables above the balance without rewriting what was typed", () => {
+    render(<BetSlip data={openData({ balance: 20 })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    const stakeInput = screen.getByLabelText("Stake") as HTMLInputElement;
+
+    fireEvent.change(stakeInput, { target: { value: "21" } });
+    expect(stakeInput.value).toBe("21");
+    expect(
+      screen.getByRole("button", { name: "Place 21 credits" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Stake exceeds your balance of 20."),
+    ).toBeInTheDocument();
+  });
+
   it("shows the record reaction line only for a market with settled history", () => {
     render(
       <BetSlip

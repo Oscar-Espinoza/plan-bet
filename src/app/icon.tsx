@@ -28,7 +28,7 @@ export default async function Icon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#d6d7d9",
+        background: "#08090b",
       }}
     >
       <div
@@ -38,15 +38,14 @@ export default async function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0b0b0c",
-          color: "#d8ff3c",
-          transform: "skewX(-10deg)",
+          background: "#f4f6f8",
+          color: "#08090b",
           fontFamily: "Archivo",
           fontSize: 26,
           fontWeight: 700,
         }}
       >
-        <span style={{ transform: "skewX(10deg)" }}>MP</span>
+        MP
       </div>
     </div>,
     {
