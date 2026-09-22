@@ -2,8 +2,12 @@ import type { GameSummary, TeamSlug } from "@/lib/contracts";
 import catalog from "./team-badge-catalog.json";
 
 function badgeKey(name: string) {
-  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-    .replace(/\b(fc|cf)\b/g, "").replace(/[^a-z0-9]/g, "");
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(fc|cf)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 const trackedLogos: Record<TeamSlug, string> = {

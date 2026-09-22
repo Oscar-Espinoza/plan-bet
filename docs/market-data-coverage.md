@@ -7,6 +7,7 @@ Checked 2026-09-22. Prices are fixed fictional-credit values published by this a
 Unauthenticated requests to the official MLB Stats API succeeded for completed games on 2026-09-20. Game 823570 (Philadelphia Phillies at New York Mets) returned nine innings, with first-five runs of away 4 / home 0 and final runs of away 7 / home 2. Team batting totals included hits, home runs and total bases. Player records included stable player IDs, batting statistics, and pitching strikeouts, outs, hits, walks and earned runs. A second completed game on the same date also supplied inning and boxscore statistics.
 
 Reproduce using these read-only endpoints:
+
 - https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-09-20
 - https://statsapi.mlb.com/api/v1/game/823570/linescore
 - https://statsapi.mlb.com/api/v1/game/823570/boxscore
