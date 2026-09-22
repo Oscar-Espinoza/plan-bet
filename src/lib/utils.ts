@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /** Bumped whenever the published house rules change; frozen into every wager. */
-export const RULES_VERSION = "2026-08-21";
+export const RULES_VERSION = "2026-09-21";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,20 +14,21 @@ export function cn(...inputs: ClassValue[]) {
  * shown: neither provider supplies one, and a second clock per fixture was
  * noise — the reader only needs to know when to be ready.
  */
-export function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+export function formatDateTime(value: string, locale?: string) {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "numeric",
+    hourCycle: locale?.startsWith("es") ? "h23" : undefined,
     minute: "2-digit",
     timeZoneName: "short",
   }).format(new Date(value));
 }
 
-export function formatShortDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+export function formatShortDate(value: string, locale?: string) {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
   }).format(new Date(value));

@@ -8,7 +8,11 @@ import { SUMMARY_PROJECTION, toSummary } from "@/data/credits";
 import { withDatabaseTransaction } from "@/db/client";
 import { creditEntries, wagers } from "@/db/schema";
 import type { CreditSummary, GameSummary, Wager } from "@/lib/contracts";
-import { HOUSE_PRICES_VERSION, resolveSelection } from "@/lib/markets";
+import {
+  HOUSE_PRICES_VERSION,
+  namedSelection,
+  resolveSelection,
+} from "@/lib/markets";
 import { RULES_VERSION } from "@/lib/utils";
 // Declared in wager-copy.ts, which is not `server-only` so the client slip
 // can import it too — re-exported here so this file's own callers (the
@@ -123,7 +127,10 @@ export async function placeWager(input: {
         marketId: market.id,
         selectionId: selection.id,
         marketLabel: market.label,
-        selectionLabel: selection.label,
+        selectionLabel: namedSelection(market, selection, {
+          home: game.summary.homeTeam,
+          away: game.summary.awayTeam,
+        }),
         line: market.line ?? null,
         price: selection.price,
         stake: input.stake,

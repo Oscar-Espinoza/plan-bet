@@ -1,0 +1,152 @@
+- generic [ref=f25e3]:
+  - link "Skip to main content" [ref=f25e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f25e5]:
+    - banner [ref=f25e6]:
+      - generic [ref=f25e7]:
+        - link "Back to games" [ref=f25e8] [cursor=pointer]:
+          - /url: /
+        - link "Matchday Plan home" [ref=f25e12] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f25e13]: MP
+          - generic [ref=f25e14]: Matchday Plan
+        - generic [ref=f25e15]:
+          - link "Balance 1000 credits, record 14 won 15 lost" [ref=f25e16] [cursor=pointer]:
+            - /url: /you
+            - generic [ref=f25e17]: 1,000 CR
+            - generic [ref=f25e18]: 14–15
+          - combobox "Language" [ref=f25e19]:
+            - option "English" [selected]
+            - option "Español"
+    - generic [ref=f25e20]:
+      - main [ref=f25e21]:
+        - generic [ref=f25e22]:
+          - heading "Real Madrid vs Villarreal" [level=1] [ref=f25e23]
+          - paragraph [ref=f25e24]:
+            - generic [ref=f25e25]: Soccer
+            - generic [aria-hidden] [ref=f25e26]: ›
+            - generic [ref=f25e27]: LaLiga
+          - generic [ref=f25e28]:
+            - generic [ref=f25e29]: Next match
+            - generic [ref=f25e30]:
+              - generic [ref=f25e31]: Real Madrid
+              - generic [ref=f25e36]: VS
+              - generic [ref=f25e37]: Villarreal
+            - generic [ref=f25e41]:
+              - generic [ref=f25e42]: Kickoff in
+              - strong [ref=f25e43]:
+                - time [ref=f25e44]: 2d 17h
+            - generic [ref=f25e45]:
+              - time [ref=f25e46]: Thu, Sep 24, 2026, 4:00 PM GMT-3
+              - generic [ref=f25e47]: · Santiago Bernabéu
+          - tablist "Match information" [ref=f25e48]:
+            - tab "Overview" [selected] [ref=f25e49] [cursor=pointer]
+            - tab "Stats" [ref=f25e50] [cursor=pointer]
+            - tab "Lineups" [ref=f25e51] [cursor=pointer]
+            - tab "H2H" [ref=f25e52] [cursor=pointer]
+          - tabpanel "Overview" [ref=f25e53]:
+            - generic [ref=f25e54]:
+              - complementary "Place a bet" [ref=f25e55]:
+                - region [ref=f25e56]:
+                  - generic [ref=f25e57]:
+                    - generic [ref=f25e58]:
+                      - heading "Make a bet" [level=2] [ref=f25e59]
+                      - paragraph [ref=f25e60]: Simulate a bet on this match with fictional credits.
+                    - generic [ref=f25e61]:
+                      - generic [ref=f25e62]: Balance
+                      - text: "1000"
+                  - generic [ref=f25e63]: Returns
+                  - generic [ref=f25e64]: —
+                  - button "Choose a selection" [disabled] [ref=f25e65]
+                  - generic [ref=f25e66]:
+                    - generic [ref=f25e67]:
+                      - heading "Match Result" [level=3] [ref=f25e68]
+                      - group "Match Result" [ref=f25e69]:
+                        - button "Home 2.40" [ref=f25e70] [cursor=pointer]:
+                          - generic [ref=f25e71]: Home
+                          - generic [ref=f25e72]: "2.40"
+                        - button "Draw 3.50" [ref=f25e73] [cursor=pointer]:
+                          - generic [ref=f25e74]: Draw
+                          - generic [ref=f25e75]: "3.50"
+                        - button "Away 3.00" [ref=f25e76] [cursor=pointer]:
+                          - generic [ref=f25e77]: Away
+                          - generic [ref=f25e78]: "3.00"
+                    - generic [ref=f25e79]:
+                      - heading "Over/Under 2.5 Goals" [level=3] [ref=f25e80]
+                      - group "Over/Under 2.5 Goals" [ref=f25e81]:
+                        - button "Over 2.5 1.90" [ref=f25e82] [cursor=pointer]:
+                          - generic [ref=f25e83]: Over 2.5
+                          - generic [ref=f25e84]: "1.90"
+                        - button "Under 2.5 1.90" [ref=f25e85] [cursor=pointer]:
+                          - generic [ref=f25e86]: Under 2.5
+                          - generic [ref=f25e87]: "1.90"
+                    - generic [ref=f25e88]:
+                      - heading "Both Teams to Score" [level=3] [ref=f25e89]
+                      - group "Both Teams to Score" [ref=f25e90]:
+                        - button "Yes 1.85" [ref=f25e91] [cursor=pointer]:
+                          - generic [ref=f25e92]: "Yes"
+                          - generic [ref=f25e93]: "1.85"
+                        - button "No 1.95" [ref=f25e94] [cursor=pointer]:
+                          - generic [ref=f25e95]: "No"
+                          - generic [ref=f25e96]: "1.95"
+                    - generic [ref=f25e97]:
+                      - heading "Exact Score" [level=3] [ref=f25e98]
+                      - generic [ref=f25e99]:
+                        - generic [ref=f25e100]:
+                          - generic [ref=f25e101]: Real Madrid
+                          - spinbutton "Real Madrid goals" [ref=f25e102]
+                        - generic [aria-hidden] [ref=f25e103]: –
+                        - generic [ref=f25e104]:
+                          - generic [ref=f25e105]: Villarreal
+                          - spinbutton "Villarreal goals" [ref=f25e106]
+                        - paragraph [ref=f25e107]: Type a score
+                    - paragraph [ref=f25e108]: Nothing picked yet — tap any price above to set a stake.
+              - generic [ref=f25e109]:
+                - generic [ref=f25e110]:
+                  - heading "Form" [level=2] [ref=f25e111]
+                  - generic [ref=f25e112]:
+                    - generic [ref=f25e113]: Real Madrid
+                    - generic [ref=f25e115]:
+                      - generic [ref=f25e116]: W
+                      - generic [ref=f25e117]: W
+                      - generic [ref=f25e118]: D
+                      - generic [ref=f25e119]: W
+                      - generic [ref=f25e120]: L
+                - generic [ref=f25e121]:
+                  - heading "Table" [level=2] [ref=f25e122]
+                  - generic [ref=f25e123]:
+                    - generic [ref=f25e124]: Position
+                    - generic [ref=f25e125]: "#2"
+                  - generic [ref=f25e126]:
+                    - generic [ref=f25e127]: Points
+                    - generic [ref=f25e128]: "61"
+                  - generic [ref=f25e129]:
+                    - generic [ref=f25e130]: Record
+                    - generic [ref=f25e131]: 18W · 7D · 3L
+      - contentinfo [ref=f25e132]:
+        - paragraph [ref=f25e133]:
+          - text: "Source data:"
+          - link "football-data.org" [ref=f25e134] [cursor=pointer]:
+            - /url: https://www.football-data.org/
+          - text: ","
+          - link "MLB Stats API" [ref=f25e135] [cursor=pointer]:
+            - /url: https://statsapi.mlb.com/
+          - text: ", and"
+          - link "Baseball Savant" [ref=f25e136] [cursor=pointer]:
+            - /url: https://baseballsavant.mlb.com/
+          - text: .
+          - link "Rules" [ref=f25e137] [cursor=pointer]:
+            - /url: /rules
+          - text: ·
+          - link "System" [ref=f25e138] [cursor=pointer]:
+            - /url: /system
+        - paragraph [ref=f25e139]: Credits are fictional and non-withdrawable. Not a sportsbook.
+  - navigation "Mobile navigation" [ref=f25e140]:
+    - link "Games" [ref=f25e141] [cursor=pointer]:
+      - /url: /
+    - link "My Bets" [ref=f25e145] [cursor=pointer]:
+      - /url: /you?section=bets#you-history-heading
+    - link "Stats" [ref=f25e152] [cursor=pointer]:
+      - /url: /you?section=stats#slices-heading
+    - link "Profile" [ref=f25e155] [cursor=pointer]:
+      - /url: /you?section=profile#you-settings-heading

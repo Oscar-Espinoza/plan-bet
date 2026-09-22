@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +7,7 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 
 export function CreateGroupForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -43,7 +45,7 @@ export function CreateGroupForm() {
   return (
     <form className="side-form" onSubmit={submit}>
       <label htmlFor="group-name" className="field-label">
-        Group name
+        {t("Group name")}{" "}
       </label>
       <input
         id="group-name"
@@ -57,7 +59,7 @@ export function CreateGroupForm() {
 
       {error && (
         <Banner tone="negative" role="alert">
-          {error}
+          {t(error)}
         </Banner>
       )}
 
@@ -66,7 +68,7 @@ export function CreateGroupForm() {
         className="w-full"
         disabled={pending || !name.trim()}
       >
-        Create group
+        {t("Create group")}{" "}
       </Button>
     </form>
   );

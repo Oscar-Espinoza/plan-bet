@@ -1,4 +1,6 @@
+import { getTranslation } from "@/lib/locale-server";
 import Link from "next/link";
+import { Coins } from "lucide-react";
 import { getCreditSummary } from "@/data/credits";
 import { countOpenWagers } from "@/data/wagers-repository";
 import { isAuthConfigured, requireAccount } from "@/lib/auth";
@@ -10,13 +12,14 @@ import { Button } from "@/components/ui/button";
  * statically-rendered routes (/, /rules) static.
  */
 export async function AccountControl() {
+  const { formatNumber, t } = await getTranslation();
   if (!isAuthConfigured()) return null;
 
   const account = await requireAccount();
   if (!account.ok) {
     return (
       <Button asChild size="sm" variant="secondary">
-        <Link href="/sign-in">Sign in</Link>
+        <Link href="/sign-in">{t("Sign in")}</Link>
       </Button>
     );
   }
@@ -25,8 +28,9 @@ export async function AccountControl() {
     getCreditSummary(account.userId),
     countOpenWagers(account.userId),
   ]);
-  const balance = summary.balance.toLocaleString();
-  const openSuffix = openCount > 0 ? ` · ${openCount} open` : "";
+  const balance = formatNumber(summary.balance);
+  const openSuffix =
+    openCount > 0 ? ` · ${t("{p0} open", { p0: openCount })}` : "";
   // Ambient standing (principle 1): balance and record are visible from
   // anywhere, not just on /you. "927 · 14-15" — the W-L half omits voids,
   // matching the chip's already-terse "927 credits · 2 open" shape.
@@ -35,15 +39,19 @@ export async function AccountControl() {
   return (
     <Link
       className="account-standing"
-      href="/you"
-      aria-label={`Balance ${balance} credits, record ${summary.won} won ${summary.lost} lost${openCount > 0 ? `, ${openCount} open wagers` : ""}`}
+      href="/you?section=profile#you-settings-heading"
+      aria-label={t("Balance {p0} credits, record {p1} won {p2} lost{p3}", {
+        p0: balance,
+        p1: summary.won,
+        p2: summary.lost,
+        p3: openCount > 0 ? t(", {p0} open wagers", { p0: openCount }) : "",
+      })}
     >
-      <span>
-        {balance} <small>CR</small>
-      </span>
-      <small>
+      <Coins aria-hidden="true" size={18} />
+      <span>{balance}</span>
+      <small className="account-control-detail">
         {record}
-        {openSuffix}
+        {t(openSuffix)}
       </small>
     </Link>
   );

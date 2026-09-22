@@ -15,18 +15,19 @@ import {
   type CommentVoteKind,
   type GameComment,
   type GameCommentPhase,
+  type GameStatus,
 } from "@/lib/contracts";
 
-/**
- * Pure: `now < scheduledAt` is "before", everything from kickoff on is
- * "after". The one branch this feature grades on a clock, so it is the one
- * thing here with a unit test — same discipline as the frozen wager price.
- */
+/** The second message opens only when the provider confirms full time. */
 export function commentPhase(
   scheduledAt: Date | string,
   now: Date,
-): GameCommentPhase {
-  return now.getTime() < new Date(scheduledAt).getTime() ? "before" : "after";
+  status: GameStatus,
+): GameCommentPhase | null {
+  if (status === "finished") return "after";
+  if (status === "scheduled" && now.getTime() < new Date(scheduledAt).getTime())
+    return "before";
+  return null;
 }
 
 type VoteTally = {
@@ -45,6 +46,7 @@ function rowToComment(
 ): GameComment {
   return gameCommentSchema.parse({
     id: row.id,
+    parentCommentId: row.parentCommentId,
     groupId: row.groupId,
     userId: row.userId,
     authorName,
@@ -188,6 +190,8 @@ export type PostCommentResult =
   | { ok: true; comment: GameComment }
   | { ok: false; reason: "not_eligible" }
   | { ok: false; reason: "already_commented" }
+  | { ok: false; reason: "phase_closed" }
+  | { ok: false; reason: "invalid_parent" }
   | { ok: false; reason: "unavailable" };
 
 /**
@@ -203,6 +207,7 @@ export async function postComment(input: {
   groupId: string;
   canonicalGameId: string;
   body: string;
+  parentCommentId?: string;
   now: Date;
   actorName?: string | null;
 }): Promise<PostCommentResult> {
@@ -220,13 +225,46 @@ export async function postComment(input: {
   if (!eligible) return { ok: false, reason: "not_eligible" };
 
   const [game] = await getDatabase()
-    .select({ scheduledAt: games.scheduledAt })
+    .select({ scheduledAt: games.scheduledAt, summary: games.summary })
     .from(games)
     .where(eq(games.canonicalId, input.canonicalGameId))
     .limit(1);
   if (!game) return { ok: false, reason: "unavailable" };
 
-  const phase = commentPhase(game.scheduledAt, input.now);
+  const phase = commentPhase(game.scheduledAt, input.now, game.summary.status);
+  if (!phase) return { ok: false, reason: "phase_closed" };
+
+  let parentCommentId: string | null = null;
+  if (input.parentCommentId) {
+    const [target] = await getDatabase()
+      .select()
+      .from(gameComments)
+      .where(
+        and(
+          eq(gameComments.id, input.parentCommentId),
+          eq(gameComments.groupId, input.groupId),
+          eq(gameComments.canonicalGameId, input.canonicalGameId),
+        ),
+      )
+      .limit(1);
+    if (!target) return { ok: false, reason: "invalid_parent" };
+    parentCommentId = target.parentCommentId ?? target.id;
+    if (target.parentCommentId) {
+      const [root] = await getDatabase()
+        .select({ id: gameComments.id })
+        .from(gameComments)
+        .where(
+          and(
+            eq(gameComments.id, parentCommentId),
+            eq(gameComments.groupId, input.groupId),
+            eq(gameComments.canonicalGameId, input.canonicalGameId),
+            sql`${gameComments.parentCommentId} is null`,
+          ),
+        )
+        .limit(1);
+      if (!root) return { ok: false, reason: "invalid_parent" };
+    }
+  }
 
   const [row] = await getDatabase()
     .insert(gameComments)
@@ -235,6 +273,7 @@ export async function postComment(input: {
       canonicalGameId: input.canonicalGameId,
       userId: input.userId,
       phase,
+      parentCommentId,
       body: input.body,
     })
     .onConflictDoNothing()

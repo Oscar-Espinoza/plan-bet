@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,17 +19,22 @@ export function RouteError({
   copy: React.ReactNode;
   reset: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="empty-state" style={{ minHeight: "65vh" }}>
       <div>
         <span className="empty-icon">
           <AlertTriangle aria-hidden="true" />
         </span>
-        <p className="eyebrow">Something went wrong</p>
-        <h1 className="display-title">{title}</h1>
-        <p className="empty-copy">{copy}</p>
+        <p className="eyebrow">{t("Something went wrong")}</p>
+        <h1 className="display-title">
+          {typeof title === "string" ? t(title) : title}
+        </h1>
+        <p className="empty-copy">
+          {typeof copy === "string" ? t(copy) : copy}
+        </p>
         <Button className="mt-5" onClick={reset}>
-          Try again
+          {t("Try again")}{" "}
         </Button>
       </div>
     </div>

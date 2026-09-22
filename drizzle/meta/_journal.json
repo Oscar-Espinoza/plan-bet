@@ -92,6 +92,13 @@
       "when": 1788131487485,
       "tag": "0012_large_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790043554414,
+      "tag": "0013_puzzling_blindfold",
+      "breakpoints": true
     }
   ]
 }

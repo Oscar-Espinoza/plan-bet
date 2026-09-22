@@ -1,26 +1,31 @@
+import { GroupList } from "@/components/group-list";
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { UsersRound } from "lucide-react";
+import { Plus, UsersRound } from "lucide-react";
 import { listGroupsForUser } from "@/data/groups-repository";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { requireAccount } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 // Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
 export const unstable_dynamicStaleTime = 300;
-export const metadata: Metadata = { title: "Groups" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return { title: t("Groups") };
+}
 
 export default async function Page() {
+  const { t } = await getTranslation();
   const account = await requireAccount();
   if (!account.ok && account.reason === "unconfigured") {
     return (
       <>
         <header className="page-heading">
           <div>
-            <p className="eyebrow">Group wagers</p>
-            <h1 className="display-title">Groups</h1>
+            <p className="eyebrow">{t("Group wagers")}</p>
+            <h1 className="display-title">{t("Groups")}</h1>
           </div>
         </header>
         <div className="empty-state">
@@ -28,10 +33,11 @@ export default async function Page() {
             <span className="empty-icon">
               <UsersRound aria-hidden="true" />
             </span>
-            <h3 className="empty-title">Sign-in is not configured</h3>
+            <h3 className="empty-title">{t("Sign-in is not configured")}</h3>
             <p className="empty-copy">
-              This environment has no auth provider configured, so there are no
-              groups to show.
+              {t(
+                "This environment has no auth provider configured, so there are no groups to show.",
+              )}{" "}
             </p>
           </div>
         </div>
@@ -46,15 +52,19 @@ export default async function Page() {
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Group wagers</p>
-          <h1 className="display-title">Groups</h1>
+          <p className="eyebrow">{t("Group wagers")}</p>
+          <h1 className="display-title">{t("Groups")}</h1>
           <p className="page-description">
-            Place free-to-play wagers with people you know and see who has
-            called it best over time.
+            {t(
+              "Place free-to-play wagers with people you know and see who has called it best over time.",
+            )}{" "}
           </p>
         </div>
         <Button asChild>
-          <Link href="/groups/new">New group</Link>
+          <Link href="/groups/new">
+            <Plus aria-hidden="true" size={18} />
+            {t("New group")}
+          </Link>
         </Button>
       </header>
 
@@ -64,36 +74,22 @@ export default async function Page() {
             <span className="empty-icon">
               <UsersRound aria-hidden="true" />
             </span>
-            <h3 className="empty-title">No groups yet</h3>
+            <h3 className="empty-title">{t("No groups yet")}</h3>
             <p className="empty-copy">
-              Create a group to place wagers together and track the record.
+              {t(
+                "Create a group to place wagers together and track the record.",
+              )}{" "}
             </p>
             <Button asChild className="mt-5">
-              <Link href="/groups/new">New group</Link>
+              <Link href="/groups/new">
+                <Plus aria-hidden="true" size={18} />
+                {t("New group")}
+              </Link>
             </Button>
           </div>
         </div>
       ) : (
-        <div className="section-grid">
-          {groups.map((group) => (
-            <Card
-              key={group.id}
-              title={group.name}
-              titleId={`group-${group.id}`}
-            >
-              <div className="form-block">
-                <span>
-                  {group.role === "owner"
-                    ? "You created this group."
-                    : "Member."}
-                </span>
-                <Button asChild variant="secondary" size="sm">
-                  <Link href={`/groups/${group.slug}`}>Open</Link>
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <GroupList groups={groups} />
       )}
     </>
   );

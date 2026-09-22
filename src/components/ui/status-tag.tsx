@@ -1,3 +1,5 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 import { cn } from "@/lib/utils";
 
 // Tone is also carried in color alone (border/background/text), which is not
@@ -18,10 +20,11 @@ export function StatusTag({
   tone?: "neutral" | "positive" | "warning" | "negative";
   className?: string;
 }) {
+  const { t } = useTranslation();
   const toneLabel = TONE_LABELS[tone];
   return (
     <span className={cn("status-tag", `status-${tone}`, className)}>
-      {toneLabel && <span className="sr-only">{toneLabel}</span>}
+      {toneLabel && <span className="sr-only">{t(toneLabel)}</span>}
       {children}
     </span>
   );

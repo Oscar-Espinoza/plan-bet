@@ -1,3 +1,4 @@
+import { translate, type Locale } from "@/lib/locale";
 import "server-only";
 
 import {
@@ -200,12 +201,16 @@ export async function resolveContext(
         const thread = threads[0];
         if (thread) {
           facts.push(...threadFacts(thread));
-          const phase = commentPhase(game.summary.scheduledAt, new Date());
+          const phase = commentPhase(
+            game.summary.scheduledAt,
+            new Date(),
+            game.summary.status,
+          );
           const hasCommented = thread.comments.some(
             (comment) =>
               comment.userId === viewer.userId && comment.phase === phase,
           );
-          if (!hasCommented) draft = { groupId: thread.groupId };
+          if (phase && !hasCommented) draft = { groupId: thread.groupId };
         }
       }
     }
@@ -258,20 +263,24 @@ export async function resolveContext(
 }
 
 /** No model call: labelled plainly, one line per fact, and never leans. */
-function deterministicReply(context: BuddyContext) {
+function deterministicReply(context: BuddyContext, locale: Locale = "en") {
+  const t = (message: string) => translate(locale, message);
   if (context.kind === "none" || context.facts.length === 0) {
     return {
-      prose:
+      prose: t(
         "AI isn't configured on this deployment, so I can't put together a take here. Check the board for the schedule instead.",
+      ),
       factIds: [] as string[],
     };
   }
   const lines = context.facts.map(
     (item) =>
-      `${item.label}: ${item.valueType === "datetime" ? "see this page for the exact time" : item.value} [${item.id}]`,
+      `${t(item.label)}: ${item.valueType === "datetime" ? t("see this page for the exact time") : t(item.value)} [${item.id}]`,
   );
   return {
-    prose: `AI isn't configured on this deployment, so here's the evidence plainly, with no lean — ${lines.join(" ")}`,
+    prose: t(
+      `AI isn't configured on this deployment, so here's the evidence plainly, with no lean — ${lines.join(" ")}`,
+    ),
     factIds: context.facts.map((item) => item.id),
   };
 }
@@ -297,6 +306,7 @@ export type BuddyStreamEvent =
     };
 
 type TurnInput = {
+  locale?: Locale;
   conversation: string;
   route: string;
   question: string;
@@ -335,6 +345,7 @@ export async function prepareBuddyTurn(
   const prompt = buildBuddyInput({
     context,
     history: input.history,
+    locale: input.locale,
     question: input.question,
     notes,
   });
@@ -453,7 +464,7 @@ async function* streamFallback(
     reason?: string;
   }) => Promise<void>,
 ): AsyncGenerator<BuddyStreamEvent> {
-  const fallback = deterministicReply(context);
+  const fallback = deterministicReply(context, input.locale);
   await persistReply({
     text: fallback.prose,
     factIds: fallback.factIds,

@@ -1,16 +1,18 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import Link from "next/link";
 import { RouteError } from "@/components/route-error";
 
 export default function GroupsError({ reset }: { reset: () => void }) {
+  const { t } = useTranslation();
   return (
     <RouteError
-      title="Groups hit an error"
+      title={t("Groups hit an error")}
       copy={
         <>
-          Try again, or check your <Link href="/you">record</Link> while we sort
-          it out.
+          {t("Try again, or check your")} <Link href="/you">{t("record")}</Link>{" "}
+          {t("while we sort it out.")}{" "}
         </>
       }
       reset={reset}

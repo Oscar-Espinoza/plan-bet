@@ -167,7 +167,7 @@ test("mobile shell scrolls content between the header and the nav", async ({
       expect(dimensions.scrollerTop).toBeCloseTo(dimensions.headerBottom, 0);
       expect(dimensions.hasActionBar).toBe(false);
       expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.top, 0);
-      expect(dimensions.linkWidths).toHaveLength(3);
+      expect(dimensions.linkWidths).toHaveLength(4);
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),
       ).toBeLessThanOrEqual(1);

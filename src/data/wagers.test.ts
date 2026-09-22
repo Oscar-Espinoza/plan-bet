@@ -158,6 +158,64 @@ describe("placeWager", () => {
     expect(withDatabaseTransactionMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["soccer-home-threshold", "2+", 2.5, "Real Madrid — 2+ goals", 125],
+    [
+      "soccer-away-clean-sheet",
+      "yes",
+      2.75,
+      "Barcelona — Clean sheet: Yes",
+      138,
+    ],
+    [
+      "soccer-home-handicap",
+      "minus-1-5",
+      3.75,
+      "Real Madrid — Handicap -1.5",
+      188,
+    ],
+    ["soccer-draw-no-bet", "away", 2.05, "Barcelona — draw no bet", 102],
+  ] as const)(
+    "freezes the selection, team, and return for %s",
+    async (marketId, selectionId, price, selectionLabel, potentialReturn) => {
+      readGameForWagerMock.mockResolvedValue({
+        canonicalId: "football-data-1",
+        sport: "soccer",
+        summary: makeSummary(),
+      });
+      const { insertWagerValues } = mockTransaction({
+        balance: 1000,
+        wagerRow: {
+          id: "wager-new",
+          scheduledAt: new Date(FUTURE),
+          createdAt: new Date(),
+        },
+        summary: {
+          balance: 950,
+          lifetimeStaked: 50,
+          lifetimeReturned: 0,
+          resetCount: 0,
+        },
+      });
+      const result = await placeWager({
+        ...baseInput,
+        marketId,
+        selectionId,
+        price,
+      });
+      expect(result.ok).toBe(true);
+      expect(insertWagerValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          marketId,
+          selectionId,
+          selectionLabel,
+          price,
+          potentialReturn,
+        }),
+      );
+    },
+  );
+
   it("returns unavailable when the route has no games row", async () => {
     readGameForWagerMock.mockResolvedValue(undefined);
 

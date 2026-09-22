@@ -1,3 +1,5 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 import { Countdown, LocalDateTime } from "@/components/local-date-time";
 import { PitchArt } from "@/components/pitch-art";
 import { TeamLogo } from "@/components/team-logo";
@@ -13,9 +15,10 @@ import type { MatchView } from "@/lib/game-view";
  * would be inventing data.
  */
 export function Scorebug({ identity, timing }: MatchView) {
+  const { t } = useTranslation();
   const { homeTeam, awayTeam, trackedSide, clubColor, competition, stage } =
     identity;
-  const { result, scheduledAt, venue } = timing;
+  const { result, scheduledAt, venue, status } = timing;
 
   const side = (name: string, which: "home" | "away") => (
     <div
@@ -28,19 +31,14 @@ export function Scorebug({ identity, timing }: MatchView) {
       }
     >
       <span className="mp-side-label">
-        {which === "home" ? "Home" : "Away"}
+        {which === "home" ? t("Home") : t("Away")}
       </span>
       <span className="mp-side-team">
-        <span className="mp-side-name">{name}</span>
         <TeamLogo
           src={which === "home" ? identity.homeTeamLogo : identity.awayTeamLogo}
         />
+        <span className="mp-side-name">{name}</span>
       </span>
-      {result && (
-        <span className="mp-side-score">
-          {which === "home" ? result.homeScore : result.awayScore}
-        </span>
-      )}
     </div>
   );
 
@@ -50,27 +48,48 @@ export function Scorebug({ identity, timing }: MatchView) {
           every figure over it keeps its own contrast. */}
       <PitchArt sport={identity.sport} />
       <span className="mp-bug-scrim" aria-hidden="true" />
+      <span className="mp-status-pill">
+        {status === "finished"
+          ? t("Full time")
+          : status === "live"
+            ? t("Live")
+            : status === "postponed"
+              ? t("Postponed")
+              : status === "cancelled"
+                ? t("Cancelled")
+                : t("Next match")}
+      </span>
       <p className="mp-comp">
-        <span>{competition}</span>
-        {stage && <span className="mp-comp-stage">{stage}</span>}
+        <span>{t(competition)}</span>
+        {stage && <span className="mp-comp-stage">{t(stage)}</span>}
       </p>
 
       <div className="mp-sides" data-played={result ? "" : undefined}>
         {side(homeTeam, "home")}
-        {!result && <span className="mp-versus" aria-hidden="true" />}
+        <span className="mp-scoreline" aria-hidden="true">
+          {result ? (
+            <>
+              <strong className="mp-side-score">{result.homeScore}</strong>
+              <span>–</span>
+              <strong className="mp-side-score">{result.awayScore}</strong>
+            </>
+          ) : (
+            <span>VS</span>
+          )}
+        </span>
         {side(awayTeam, "away")}
       </div>
 
       {result?.completion === "extra" && (
-        <p className="mp-aftermath">After extra time</p>
+        <p className="mp-aftermath">{t("After extra time")}</p>
       )}
       {result?.completion === "shootout" && (
-        <p className="mp-aftermath">After penalties</p>
+        <p className="mp-aftermath">{t("After penalties")}</p>
       )}
 
       {!result && (
         <div className="mp-clock">
-          <span className="mp-clock-label">Kickoff in</span>
+          <span className="mp-clock-label">{t("Kickoff in")}</span>
           <strong className="mp-clock-figure">
             <Countdown value={scheduledAt} />
           </strong>

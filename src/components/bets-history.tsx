@@ -1,14 +1,13 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
 import type { Wager, WagerSettlement } from "@/lib/contracts";
+import { wagerSelectionLabel } from "@/lib/markets";
 import { outcomeTone, settlementLabel } from "@/lib/wager-copy";
-
-function lineSuffix(line: number | undefined) {
-  return typeof line === "number" ? ` ${line}` : "";
-}
 
 /**
  * The score that decided a settled wager. A void was decided by nothing, and
@@ -39,6 +38,7 @@ export function BetsHistory({
   items: Wager[];
   emptyState: BetsEmptyState;
 }) {
+  const { formatNumber, t } = useTranslation();
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -46,10 +46,10 @@ export function BetsHistory({
           <span className="empty-icon">
             <Receipt aria-hidden="true" />
           </span>
-          <h3 className="empty-title">{emptyState.title}</h3>
-          <p className="empty-copy">{emptyState.copy}</p>
+          <h3 className="empty-title">{t(emptyState.title)}</h3>
+          <p className="empty-copy">{t(emptyState.copy)}</p>
           <Button asChild variant="secondary" size="sm" className="mt-4">
-            <Link href="/">Explore upcoming games</Link>
+            <Link href="/">{t("Explore upcoming games")}</Link>
           </Button>
         </div>
       </div>
@@ -59,19 +59,19 @@ export function BetsHistory({
   return (
     <div className="table-wrap">
       <table className="wager-table">
-        <caption className="sr-only">Wager history</caption>
+        <caption className="sr-only">{t("Wager history")}</caption>
         <thead>
           <tr>
-            <th scope="col">Matchup</th>
-            <th scope="col">Competition</th>
-            <th scope="col">Selection</th>
-            <th scope="col">Price</th>
-            <th scope="col">Stake</th>
-            <th scope="col">Outcome</th>
-            <th scope="col">Result</th>
-            <th scope="col">Returned</th>
-            <th scope="col">Net</th>
-            <th scope="col">Placed</th>
+            <th scope="col">{t("Matchup")}</th>
+            <th scope="col">{t("Competition")}</th>
+            <th scope="col">{t("Selection")}</th>
+            <th scope="col">{t("Price")}</th>
+            <th scope="col">{t("Stake")}</th>
+            <th scope="col">{t("Outcome")}</th>
+            <th scope="col">{t("Result")}</th>
+            <th scope="col">{t("Returned")}</th>
+            <th scope="col">{t("Net")}</th>
+            <th scope="col">{t("Placed")}</th>
           </tr>
         </thead>
         <tbody>
@@ -85,26 +85,25 @@ export function BetsHistory({
                 <td>
                   <Link href={`/games/${wager.routeId}`}>{wager.matchup}</Link>
                 </td>
-                <td>{wager.competition}</td>
+                <td>{t(wager.competition)}</td>
                 <td>
-                  {wager.selectionLabel}
-                  {lineSuffix(wager.line)}
-                  <span className="fine-print"> · {wager.marketLabel}</span>
+                  {t(wagerSelectionLabel(wager))}
+                  <span className="fine-print"> · {t(wager.marketLabel)}</span>
                 </td>
-                <td>{wager.price.toFixed(2)}</td>
+                <td>{formatNumber(wager.price, 2)}</td>
                 <td>{wager.stake}</td>
                 <td>
                   {settlement ? (
                     <StatusTag tone={outcomeTone(settlement.outcome)}>
-                      {settlementLabel(settlement.outcome)}
+                      {t(settlementLabel(settlement.outcome))}
                     </StatusTag>
                   ) : (
-                    <StatusTag tone="neutral">open</StatusTag>
+                    <StatusTag tone="neutral">{t("open")}</StatusTag>
                   )}
                 </td>
-                <td>{decidingResult(settlement)}</td>
-                <td>{settlement ? settlement.returned : "Pending"}</td>
-                <td>{net !== undefined ? net : "Pending"}</td>
+                <td>{t(decidingResult(settlement))}</td>
+                <td>{settlement ? settlement.returned : t("Pending")}</td>
+                <td>{net !== undefined ? net : t("Pending")}</td>
                 <td>
                   <LocalDateTime value={wager.placedAt} short />
                 </td>

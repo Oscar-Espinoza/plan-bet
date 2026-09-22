@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ function updateLast(turns: Turn[], patch: Partial<Turn>): Turn[] {
 }
 
 export function Buddy() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const hydrated = useMatchdayStore((state) => state.hydrated);
   const anonymousId = useMatchdayStore((state) => state.anonymousId);
@@ -182,34 +184,38 @@ export function Buddy() {
       <Dialog.Trigger asChild>
         <Button variant="secondary" size="sm" className="buddy-launcher">
           <MessageCircle aria-hidden="true" size={15} />
-          Buddy
+          {t("Buddy")}{" "}
         </Button>
       </Dialog.Trigger>
       <Dialog.Overlay className="buddy-overlay" />
       <Dialog.Content className="buddy-panel">
         <div className="buddy-panel-header">
-          <Dialog.Title className="buddy-panel-title">Buddy</Dialog.Title>
+          <Dialog.Title className="buddy-panel-title">
+            {t("Buddy")}
+          </Dialog.Title>
           <Dialog.Close asChild>
-            <Button variant="ghost" size="icon" aria-label="Close">
+            <Button variant="ghost" size="icon" aria-label={t("Close")}>
               <X aria-hidden="true" size={16} />
             </Button>
           </Dialog.Close>
         </div>
         <Dialog.Description className="fine-print">
-          Casual takes on fictional credits, grounded in what&rsquo;s on this
-          page. Never advice about real-money wagering.
+          {t(
+            "Casual takes on fictional credits, grounded in what’s on this page. Never advice about real-money wagering.",
+          )}{" "}
         </Dialog.Description>
         <div className="buddy-transcript" aria-live="polite">
           {turns.length === 0 && (
             <p className="fine-print">
-              Ask what it makes of this page — a game, your record, or a
-              group&rsquo;s board.
+              {t(
+                "Ask what it makes of this page — a game, your record, or a group’s board.",
+              )}{" "}
             </p>
           )}
           {turns.map((turn, index) => (
             <div className="buddy-turn" key={index}>
               <span className="eyebrow">
-                {turn.role === "user" ? "You" : "Buddy"}
+                {turn.role === "user" ? t("You") : t("Buddy")}
               </span>
               <p
                 className={
@@ -218,7 +224,9 @@ export function Buddy() {
                     : "buddy-turn-text"
                 }
               >
-                {turn.text}
+                {turn.role === "buddy" && turn.ok === false
+                  ? t(turn.text)
+                  : turn.text}
               </p>
               {turn.ok && turn.pickId && routeId && (
                 <Link
@@ -226,7 +234,7 @@ export function Buddy() {
                   onClick={() => setOpen(false)}
                 >
                   <Button variant="secondary" size="sm">
-                    Back this
+                    {t("Back this")}{" "}
                   </Button>
                 </Link>
               )}
@@ -240,7 +248,7 @@ export function Buddy() {
                     setOpen(false);
                   }}
                 >
-                  Use as my comment
+                  {t("Use as my comment")}{" "}
                 </Button>
               )}
             </div>
@@ -248,7 +256,7 @@ export function Buddy() {
         </div>
         <form className="buddy-form" onSubmit={ask}>
           <label htmlFor="buddy-question" className="sr-only">
-            Ask the buddy
+            {t("Ask the buddy")}{" "}
           </label>
           <input
             id="buddy-question"
@@ -256,7 +264,7 @@ export function Buddy() {
             value={question}
             maxLength={MAX_QUESTION_CHARS}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="What do you make of this one?"
+            placeholder={t("What do you make of this one?")}
             disabled={pending}
           />
           <Button
@@ -264,7 +272,7 @@ export function Buddy() {
             size="sm"
             disabled={pending || !question.trim()}
           >
-            Ask
+            {t("Ask")}{" "}
           </Button>
         </form>
         <Button
@@ -274,7 +282,7 @@ export function Buddy() {
           disabled={forgetting}
           onClick={forget}
         >
-          {forgotten ? "Forgotten" : "Forget what you know about me"}
+          {forgotten ? t("Forgotten") : t("Forget what you know about me")}
         </Button>
       </Dialog.Content>
     </Dialog.Root>

@@ -1,14 +1,16 @@
+import { GroupActivity, GroupStandings } from "@/components/group-activity";
+import { GroupTabs } from "@/components/group-tabs";
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
-import { Receipt, Users } from "lucide-react";
-import { LocalDateTime } from "@/components/local-date-time";
+import Link from "next/link";
+import { ArrowLeft, Users } from "lucide-react";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { JoinLink } from "@/components/join-link";
 import { NotifyToggle } from "@/components/notify-toggle";
 import { RevokeInviteButton } from "@/components/revoke-invite-button";
 import { Card } from "@/components/ui/card";
-import { StatusTag } from "@/components/ui/status-tag";
 import {
   getGroupBySlug,
   getGroupLeaderboard,
@@ -16,9 +18,8 @@ import {
   listGroupMembers,
   listPendingInvites,
 } from "@/data/groups-repository";
-import { listWagersForGroup } from "@/data/wagers-repository";
+import { listGroupMatchActivity } from "@/data/wagers-repository";
 import { requireAccount } from "@/lib/auth";
-import type { WagerOutcome } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 // Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
@@ -35,17 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: group?.name ?? "Group" };
 }
 
-function outcomeTone(outcome: WagerOutcome) {
-  if (outcome === "won") return "positive" as const;
-  if (outcome === "lost") return "negative" as const;
-  return "warning" as const;
-}
-
-function lineSuffix(line: number | undefined) {
-  return typeof line === "number" ? ` ${line}` : "";
-}
-
 export default async function Page({ params }: Props) {
+  const { t } = await getTranslation();
   const { slug } = await params;
   const [account, group] = await Promise.all([
     requireAccount(),
@@ -64,12 +56,9 @@ export default async function Page({ params }: Props) {
     await Promise.all([
       listGroupMembers(group.id),
       getGroupLeaderboard(group.id),
-      listWagersForGroup(group.id, 20),
+      listGroupMatchActivity(group.id, 20),
       listPendingInvites(group.id),
     ]);
-  const nameByUserId = new Map(
-    members.map((member) => [member.userId, member.name ?? member.email]),
-  );
   // Only email-targeted invites here — the one live join-link invite is
   // entirely self-managed by <JoinLink>, which never needs to expose its
   // token through this list-shaped read.
@@ -78,147 +67,85 @@ export default async function Page({ params }: Props) {
   );
 
   return (
-    <>
+    <div className="group-detail">
+      <Link href="/groups" className="group-back">
+        <ArrowLeft aria-hidden="true" size={18} />
+        {t("Groups")}
+      </Link>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Group wagers</p>
+          <p className="eyebrow">{t("Group wagers")}</p>
           <h1 className="display-title">{group.name}</h1>
           <p className="page-description">
-            Wagers placed with this group are visible to every member. Fictional
-            credits, house prices, never real money.
+            {members.length} {t(members.length === 1 ? "member" : "members")}
           </p>
         </div>
       </header>
 
-      <div className="section-grid">
-        <Card
-          title="Members"
-          titleId="members-heading"
-          headerExtra={
-            <span className="fine-print inline-flex items-center gap-1.5">
-              <Users aria-hidden="true" size={13} />
-              {members.length} {members.length === 1 ? "member" : "members"}
-            </span>
-          }
-        >
-          {members.map((member) => (
-            <div className="stat-row" key={member.userId}>
-              <span>{member.name ?? member.email ?? "Member"}</span>
-              <span className="fine-print">{member.role}</span>
-            </div>
-          ))}
-          <div className="form-block">
-            <NotifyToggle
-              slug={group.slug}
-              enabled={
-                members.find((member) => member.userId === account.userId)
-                  ?.notifyOnActivity ?? true
-              }
+      <GroupTabs
+        overview={
+          <div className="group-overview">
+            <GroupActivity
+              matches={wagerActivity}
+              members={members.map((member) => ({
+                userId: member.userId,
+                name: member.name ?? member.email,
+              }))}
+              viewerId={account.userId}
             />
+            <GroupStandings entries={leaderboard} viewerId={account.userId} />
           </div>
-          <div className="form-block">
-            <JoinLink slug={group.slug} />
-          </div>
-          <div className="form-block">
-            <InviteMemberForm slug={group.slug} />
-          </div>
-          {pendingEmailInvites.length > 0 && (
+        }
+        members={
+          <Card
+            title={t("Members")}
+            titleId="members-heading"
+            headerExtra={
+              <span className="fine-print inline-flex items-center gap-1.5">
+                <Users aria-hidden="true" size={13} />
+                {members.length}{" "}
+                {members.length === 1 ? t("member") : t("members")}
+              </span>
+            }
+          >
+            {members.map((member) => (
+              <div className="stat-row" key={member.userId}>
+                <span>{member.name ?? member.email ?? t("Member")}</span>
+                <span className="fine-print">{t(member.role)}</span>
+              </div>
+            ))}
             <div className="form-block">
-              <span className="field-label">Outstanding invites</span>
-              {pendingEmailInvites.map((invite) => (
-                <div className="stat-row" key={invite.id}>
-                  <span>{invite.email}</span>
-                  <RevokeInviteButton slug={group.slug} inviteId={invite.id} />
-                </div>
-              ))}
+              <NotifyToggle
+                slug={group.slug}
+                enabled={
+                  members.find((member) => member.userId === account.userId)
+                    ?.notifyOnActivity ?? true
+                }
+              />
             </div>
-          )}
-        </Card>
-
-        <Card title="Leaderboard" titleId="leaderboard-heading">
-          {/* Every member gets a row (getGroupLeaderboard starts from
-              groupMembers), including one at 0-0-0 who has never placed a
-              group wager — so there is no card-level empty state to reach. */}
-          {leaderboard.map((entry, index) => (
-            <div className="stat-row" key={entry.userId}>
-              <span>
-                {index + 1}. {entry.name ?? "Member"}
-                <span className="fine-print">
-                  {" "}
-                  · {entry.won}-{entry.lost}-{entry.voided} · {entry.wagerCount}{" "}
-                  {entry.wagerCount === 1 ? "wager" : "wagers"}
-                </span>
-              </span>
-              <strong>
-                {entry.netReturn >= 0 ? "+" : ""}
-                {entry.netReturn}
-              </strong>
+            <div className="form-block">
+              <JoinLink slug={group.slug} />
             </div>
-          ))}
-        </Card>
-      </div>
-
-      <section className="panel" aria-labelledby="group-wagers-heading">
-        <div className="panel-header">
-          <h2 className="panel-title" id="group-wagers-heading">
-            Recent group wagers
-          </h2>
-        </div>
-        {wagerActivity.length === 0 ? (
-          <div className="empty-state empty-state-compact">
-            <div>
-              <span className="empty-icon">
-                <Receipt aria-hidden="true" />
-              </span>
-              <h3 className="empty-title">No wagers yet</h3>
-              <p className="empty-copy">
-                Place a wager with this group from a game page.
-              </p>
+            <div className="form-block">
+              <InviteMemberForm slug={group.slug} />
             </div>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="wager-table">
-              <caption className="sr-only">Recent group wagers</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Placed by</th>
-                  <th scope="col">Matchup</th>
-                  <th scope="col">Selection</th>
-                  <th scope="col">Stake</th>
-                  <th scope="col">Outcome</th>
-                  <th scope="col">Placed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wagerActivity.map(({ wager, userId }) => (
-                  <tr key={wager.id}>
-                    <td>{nameByUserId.get(userId) ?? "Member"}</td>
-                    <td>{wager.matchup}</td>
-                    <td>
-                      {wager.selectionLabel}
-                      {lineSuffix(wager.line)}
-                    </td>
-                    <td>{wager.stake}</td>
-                    <td>
-                      {wager.settlement ? (
-                        <StatusTag tone={outcomeTone(wager.settlement.outcome)}>
-                          {wager.settlement.outcome}
-                        </StatusTag>
-                      ) : (
-                        <StatusTag tone="neutral">open</StatusTag>
-                      )}
-                    </td>
-                    <td>
-                      <LocalDateTime value={wager.placedAt} short />
-                    </td>
-                  </tr>
+            {pendingEmailInvites.length > 0 && (
+              <div className="form-block">
+                <span className="field-label">{t("Outstanding invites")}</span>
+                {pendingEmailInvites.map((invite) => (
+                  <div className="stat-row" key={invite.id}>
+                    <span>{invite.email}</span>
+                    <RevokeInviteButton
+                      slug={group.slug}
+                      inviteId={invite.id}
+                    />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </>
+              </div>
+            )}
+          </Card>
+        }
+      />
+    </div>
   );
 }

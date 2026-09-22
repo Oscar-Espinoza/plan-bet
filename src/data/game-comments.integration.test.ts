@@ -80,7 +80,7 @@ async function createGame(
       canonical_id, sport, provider, external_id, summary, scheduled_at,
       source_observed_at, fetched_at, expires_at, payload_hash
     ) values (
-      ${canonicalId}, 'soccer', 'football-data', ${canonicalId}, '{}',
+      ${canonicalId}, 'soccer', 'football-data', ${canonicalId}, ${JSON.stringify({ status: variant === "future" ? "scheduled" : "finished" })}::jsonb,
       ${scheduledAt}, now(), now(), now(), ${`hash-${canonicalId}`}
     )
   `;
@@ -189,8 +189,8 @@ describe("Phase F game_comments", () => {
     });
     expect(before.ok && before.comment.phase).toBe("before");
 
-    // The same real clock, now read against a game already past kickoff —
-    // postComment derives "after" from that alone, never from an argument.
+    // Only confirmed full time opens the second slot.
+    await sql`update games set summary = '{"status":"finished"}' where canonical_id = ${canonicalGameId}`;
     const after = await postComment({
       userId,
       groupId,
@@ -645,5 +645,123 @@ describe("Phase F2 comment votes", () => {
       select count(*)::int as count from comment_votes where comment_id = ${commentId}
     `;
     expect(after).toBe(0);
+  });
+});
+
+describe("two-level replies and full-time posting", () => {
+  async function setup() {
+    const owner = await createUser(`reply-owner-${randomUUID()}@example.com`);
+    const other = await createUser(`reply-other-${randomUUID()}@example.com`);
+    const third = await createUser(`reply-third-${randomUUID()}@example.com`);
+    const groupId = await createGroup(owner, "Thread tests");
+    const canonicalGameId = `thread-${randomUUID()}`;
+    await createGame(canonicalGameId);
+    for (const user of [owner, other, third]) {
+      await addGroupMember(groupId, user);
+      await insertWagerForGroup(user, groupId, canonicalGameId);
+    }
+    const root = await postComment({
+      userId: owner,
+      groupId,
+      canonicalGameId,
+      body: "Root",
+      now: new Date(),
+    });
+    if (!root.ok) throw new Error("Root failed");
+    return {
+      owner,
+      other,
+      third,
+      groupId,
+      canonicalGameId,
+      root: root.comment,
+    };
+  }
+
+  it("normalizes a reply to a reply to the root and keeps the shared phase allowance", async () => {
+    const c = await setup();
+    const reply = await postComment({
+      userId: c.other,
+      groupId: c.groupId,
+      canonicalGameId: c.canonicalGameId,
+      parentCommentId: c.root.id,
+      body: "Reply",
+      now: new Date(),
+    });
+    expect(reply.ok && reply.comment.parentCommentId).toBe(c.root.id);
+    if (!reply.ok) throw new Error("Reply failed");
+    const child = await postComment({
+      userId: c.third,
+      groupId: c.groupId,
+      canonicalGameId: c.canonicalGameId,
+      parentCommentId: reply.comment.id,
+      body: "Reply to reply",
+      now: new Date(),
+    });
+    expect(child.ok && child.comment.parentCommentId).toBe(c.root.id);
+    expect(
+      await postComment({
+        userId: c.other,
+        groupId: c.groupId,
+        canonicalGameId: c.canonicalGameId,
+        body: "Another root",
+        now: new Date(),
+      }),
+    ).toEqual({ ok: false, reason: "already_commented" });
+    const threads = await listCommentThreads(c.owner, c.canonicalGameId);
+    expect(threads[0]!.comments).toHaveLength(3);
+  });
+
+  it("rejects invalid and cross-group or cross-match targets", async () => {
+    const a = await setup();
+    const b = await setup();
+    const input = {
+      userId: a.other,
+      groupId: a.groupId,
+      canonicalGameId: a.canonicalGameId,
+      body: "No",
+      now: new Date(),
+    };
+    for (const parentCommentId of [randomUUID(), b.root.id])
+      expect(await postComment({ ...input, parentCommentId })).toEqual({
+        ok: false,
+        reason: "invalid_parent",
+      });
+    await insertWagerForGroup(a.other, a.groupId, b.canonicalGameId);
+    expect(
+      await postComment({
+        ...input,
+        canonicalGameId: b.canonicalGameId,
+        parentCommentId: a.root.id,
+      }),
+    ).toEqual({ ok: false, reason: "invalid_parent" });
+  });
+
+  it("allows only one concurrent root or reply, then a second message only after full time", async () => {
+    const c = await setup();
+    const input = {
+      userId: c.other,
+      groupId: c.groupId,
+      canonicalGameId: c.canonicalGameId,
+      body: "My message",
+      now: new Date(),
+    };
+    const results = await Promise.all([
+      postComment(input),
+      postComment({ ...input, parentCommentId: c.root.id }),
+    ]);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    await sql`update games set summary = '{"status":"live"}', scheduled_at = now() - interval '1 hour' where canonical_id = ${c.canonicalGameId}`;
+    expect(await postComment(input)).toEqual({
+      ok: false,
+      reason: "phase_closed",
+    });
+    await sql`update games set summary = '{"status":"finished"}' where canonical_id = ${c.canonicalGameId}`;
+    const after = await postComment({ ...input, parentCommentId: c.root.id });
+    expect(after.ok && after.comment.phase).toBe("after");
+    expect(await postComment(input)).toEqual({
+      ok: false,
+      reason: "already_commented",
+    });
   });
 });

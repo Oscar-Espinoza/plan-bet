@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,7 @@ export function RevokeInviteButton({
   slug: string;
   inviteId: string;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -32,7 +34,7 @@ export function RevokeInviteButton({
       onClick={revoke}
       disabled={pending}
     >
-      Revoke
+      {t("Revoke")}{" "}
     </Button>
   );
 }

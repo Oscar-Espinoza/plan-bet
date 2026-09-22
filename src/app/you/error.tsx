@@ -1,16 +1,19 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import Link from "next/link";
 import { RouteError } from "@/components/route-error";
 
 export default function YouError({ reset }: { reset: () => void }) {
+  const { t } = useTranslation();
   return (
     <RouteError
-      title="Your record hit an error"
+      title={t("Your record hit an error")}
       copy={
         <>
-          Try again, or place your next wager from the{" "}
-          <Link href="/">games board</Link> while we sort it out.
+          {t("Try again, or place your next wager from the")}{" "}
+          <Link href="/">{t("games board")}</Link>{" "}
+          {t("while we sort it out.")}{" "}
         </>
       }
       reset={reset}

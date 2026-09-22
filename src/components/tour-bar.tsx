@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -17,6 +18,7 @@ const STEPS = [
 ];
 
 export function TourBar() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const tourRef = useBandHeight("--tour-h");
   const hydrated = useMatchdayStore((state) => state.hydrated);
@@ -37,21 +39,21 @@ export function TourBar() {
       ref={tourRef}
       className="tour-bar"
       role="region"
-      aria-label="Getting started tour"
+      aria-label={t("Getting started tour")}
     >
       <p className="tour-bar-copy">
         <span className="tour-bar-count">
-          {tourStep + 1} of {STEPS.length}
+          {tourStep + 1} {t("of")} {STEPS.length}
         </span>
-        {STEPS[tourStep]}
+        {t(STEPS[tourStep])}
       </p>
       <Button
         variant="secondary"
         size="sm"
         onClick={finishTour}
-        aria-label="Skip the tour"
+        aria-label={t("Skip the tour")}
       >
-        Skip
+        {t("Skip")}{" "}
       </Button>
     </div>
   );

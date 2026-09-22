@@ -411,6 +411,7 @@ export type CommentVoteKind = z.infer<typeof commentVoteKindSchema>;
 
 export const gameCommentSchema = z.object({
   id: z.uuid(),
+  parentCommentId: z.uuid().nullable().optional(),
   groupId: z.uuid(),
   userId: z.uuid(),
   authorName: z.string().nullable(),
@@ -429,6 +430,7 @@ export type GameComment = z.infer<typeof gameCommentSchema>;
 
 export const gameCommentRequestSchema = z.object({
   groupId: z.uuid(),
+  parentCommentId: z.uuid().optional(),
   body: z.string().trim().min(1).max(280),
 });
 export type GameCommentRequestInput = z.infer<typeof gameCommentRequestSchema>;

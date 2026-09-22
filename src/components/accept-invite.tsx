@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ export function AcceptInvite({
   groupName: string;
   invitedByName: string | null;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -54,16 +56,17 @@ export function AcceptInvite({
     <div className="empty-state">
       <div>
         <h3 className="empty-title">
-          {invitedByName ? <strong>{invitedByName}</strong> : "Someone"} invited
-          you to <strong>{groupName}</strong>
+          {invitedByName ? <strong>{invitedByName}</strong> : t("Someone")}{" "}
+          {t("invited you to")} <strong>{groupName}</strong>
         </h3>
         <p className="empty-copy">
-          Joining puts you on this group&rsquo;s wager board. Credits are
-          fictional and non-withdrawable — never real money.
+          {t(
+            "Joining puts you on this group’s wager board. Credits are fictional and non-withdrawable — never real money.",
+          )}{" "}
         </p>
         {error && (
           <Banner tone="negative" role="alert">
-            {error}
+            {t(error)}
           </Banner>
         )}
         <Button
@@ -72,7 +75,7 @@ export function AcceptInvite({
           onClick={join}
           disabled={pending}
         >
-          Join {groupName}
+          {t("Join")} {groupName}
         </Button>
       </div>
     </div>

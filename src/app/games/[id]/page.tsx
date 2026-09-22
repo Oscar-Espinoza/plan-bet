@@ -92,7 +92,11 @@ async function loadWagering(
 
   // Derived once here, the same clock postComment re-derives on write —
   // never trusted from anywhere else.
-  const currentPhase = commentPhase(game.summary.scheduledAt, new Date());
+  const currentPhase = commentPhase(
+    game.summary.scheduledAt,
+    new Date(),
+    game.summary.status,
+  );
 
   return {
     signedIn: true,
@@ -108,6 +112,7 @@ async function loadWagering(
       groupId: thread.groupId,
       groupName: thread.groupName,
       comments: thread.comments,
+      postingPhase: currentPhase,
       hasCommented: thread.comments.some(
         (comment) =>
           comment.userId === account.userId && comment.phase === currentPhase,

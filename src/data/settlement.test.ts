@@ -215,3 +215,29 @@ describe("settleWagers", () => {
     );
   });
 });
+
+it("refunds a drawn draw-no-bet through the real settlement pipeline", async () => {
+  acquireRefreshLeaseMock.mockResolvedValue(LEASE);
+  const values = vi.fn().mockReturnValue(chain([{ id: "credit-refund" }]));
+  const summary = finishedSummary();
+  summary.result = { ...summary.result!, homeScore: 1, awayScore: 1 };
+  getDatabaseMock.mockReturnValue({
+    select: () =>
+      chain([
+        candidate({
+          marketId: "soccer-draw-no-bet",
+          summary,
+          potentialReturn: 83,
+        }),
+      ]),
+    insert: () => ({ values }),
+  });
+  const result = await settleWagers({ requestId: "dnb-refund" });
+  expect(result).toMatchObject({
+    ok: true,
+    byOutcome: { won: 0, lost: 0, void: 1 },
+  });
+  expect(values).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: "return", outcome: "void", amount: 50 }),
+  );
+});

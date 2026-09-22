@@ -1,3 +1,5 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 const LIST_ROWS = 5;
 const RECORD_ROWS = 4;
 
@@ -19,9 +21,10 @@ export function Skeleton({
       than the content that replaces it. Defaults to 2 (groups/[slug]). */
   panelCount?: number;
 }) {
+  const { t } = useTranslation();
   if (variant === "record") {
     return (
-      <div className="section-grid" role="status" aria-label={label}>
+      <div className="section-grid" role="status" aria-label={t(label)}>
         <div className="panel loading-panel skeleton-rows">
           {Array.from({ length: RECORD_ROWS }).map((_, index) => (
             <div className="skeleton-bar" key={index} />
@@ -35,7 +38,7 @@ export function Skeleton({
   }
 
   return (
-    <div className="section-grid" role="status" aria-label={label}>
+    <div className="section-grid" role="status" aria-label={t(label)}>
       <div className="panel loading-panel skeleton-rows">
         <div className="skeleton-bar skeleton-bar-header" />
         {Array.from({ length: LIST_ROWS }).map((_, index) => (

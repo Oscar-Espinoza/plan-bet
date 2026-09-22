@@ -1,0 +1,3 @@
+ALTER TABLE "game_comments" ADD COLUMN "parent_comment_id" uuid;--> statement-breakpoint
+ALTER TABLE "game_comments" ADD CONSTRAINT "game_comments_parent_comment_id_game_comments_id_fk" FOREIGN KEY ("parent_comment_id") REFERENCES "public"."game_comments"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "game_comments_parent_idx" ON "game_comments" USING btree ("parent_comment_id","created_at");

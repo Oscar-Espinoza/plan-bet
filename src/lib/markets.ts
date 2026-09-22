@@ -1,14 +1,31 @@
 import type { GameSummary, Sport } from "@/lib/contracts";
 
 export type MarketKind =
-  "match_result" | "total" | "both_teams_to_score" | "exact_score";
+  | "match_result"
+  | "total"
+  | "both_teams_to_score"
+  | "exact_score"
+  | "double_chance"
+  | "draw_no_bet"
+  | "team_threshold"
+  | "clean_sheet"
+  | "handicap";
+export type MarketCategory = "popular" | "totals" | "teams";
 export type Grade = "won" | "lost" | "void";
-export type Selection = { id: string; label: string; price: number }; // decimal odds
+export type Selection = {
+  id: string;
+  label: string;
+  price: number;
+  threshold?: number;
+  handicap?: number;
+}; // decimal odds
 export type Market = {
   id: string;
   kind: MarketKind;
   label: string;
   line?: number;
+  category?: MarketCategory;
+  team?: "home" | "away";
   selections: Selection[];
 };
 
@@ -16,7 +33,7 @@ export type Market = {
 // they never move with the real market. The upgrade path is a priced feed
 // (planned src/providers/the-odds-api/, per Session 06-09); the Market /
 // Selection shape here is what the wager schema will keep once it arrives.
-export const HOUSE_PRICES_VERSION = "2026-08-20";
+export const HOUSE_PRICES_VERSION = "2026-09-21";
 
 /**
  * Stake bounds. contracts.ts mirrors these as literal zod bounds (it cannot
@@ -125,6 +142,160 @@ const BASEBALL_MARKETS: Market[] = [
   // finals, which routinely run higher.
 ];
 
+// Only final-score markets belong in this catalogue. New statistics-based
+// markets require verified provider coverage before placement can resolve them.
+function additionalTotals(sport: Sport): Market[] {
+  const unit = sport === "soccer" ? "Goals" : "Runs";
+  const lines =
+    sport === "soccer"
+      ? [
+          [1.5, 1.3, 3.2],
+          [3.5, 3, 1.35],
+        ]
+      : [
+          [6.5, 1.4, 2.75],
+          [10.5, 2.75, 1.4],
+        ];
+  return lines.map(([line, over, under]) => ({
+    id: `${sport}-total-${String(line).replace(".", "-")}`,
+    kind: "total",
+    category: "totals",
+    label: `Over/Under ${line} ${unit}`,
+    line,
+    selections: [
+      { id: "over", label: `Over ${line}`, price: over! },
+      { id: "under", label: `Under ${line}`, price: under! },
+    ],
+  }));
+}
+
+function teamMarkets(sport: Sport): Market[] {
+  const soccer = sport === "soccer";
+  const unit = soccer ? "goals" : "runs";
+  return (["home", "away"] as const).flatMap((team): Market[] => [
+    {
+      id: `${sport}-${team}-threshold`,
+      kind: "team_threshold",
+      category: "teams",
+      team,
+      label: soccer ? "Team goals" : "Team runs",
+      selections: (soccer
+        ? [
+            [1, 1.35],
+            [2, 2.5],
+            [3, 5],
+          ]
+        : [
+            [3, 1.45],
+            [5, 2.4],
+            [7, 4.5],
+          ]
+      ).map(([threshold, price]) => ({
+        id: `${threshold}+`,
+        label: `${threshold}+ ${unit}`,
+        threshold,
+        price: price!,
+      })),
+    },
+    ...(soccer
+      ? [
+          {
+            id: `${sport}-${team}-clean-sheet`,
+            kind: "clean_sheet" as const,
+            category: "teams" as const,
+            team,
+            label: "Clean sheet",
+            selections: [
+              { id: "yes", label: "Clean sheet: Yes", price: 2.75 },
+              { id: "no", label: "Clean sheet: No", price: 1.4 },
+            ],
+          },
+        ]
+      : []),
+    {
+      id: `${sport}-${team}-handicap`,
+      kind: "handicap",
+      category: "teams",
+      team,
+      label: soccer ? "Goal handicap" : "Run handicap",
+      selections: [
+        {
+          id: "minus-1-5",
+          label: "Handicap -1.5",
+          handicap: -1.5,
+          price: soccer ? 3.75 : 2.5,
+        },
+        {
+          id: "plus-1-5",
+          label: "Handicap +1.5",
+          handicap: 1.5,
+          price: soccer ? 1.2 : 1.5,
+        },
+      ],
+    },
+  ]);
+}
+
+SOCCER_MARKETS.push(
+  {
+    id: "soccer-double-chance",
+    kind: "double_chance",
+    label: "Double chance",
+    selections: [
+      { id: "home-draw", label: "Home or draw", price: 1.35 },
+      { id: "away-draw", label: "Away or draw", price: 1.5 },
+      { id: "home-away", label: "Either team wins", price: 1.3 },
+    ],
+  },
+  {
+    id: "soccer-draw-no-bet",
+    kind: "draw_no_bet",
+    label: "Draw no bet",
+    selections: [
+      { id: "home", label: "Home — draw no bet", price: 1.65 },
+      { id: "away", label: "Away — draw no bet", price: 2.05 },
+    ],
+  },
+  ...additionalTotals("soccer"),
+  ...teamMarkets("soccer"),
+);
+BASEBALL_MARKETS.push(
+  ...additionalTotals("baseball"),
+  ...teamMarkets("baseball"),
+);
+
+/** Self-contained labels survive history, group activity and notifications. */
+export function namedSelection(
+  market: Market,
+  selection: Selection,
+  matchup?: { home: string; away: string },
+): string {
+  if (matchup && market.kind === "draw_no_bet") {
+    return `${selection.id === "home" ? matchup.home : matchup.away} — draw no bet`;
+  }
+  if (
+    matchup &&
+    market.kind === "double_chance" &&
+    selection.id !== "home-away"
+  ) {
+    return `${selection.id === "home-draw" ? matchup.home : matchup.away} or draw`;
+  }
+  return market.team
+    ? `${matchup?.[market.team] ?? (market.team === "home" ? "Home" : "Away")} — ${selection.label}`
+    : selection.label;
+}
+
+export function inMarketCategory(
+  market: Market,
+  category: MarketCategory,
+): boolean {
+  if (category === "totals")
+    return ["total", "both_teams_to_score", "exact_score"].includes(
+      market.kind,
+    );
+  return (market.category ?? "popular") === category;
+}
+
 export function marketsFor(sport: Sport): Market[] {
   return sport === "soccer" ? SOCCER_MARKETS : BASEBALL_MARKETS;
 }
@@ -180,7 +351,29 @@ export function gradeSelection(
 
   const { homeScore, awayScore } = result;
 
+  const teamScore = market.team === "home" ? homeScore : awayScore;
+  const opponentScore = market.team === "home" ? awayScore : homeScore;
   switch (market.kind) {
+    case "double_chance": {
+      const winner =
+        homeScore === awayScore
+          ? "draw"
+          : homeScore > awayScore
+            ? "home"
+            : "away";
+      return selectionId.split("-").includes(winner) ? "won" : "lost";
+    }
+    case "draw_no_bet":
+      if (homeScore === awayScore) return "void";
+      return (selectionId === "home") === homeScore > awayScore
+        ? "won"
+        : "lost";
+    case "team_threshold":
+      return teamScore >= selection.threshold! ? "won" : "lost";
+    case "clean_sheet":
+      return (selectionId === "yes") === (opponentScore === 0) ? "won" : "lost";
+    case "handicap":
+      return teamScore + selection.handicap! > opponentScore ? "won" : "lost";
     case "match_result": {
       const winner =
         homeScore === awayScore
@@ -211,4 +404,15 @@ export function gradeSelection(
       return selectionId === `${homeScore}-${awayScore}` ? "won" : "lost";
     }
   }
+}
+
+/** Older wagers stored "Over" separately from its line; newer labels include it. */
+export function wagerSelectionLabel(wager: {
+  selectionLabel: string;
+  line?: number;
+}): string {
+  const { selectionLabel, line } = wager;
+  return line !== undefined && !selectionLabel.includes(String(line))
+    ? `${selectionLabel} ${line}`
+    : selectionLabel;
 }

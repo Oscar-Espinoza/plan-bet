@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,6 +13,7 @@ export function NotifyToggle({
   slug: string;
   enabled: boolean;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [on, setOn] = useState(enabled);
   const [error, setError] = useState("");
@@ -46,16 +48,18 @@ export function NotifyToggle({
         disabled={pending}
         aria-pressed={on}
       >
-        Email me group activity: {on ? "on" : "off"}
+        {t("Email me group activity:")} {on ? t("enabled") : t("disabled")}
       </Button>
       <p className="fine-print">
         {on
-          ? "You get an email when a member places a wager here and when group wagers settle."
-          : "You get no group emails. Activity still shows on this page."}
+          ? t(
+              "You get an email when a member places a wager here and when group wagers settle.",
+            )
+          : t("You get no group emails. Activity still shows on this page.")}
       </p>
       {error && (
         <Banner tone="negative" role="alert">
-          {error}
+          {t(error)}
         </Banner>
       )}
     </div>

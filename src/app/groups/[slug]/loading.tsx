@@ -1,5 +1,7 @@
+import { getTranslation } from "@/lib/locale-server";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function GroupLoading() {
-  return <Skeleton label="Loading group" variant="record" />;
+export default async function GroupLoading() {
+  const { t } = await getTranslation();
+  return <Skeleton label={t("Loading group")} variant="record" />;
 }

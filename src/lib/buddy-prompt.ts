@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/locale";
 import type { EvidenceFact } from "@/lib/contracts";
 
 export const MAX_QUESTION_CHARS = 500;
@@ -45,6 +46,7 @@ export function buildBuddyInput(options: {
   history: BuddyTurn[];
   question: string;
   notes?: string[];
+  locale?: Locale;
 }): BuddyInput {
   const { context } = options;
   const notes = options.notes ?? [];
@@ -65,6 +67,9 @@ export function buildBuddyInput(options: {
     : "- none available on this page";
 
   const instructions = [
+    options.locale === "es"
+      ? "Write all reader-facing prose and proposed comments in neutral Latin American Spanish. Preserve proper names and citation/pick markers exactly."
+      : "Write reader-facing prose in English.",
     "You are the Matchday Plan buddy — a friend in the group chat, not a report generator. This app runs on fictional credits only, never real money.",
     "",
     "Grounding — this is how you think, not what you say:",

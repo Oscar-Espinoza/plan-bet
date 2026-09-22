@@ -62,26 +62,26 @@ describe("pickPins", () => {
 
 describe("commentPhase", () => {
   const kickoff = "2026-08-24T19:00:00.000Z";
-
-  it("is before while now is earlier than kickoff", () => {
-    expect(commentPhase(kickoff, new Date("2026-08-24T18:59:59.000Z"))).toBe(
-      "before",
-    );
-  });
-
-  it("is after from the instant of kickoff on", () => {
-    expect(commentPhase(kickoff, new Date(kickoff))).toBe("after");
-  });
-
-  it("is after well past kickoff", () => {
-    expect(commentPhase(kickoff, new Date("2026-08-25T00:00:00.000Z"))).toBe(
-      "after",
-    );
-  });
-
-  it("accepts a Date for scheduledAt, not only a string", () => {
+  it("permits the first message strictly before kickoff", () => {
     expect(
-      commentPhase(new Date(kickoff), new Date("2026-08-24T00:00:00.000Z")),
+      commentPhase(kickoff, new Date("2026-08-24T18:59:59Z"), "scheduled"),
     ).toBe("before");
+    expect(commentPhase(kickoff, new Date(kickoff), "scheduled")).toBeNull();
   });
+  it("requires confirmed full time for the second message", () => {
+    expect(
+      commentPhase(kickoff, new Date("2026-08-25T00:00:00Z"), "live"),
+    ).toBeNull();
+    expect(
+      commentPhase(kickoff, new Date("2026-08-25T00:00:00Z"), "finished"),
+    ).toBe("after");
+  });
+  it.each(["cancelled", "postponed", "unknown"] as const)(
+    "closes posting for %s",
+    (status) => {
+      expect(
+        commentPhase(kickoff, new Date("2026-08-24T18:00:00Z"), status),
+      ).toBeNull();
+    },
+  );
 });

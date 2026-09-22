@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +7,7 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 
 export function InviteMemberForm({ slug }: { slug: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -50,7 +52,7 @@ export function InviteMemberForm({ slug }: { slug: string }) {
   return (
     <form className="side-form" onSubmit={submit}>
       <label htmlFor="invite-email" className="field-label">
-        Invite by email
+        {t("Invite by email")}{" "}
       </label>
       <input
         id="invite-email"
@@ -63,13 +65,13 @@ export function InviteMemberForm({ slug }: { slug: string }) {
 
       {error && (
         <Banner tone="negative" role="alert">
-          {error}
+          {t(error)}
         </Banner>
       )}
-      {message && <Banner tone="positive">{message}</Banner>}
+      {message && <Banner tone="positive">{t(message)}</Banner>}
 
       <Button type="submit" size="sm" disabled={pending || !email.trim()}>
-        Send invite
+        {t("Send invite")}{" "}
       </Button>
     </form>
   );

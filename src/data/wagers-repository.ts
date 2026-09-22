@@ -1,4 +1,5 @@
 import "server-only";
+import { groupMatchActivity } from "@/lib/group-activity";
 
 import { cache } from "react";
 import {
@@ -205,6 +206,46 @@ export async function listWagersForGroup(
     wager: settled[index]!,
     userId: row.userId,
   }));
+}
+
+/** Limit matches, not bets: every selected match retains all group picks. */
+export async function listGroupMatchActivity(groupId: string, limit = 20) {
+  const db = getDatabase();
+  const recent = db
+    .select({ canonicalGameId: wagers.canonicalGameId })
+    .from(wagers)
+    .where(eq(wagers.groupId, groupId))
+    .groupBy(wagers.canonicalGameId)
+    .orderBy(desc(sql`max(${wagers.createdAt})`), wagers.canonicalGameId)
+    .limit(limit);
+  const rows = await db
+    .select()
+    .from(wagers)
+    .where(
+      and(eq(wagers.groupId, groupId), inArray(wagers.canonicalGameId, recent)),
+    )
+    .orderBy(desc(wagers.createdAt), wagers.id);
+  if (!rows.length) return [];
+  const [settled, summaries] = await Promise.all([
+    attachSettled(rows),
+    db
+      .select({ canonicalId: games.canonicalId, summary: games.summary })
+      .from(games)
+      .where(
+        inArray(games.canonicalId, [
+          ...new Set(rows.map((row) => row.canonicalGameId)),
+        ]),
+      ),
+  ]);
+  return groupMatchActivity(
+    rows.map((row, i) => ({ userId: row.userId, wager: settled[i]! })),
+    new Map(
+      summaries.flatMap((row) => {
+        const parsed = gameSummarySchema.safeParse(row.summary);
+        return parsed.success ? [[row.canonicalId, parsed.data] as const] : [];
+      }),
+    ),
+  );
 }
 
 export type GroupWagerPick = {

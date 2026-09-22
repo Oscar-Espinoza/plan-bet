@@ -105,9 +105,9 @@ describe("marketsFor catalogue invariants", () => {
     }
   });
 
-  it("baseball offers exactly 2 markets, soccer offers 4", () => {
-    expect(marketsFor("baseball")).toHaveLength(2);
-    expect(marketsFor("soccer")).toHaveLength(4);
+  it("publishes the expanded score-only catalogue", () => {
+    expect(marketsFor("baseball")).toHaveLength(8);
+    expect(marketsFor("soccer")).toHaveLength(14);
   });
 });
 
@@ -360,5 +360,142 @@ describe("stake bounds", () => {
       ),
     );
     expect(Math.max(...prices)).toBe(HIGHEST_PRICE);
+  });
+});
+
+describe("expanded score markets", () => {
+  const grade = (id: string, selection: string, home: number, away: number) => {
+    const sport = id.startsWith("soccer") ? "soccer" : "baseball";
+    const resolved = resolveSelection(sport, id, selection)!;
+    return gradeSelection(
+      resolved.market,
+      selection,
+      makeGame({ sport, result: makeResult(home, away, "regulation") }),
+    );
+  };
+  it.each([
+    [2, 1, "won", "lost", "won"],
+    [1, 1, "won", "won", "lost"],
+    [0, 2, "lost", "won", "won"],
+  ] as const)(
+    "double chance covers exactly its outcomes at %i-%i",
+    (h, a, hd, ad, ha) => {
+      expect(grade("soccer-double-chance", "home-draw", h, a)).toBe(hd);
+      expect(grade("soccer-double-chance", "away-draw", h, a)).toBe(ad);
+      expect(grade("soccer-double-chance", "home-away", h, a)).toBe(ha);
+    },
+  );
+  it.each(["home", "away"])("draw no bet refunds %s on a draw", (side) => {
+    expect(grade("soccer-draw-no-bet", side, 2, 2)).toBe("void");
+    expect(grade("soccer-draw-no-bet", side, 2, 0)).toBe(
+      side === "home" ? "won" : "lost",
+    );
+    expect(grade("soccer-draw-no-bet", side, 0, 2)).toBe(
+      side === "away" ? "won" : "lost",
+    );
+  });
+  for (const sport of ["soccer", "baseball"] as const) {
+    for (const team of ["home", "away"] as const) {
+      const scores = (own: number, other: number): [number, number] =>
+        team === "home" ? [own, other] : [other, own];
+      it(`${sport} ${team} thresholds are inclusive and ignore opponent scoring`, () => {
+        for (const n of sport === "soccer" ? [1, 2, 3] : [3, 5, 7]) {
+          for (const own of [n - 1, n, n + 1]) {
+            expect(
+              grade(`${sport}-${team}-threshold`, `${n}+`, ...scores(own, 9)),
+            ).toBe(own >= n ? "won" : "lost");
+          }
+        }
+      });
+      it(`${sport} ${team} handicaps handle one-run/goal and two-run/goal margins`, () => {
+        for (const [own, other, minus, plus] of [
+          [3, 2, "lost", "won"],
+          [4, 2, "won", "won"],
+          [1, 2, "lost", "won"],
+          [0, 2, "lost", "lost"],
+        ] as const) {
+          expect(
+            grade(
+              `${sport}-${team}-handicap`,
+              "minus-1-5",
+              ...scores(own, other),
+            ),
+          ).toBe(minus);
+          expect(
+            grade(
+              `${sport}-${team}-handicap`,
+              "plus-1-5",
+              ...scores(own, other),
+            ),
+          ).toBe(plus);
+        }
+      });
+      if (sport === "soccer")
+        it(`${team} clean sheet checks the opponent`, () => {
+          for (const own of [0, 3])
+            for (const other of [0, 1]) {
+              expect(
+                grade(
+                  `soccer-${team}-clean-sheet`,
+                  "yes",
+                  ...scores(own, other),
+                ),
+              ).toBe(other === 0 ? "won" : "lost");
+              expect(
+                grade(
+                  `soccer-${team}-clean-sheet`,
+                  "no",
+                  ...scores(own, other),
+                ),
+              ).toBe(other === 0 ? "lost" : "won");
+            }
+        });
+    }
+    it(`${sport} all totals grade immediately below and above the line`, () => {
+      for (const market of marketsFor(sport).filter(
+        (m) => m.kind === "total",
+      )) {
+        expect(grade(market.id, "over", Math.floor(market.line!), 0)).toBe(
+          "lost",
+        );
+        expect(grade(market.id, "under", Math.floor(market.line!), 0)).toBe(
+          "won",
+        );
+        expect(grade(market.id, "over", Math.ceil(market.line!), 0)).toBe(
+          "won",
+        );
+        expect(grade(market.id, "under", Math.ceil(market.line!), 0)).toBe(
+          "lost",
+        );
+      }
+    });
+    it(`${sport} every selection voids on cancellation, postponement or a missing result`, () => {
+      for (const market of marketsFor(sport))
+        for (const selection of market.selections) {
+          for (const status of ["cancelled", "postponed"] as const)
+            expect(
+              gradeSelection(
+                market,
+                selection.id,
+                makeGame({ sport, status, result: makeResult(3, 1) }),
+              ),
+            ).toBe("void");
+          expect(
+            gradeSelection(
+              market,
+              selection.id,
+              makeGame({ sport, result: undefined }),
+            ),
+          ).toBe("void");
+        }
+    });
+  }
+  it("never resolves unsupported statistical markets", () => {
+    expect(
+      resolveSelection("soccer", "soccer-home-first-half-corners", "3+"),
+    ).toBeUndefined();
+    expect(
+      resolveSelection("baseball", "baseball-first-five", "home"),
+    ).toBeUndefined();
   });
 });

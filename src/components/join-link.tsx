@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ export function JoinLink({
   initialUrl?: string;
   initialInviteId?: string;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [url, setUrl] = useState(initialUrl ?? "");
   const [inviteId, setInviteId] = useState(initialInviteId ?? "");
@@ -82,7 +84,7 @@ export function JoinLink({
 
   return (
     <div className="side-form">
-      <span className="field-label">Join link</span>
+      <span className="field-label">{t("Join link")}</span>
       {url ? (
         <>
           <input
@@ -90,7 +92,7 @@ export function JoinLink({
             readOnly
             value={url}
             onFocus={(event) => event.target.select()}
-            aria-label="Group join link"
+            aria-label={t("Group join link")}
           />
           <div className="mt-2 flex gap-2">
             <Button
@@ -100,7 +102,7 @@ export function JoinLink({
               onClick={copy}
               disabled={pending}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("Copied") : t("Copy")}
             </Button>
             <Button
               type="button"
@@ -109,18 +111,18 @@ export function JoinLink({
               onClick={revoke}
               disabled={pending}
             >
-              Revoke
+              {t("Revoke")}{" "}
             </Button>
           </div>
         </>
       ) : (
         <Button type="button" size="sm" onClick={createLink} disabled={pending}>
-          Create join link
+          {t("Create join link")}{" "}
         </Button>
       )}
       {error && (
         <Banner tone="negative" role="alert">
-          {error}
+          {t(error)}
         </Banner>
       )}
     </div>

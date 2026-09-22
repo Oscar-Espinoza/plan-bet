@@ -1,6 +1,8 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
+import { intlLocale, type Locale } from "@/lib/locale";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { PitchArt } from "@/components/pitch-art";
+import { CalendarDays, ChevronRight, Radio } from "lucide-react";
 import { TeamLogo } from "@/components/team-logo";
 import { clubAccentStyle } from "@/lib/club-accent";
 import { teams } from "@/lib/seed";
@@ -10,6 +12,7 @@ import { DemoStamp } from "@/components/demo-stamp";
 import {
   Countdown,
   KickoffTime,
+  LocalDateTime,
   RelativeKickoff,
   TimezoneLegend,
 } from "@/components/local-date-time";
@@ -52,11 +55,12 @@ function dayLabel(
   tz: string,
   todayKey: string,
   tomorrowKey: string,
+  locale: Locale,
 ) {
   const key = dayKey(value, tz);
   if (key === todayKey) return "Today";
   if (key === tomorrowKey) return "Tomorrow";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     timeZone: tz,
     weekday: "long",
     month: "short",
@@ -73,6 +77,7 @@ export function Slate({
   sport: SportFilter;
   tz: string;
 }) {
+  const { t, locale } = useTranslation();
   const games = Object.values(data)
     .flatMap((schedule) => schedule.games)
     .filter((game) => !isDuplicate(game))
@@ -81,6 +86,8 @@ export function Slate({
       (a, b) =>
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     );
+  const liveGames = games.filter((game) => game.status === "live");
+  const scheduledGames = games.filter((game) => game.status !== "live");
 
   const now = new Date();
   const todayKey = dayKey(now.toISOString(), tz);
@@ -94,7 +101,7 @@ export function Slate({
   // their location; behind a VPN a late kickoff can land under the wrong
   // heading. Regroup client-side if that ever matters.
   const groups: { key: string; label: string; games: GameSummary[] }[] = [];
-  for (const game of games) {
+  for (const game of scheduledGames) {
     const key = dayKey(game.scheduledAt, tz);
     const group = groups.at(-1);
     if (group?.key === key) {
@@ -102,18 +109,16 @@ export function Slate({
     } else {
       groups.push({
         key,
-        label: dayLabel(game.scheduledAt, tz, todayKey, tomorrowKey),
+        label: dayLabel(game.scheduledAt, tz, todayKey, tomorrowKey, locale),
         games: [game],
       });
     }
   }
 
-  const nextUp = games[0];
+  const nextUp = scheduledGames[0] ?? liveGames[0];
   // The page accent follows the tracked team of the nearest fixture, and is
   // set on the server so the club colour paints on first byte. A board with
   // nothing on it falls back to the neutral defaults in globals.css.
-  const heroSide =
-    nextUp && nextUp.homeTeamSlug === nextUp.teamSlug ? "home" : "away";
   const accent = clubAccentStyle(
     teams.find((team) => team.slug === nextUp?.teamSlug),
   );
@@ -127,59 +132,40 @@ export function Slate({
               .next-up-teams already carries the visual weight a page name
               would, and printing "Upcoming games" above it a second time
               would just be noise on a good day. */}
-          <h1 className="sr-only">Upcoming games</h1>
-          {/* The hero the club site leads with: the tracked team's own crest
-              blown up behind the fixture it is about. Every word is a fact
-              already on the board — day, competition, the two names, the
-              venue — so nothing here is editorial copy. */}
-          <section className="board-hero" aria-labelledby="next-up-heading">
-            <PitchArt sport={nextUp.sport} />
-            <TeamLogo src={gameTeamLogo(nextUp, heroSide)} />
-            <span className="board-hero-scrim" aria-hidden="true" />
-            <p className="board-hero-kicker">
-              {groups[0]?.label} · {nextUp.competition}
-            </p>
-            <h2 className="board-hero-title" id="next-up-heading">
-              {nextUp.homeTeam} v {nextUp.awayTeam}
-            </h2>
-            <p className="board-hero-sub">{nextUp.venue ?? "Not provided"}</p>
-          </section>
-
+          <h1 className="sr-only">{t("Upcoming games")}</h1>
           <div className="next-up" aria-labelledby="next-match-heading">
-            <p className="next-up-eyebrow" id="next-match-heading">
-              <span>Next</span> Match
-            </p>
+            <div className="next-up-header">
+              <p className="next-up-eyebrow" id="next-match-heading">
+                {t("Next match")}{" "}
+              </p>
+              <RelativeKickoff value={nextUp.scheduledAt} />
+            </div>
             <h3 className="next-up-teams">
               <span className="next-up-team">
                 <TeamLogo src={gameTeamLogo(nextUp, "home")} />
                 <span>{nextUp.homeTeam}</span>
               </span>
               <span className="next-up-versus">
-                <span className="sr-only">versus</span>
-                <span aria-hidden="true">V</span>
+                <span className="sr-only">{t("versus")}</span>
+                <span aria-hidden="true">VS</span>
               </span>
               <span className="next-up-team next-up-away">
                 <TeamLogo src={gameTeamLogo(nextUp, "away")} />
                 <span>{nextUp.awayTeam}</span>
               </span>
             </h3>
-            <div className="next-up-meta">
-              <span className="next-up-meta-clock">
-                <KickoffTime value={nextUp.scheduledAt} />
-                <small>your time</small>
-              </span>
-              <span className="next-up-meta-count">
-                <span className="next-up-label">Kickoff in</span>
-                <span className="next-up-countdown">
-                  <Countdown value={nextUp.scheduledAt} />
-                </span>
-                <span className="sr-only">
-                  <RelativeKickoff value={nextUp.scheduledAt} />
-                </span>
+            <div className="next-up-detail">
+              <span>{t(nextUp.competition)}</span>
+              <LocalDateTime value={nextUp.scheduledAt} />
+              <span className="sr-only">
+                {t("Kickoff in")} <Countdown value={nextUp.scheduledAt} />
               </span>
             </div>
-            <Button asChild>
-              <Link href={`/games/${nextUp.id}`}>Open matchup</Link>
+            <Button asChild className="next-up-cta">
+              <Link href={`/games/${nextUp.id}`}>
+                {t("View Match & Place Bet")}{" "}
+                <ChevronRight aria-hidden="true" size={20} />
+              </Link>
             </Button>
           </div>
           <div className="slate-freshness slate-freshness-standalone">
@@ -200,11 +186,12 @@ export function Slate({
       ) : (
         <header className="slate-hero">
           <div>
-            <p className="eyebrow">Slate</p>
-            <h1 className="display-title">Upcoming games</h1>
+            <p className="eyebrow">{t("Slate")}</p>
+            <h1 className="display-title">{t("Upcoming games")}</h1>
             <p className="page-description">
-              Every tracked fixture across soccer and baseball, nearest kickoff
-              first.
+              {t(
+                "Every tracked fixture across soccer and baseball, nearest kickoff first.",
+              )}{" "}
             </p>
           </div>
           <div className="slate-freshness">
@@ -221,7 +208,7 @@ export function Slate({
         </header>
       )}
 
-      <nav className="slate-filters" aria-label="Filter by sport">
+      <nav className="slate-filters" aria-label={t("Filter by sport")}>
         {FILTERS.map((filter) => (
           <Link
             key={filter.value}
@@ -232,11 +219,48 @@ export function Slate({
             )}
             aria-current={sport === filter.value ? "page" : undefined}
           >
-            <span>{filter.label}</span>
+            <span>{t(filter.label)}</span>
           </Link>
         ))}
         <TimezoneLegend />
       </nav>
+
+      {liveGames.length > 0 && (
+        <section className="live-section" aria-labelledby="live-now-heading">
+          <div className="section-heading">
+            <h2 id="live-now-heading">
+              <Radio aria-hidden="true" />
+              {t("Live Now")}{" "}
+            </h2>
+            <StatusTag>
+              {liveGames.length}{" "}
+              {liveGames.length === 1 ? t("Game") : t("Games")}
+            </StatusTag>
+          </div>
+          <div className="game-list live-game-list">
+            {liveGames.map((game) => (
+              <Link
+                className="game-row game-row-live"
+                href={`/games/${game.id}`}
+                key={game.id}
+              >
+                <span className="game-time">{t("LIVE")}</span>
+                <span className="game-matchup-stacked">
+                  <span className="game-team">
+                    <TeamLogo src={gameTeamLogo(game, "home")} />
+                    {game.homeTeam}
+                  </span>
+                  <span className="game-team">
+                    <TeamLogo src={gameTeamLogo(game, "away")} />
+                    {game.awayTeam}
+                  </span>
+                </span>
+                <ChevronRight aria-hidden="true" className="game-chevron" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {groups.length ? (
         <div className="slate-groups">
@@ -248,11 +272,12 @@ export function Slate({
             >
               <div className="panel-header">
                 <h2 className="panel-title" id={`day-${group.key}`}>
-                  <span>{group.label}</span>
+                  <CalendarDays aria-hidden="true" />
+                  <span>{t(group.label)}</span>
                 </h2>
                 <StatusTag>
                   {group.games.length}{" "}
-                  {group.games.length === 1 ? "game" : "games"}
+                  {group.games.length === 1 ? t("game") : t("games")}
                 </StatusTag>
               </div>
               <div className="game-list">
@@ -264,17 +289,19 @@ export function Slate({
                     )}
                     href={`/games/${game.id}`}
                     key={game.id}
-                    aria-label={`Open ${game.homeTeam} versus ${game.awayTeam}`}
+                    aria-label={t("Open {p0} versus {p1}", {
+                      p0: game.homeTeam,
+                      p1: game.awayTeam,
+                    })}
                   >
-                    {/* One line, the reference's table. Competition and
-                        venue left the row with the meta line: both still show
-                        in the hero above and on every matchup page. */}
-                    <div className="game-opponent">
+                    <div className="game-time">
+                      <KickoffTime value={game.scheduledAt} />
+                    </div>
+                    <div className="game-opponent game-matchup-stacked">
                       <span className="game-team">
                         <TeamLogo src={gameTeamLogo(game, "home")} />
                         <span>{game.homeTeam}</span>
-                      </span>{" "}
-                      <span className="game-versus">vs</span>{" "}
+                      </span>
                       <span className="game-team">
                         <TeamLogo src={gameTeamLogo(game, "away")} />
                         <span>{game.awayTeam}</span>
@@ -286,13 +313,10 @@ export function Slate({
                       {game.result && (
                         <span className="game-final">
                           {" "}
-                          Final {game.result.homeScore}&ndash;
+                          {t("Final")} {game.result.homeScore}&ndash;
                           {game.result.awayScore}
                         </span>
                       )}
-                    </div>
-                    <div className="game-time">
-                      <KickoffTime value={game.scheduledAt} />
                     </div>
                     <ChevronRight
                       className="game-chevron"
@@ -309,8 +333,8 @@ export function Slate({
         <div className="panel">
           <div className="mini-empty">
             <p>
-              No upcoming games were provided for this filter.{" "}
-              {sport !== "all" && <Link href="/">Show all sports</Link>}
+              {t("No upcoming games were provided for this filter.")}{" "}
+              {sport !== "all" && <Link href="/">{t("Show all sports")}</Link>}
             </p>
           </div>
         </div>

@@ -1,12 +1,15 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 import type { ContextBlock, StatRow } from "@/lib/game-view";
 
 /** W / D / L as toned letters — read at a glance, not parsed word by word. */
 function Form({ value }: { value: string }) {
+  const { t } = useTranslation();
   return (
     <span className="mp-form">
       {value.split("").map((letter, index) => (
-        <b key={`${letter}-${index}`} data-result={letter}>
-          {letter}
+        <b key={`${t(letter)}-${index}`} data-result={t(letter)}>
+          {t(letter)}
         </b>
       ))}
     </span>
@@ -14,21 +17,35 @@ function Form({ value }: { value: string }) {
 }
 
 function Value({ row, text }: { row: StatRow; text: string }) {
+  const { t, locale } = useTranslation();
+  const display =
+    locale === "es" && row.format === "mono"
+      ? text
+          .replace(
+            /(\d+)([WDL])\b/g,
+            (_, count: string, result: string) => `${count}${t(result)}`,
+          )
+          .replace(
+            /^([WL])(\d+)$/,
+            (_, result: string, count: string) => `${t(result)}${count}`,
+          )
+      : t(text);
   return row.format === "form" ? (
     <Form value={text} />
   ) : (
-    <span data-mono={row.format === "mono" || undefined}>{text}</span>
+    <span data-mono={row.format === "mono" || undefined}>{display}</span>
   );
 }
 
 function Row({ row, compare }: { row: StatRow; compare: boolean }) {
+  const { t } = useTranslation();
   // A comparison and a statement are different rows, not one row with holes:
   // the comparison holds its two columns even when one side has no value, so
   // the numbers under it stay in line down the block.
   if (compare && (row.home !== undefined || row.away !== undefined)) {
     return (
       <div className="mp-row mp-row-vs">
-        <span className="mp-row-label">{row.label}</span>
+        <span className="mp-row-label">{t(row.label)}</span>
         <span className="mp-row-home">
           {row.home && <Value row={row} text={row.home} />}
         </span>
@@ -41,13 +58,13 @@ function Row({ row, compare }: { row: StatRow; compare: boolean }) {
   const stated = row.value ?? row.home ?? row.away;
   return (
     <div className="mp-row">
-      {row.label && <span className="mp-row-label">{row.label}</span>}
+      {row.label && <span className="mp-row-label">{t(row.label)}</span>}
       {stated && (
         <span className="mp-row-value">
           <Value row={row} text={stated} />
         </span>
       )}
-      {row.note && <span className="mp-row-note">{row.note}</span>}
+      {row.note && <span className="mp-row-note">{t(row.note)}</span>}
     </div>
   );
 }
@@ -94,6 +111,7 @@ export function ContextBlocks({
   homeTeam: string;
   awayTeam: string;
 }) {
+  const { t } = useTranslation();
   if (blocks.length === 0) return null;
   return (
     <div className="mp-blocks">
@@ -108,7 +126,7 @@ export function ContextBlocks({
           rows.some((row) => row.away !== undefined);
         return (
           <section className="mp-block" key={block.id}>
-            <h2 className="mp-block-title">{block.title}</h2>
+            <h2 className="mp-block-title">{t(block.title)}</h2>
             {compares && (
               <div className="mp-row mp-row-vs mp-row-heads">
                 <span className="mp-row-label" />
@@ -121,7 +139,7 @@ export function ContextBlocks({
             ))}
             {block.detail && (
               <details className="mp-deeper" open>
-                <summary>Deeper numbers</summary>
+                <summary>{t("Deeper numbers")}</summary>
                 {expandForm(block.detail, homeTeam, awayTeam).map(
                   (row, index) => (
                     <Row

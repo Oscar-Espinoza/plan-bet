@@ -6,7 +6,7 @@ test("the buddy launcher opens, answers, and never breaks the page", async ({
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
-  await page.goto("/");
+  await page.goto("/groups");
   await page.getByRole("button", { name: "Buddy" }).click();
   await expect(page.locator(".buddy-panel")).toBeVisible();
 

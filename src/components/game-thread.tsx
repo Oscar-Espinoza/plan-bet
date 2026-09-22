@@ -1,10 +1,16 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import type { CommentVoteKind, GameComment } from "@/lib/contracts";
+import { LocalDateTime } from "./local-date-time";
+import type {
+  CommentVoteKind,
+  GameComment,
+  GameCommentPhase,
+} from "@/lib/contracts";
 import { useMatchdayStore } from "@/lib/store";
 
 const VOTE_LABEL: Record<CommentVoteKind, string> = {
@@ -23,33 +29,30 @@ export type CommentThreadView = {
   groupName: string;
   comments: GameComment[];
   hasCommented: boolean;
+  postingPhase: GameCommentPhase | null;
   viewerSelectionLabel: string | null;
   pins: { shame?: string; slander?: string };
 };
 
-function pinCaption(
-  comments: GameComment[],
-  commentId: string | undefined,
-  label: string,
-) {
-  if (!commentId) return null;
-  const comment = comments.find((c) => c.id === commentId);
-  return (
-    <p className="field-label">
-      {label}: {comment?.authorName ?? "A member"}
-    </p>
-  );
-}
-
-/** One block per eligible group, rendered by `BetSlip` below the picks. */
 export function GameThread({
   routeId,
   thread,
+  matchup,
 }: {
   routeId: string;
   thread: CommentThreadView;
+  matchup?: { home: string; away: string };
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const [replyTarget, setReplyTarget] = useState<GameComment>();
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [postedPhase, setPostedPhase] = useState<GameCommentPhase>();
+  const canPost =
+    thread.postingPhase !== null &&
+    !thread.hasCommented &&
+    postedPhase !== thread.postingPhase;
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -86,12 +89,17 @@ export function GameThread({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canPost || pending) return;
     setPending(true);
     setError("");
     const response = await fetch(`/api/games/${routeId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupId: thread.groupId, body }),
+      body: JSON.stringify({
+        groupId: thread.groupId,
+        body,
+        parentCommentId: replyTarget?.id,
+      }),
     }).catch(() => null);
     setPending(false);
 
@@ -107,6 +115,12 @@ export function GameThread({
       return;
     }
 
+    if (replyTarget)
+      setExpanded((ids) => [
+        ...new Set([...ids, replyTarget.parentCommentId ?? replyTarget.id]),
+      ]);
+    setPostedPhase(thread.postingPhase ?? undefined);
+    setReplyTarget(undefined);
     setBody("");
     router.refresh();
   };
@@ -137,77 +151,219 @@ export function GameThread({
     router.refresh();
   };
 
-  return (
-    <div className="side-form">
-      <h3 className="field-label">{thread.groupName}</h3>
-      {pinCaption(thread.comments, thread.pins.shame, "Pin of shame")}
-      {pinCaption(thread.comments, thread.pins.slander, "Best slander")}
-      {thread.comments.map((comment) => {
-        // The one rule this feature enforces: you may only pin a comment
-        // from a wager on the other side of yours in this group.
-        // `castVote` re-derives this on write regardless of what renders.
-        const sameSide =
-          thread.viewerSelectionLabel !== null &&
-          comment.authorSelectionLabel === thread.viewerSelectionLabel;
-        return (
-          <p className="fine-print" key={comment.id}>
-            {comment.authorName ?? "A member"} · {comment.authorSelectionLabel}{" "}
-            · {comment.phase} — {comment.body}
+  const comments = [...thread.comments].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+  const ids = new Set(comments.map((comment) => comment.id));
+  const roots = comments.filter(
+    (comment) => !comment.parentCommentId || !ids.has(comment.parentCommentId),
+  );
+  const teamLabel = (label: string) =>
+    matchup && /^(home|away)$/i.test(label)
+      ? /^home$/i.test(label)
+        ? matchup.home
+        : matchup.away
+      : t(label);
+  const phaseLabel = (phase: GameCommentPhase) =>
+    t(phase === "before" ? "Before kickoff" : "After full time");
+  const renderComment = (comment: GameComment) => {
+    const name = comment.authorName ?? t("A member");
+    const sameSide =
+      thread.viewerSelectionLabel === comment.authorSelectionLabel;
+    return (
+      <article className="discussion-comment" id={`message-${comment.id}`}>
+        <span className="discussion-avatar" aria-hidden="true">
+          {name
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join("")
+            .toUpperCase()}
+        </span>
+        <div className="discussion-message">
+          <header className="discussion-author">
+            <strong>{name}</strong>
+            <LocalDateTime value={comment.createdAt} />
+          </header>
+          <div className="discussion-meta">
+            <span className="discussion-phase" data-phase={comment.phase}>
+              {phaseLabel(comment.phase)}
+            </span>
+            <span>{teamLabel(comment.authorSelectionLabel)}</span>
+          </div>
+          <p className="discussion-body">{comment.body}</p>
+          <div className="discussion-actions">
+            {canPost && (
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyTarget(comment);
+                  composer.current?.focus();
+                }}
+              >
+                {t("Reply")}
+              </button>
+            )}
             {!sameSide &&
-              (["shame", "slander"] as const).map((kind) => {
-                const votes =
-                  kind === "shame" ? comment.shameVotes : comment.slanderVotes;
-                return (
-                  <Button
-                    key={kind}
+              (["shame", "slander"] as const).map((kind) => (
+                <button
+                  type="button"
+                  key={kind}
+                  disabled={
+                    votePending === `${comment.id}:${kind}` ||
+                    comment.viewerVoted.includes(kind)
+                  }
+                  onClick={() => vote(comment.id, kind)}
+                >
+                  {t(VOTE_LABEL[kind])} (
+                  {kind === "shame" ? comment.shameVotes : comment.slanderVotes}
+                  )
+                </button>
+              ))}
+            {thread.pins.shame === comment.id && (
+              <span className="discussion-pin">{t("Pin of shame")}</span>
+            )}
+            {thread.pins.slander === comment.id && (
+              <span className="discussion-pin">{t("Best slander")}</span>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  };
+  return (
+    <section
+      className="discussion-group"
+      aria-labelledby={`discussion-${thread.groupId}`}
+    >
+      <header className="discussion-group-heading">
+        <h3 id={`discussion-${thread.groupId}`}>{thread.groupName}</h3>
+        <span>{t("{p0} comments", { p0: comments.length })}</span>
+      </header>
+      {comments.length === 0 && (
+        <p className="discussion-empty">
+          {t("No comments yet. Start the conversation.")}
+        </p>
+      )}
+      <div className="discussion-threads">
+        {roots.map((root) => {
+          const replies = comments.filter(
+            (comment) => comment.parentCommentId === root.id,
+          );
+          const isExpanded = expanded.includes(root.id);
+          return (
+            <div className="discussion-thread" key={root.id}>
+              {renderComment(root)}
+              {replies.length > 0 && (
+                <>
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={
-                      votePending === `${comment.id}:${kind}` ||
-                      comment.viewerVoted.includes(kind)
+                    className="discussion-expand"
+                    aria-expanded={isExpanded}
+                    aria-controls={`replies-${root.id}`}
+                    onClick={() =>
+                      setExpanded((current) =>
+                        isExpanded
+                          ? current.filter((id) => id !== root.id)
+                          : [...current, root.id],
+                      )
                     }
-                    onClick={() => vote(comment.id, kind)}
                   >
-                    {`${VOTE_LABEL[kind]} (${votes})`}
-                  </Button>
-                );
-              })}
-          </p>
-        );
-      })}
+                    {t(
+                      isExpanded ? "Hide comments" : "Show all comments ({p0})",
+                      { p0: replies.length },
+                    )}
+                  </button>
+                  <div
+                    className="discussion-replies"
+                    id={`replies-${root.id}`}
+                    hidden={!isExpanded}
+                  >
+                    {replies.map((reply) => (
+                      <div key={reply.id}>{renderComment(reply)}</div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
       {voteError && (
         <Banner tone="negative" role="alert">
-          {voteError}
+          {t(voteError)}
         </Banner>
       )}
-      {thread.hasCommented ? (
-        <p className="fine-print">
-          You&rsquo;ve already commented for this side of kickoff.
-        </p>
-      ) : (
-        <form onSubmit={submit}>
-          <label htmlFor={fieldId} className="field-label">
-            Say something
-          </label>
-          <textarea
-            id={fieldId}
-            className="field"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            maxLength={280}
-            required
-          />
-          {error && (
-            <Banner tone="negative" role="alert">
-              {error}
-            </Banner>
+      <div className="discussion-composer">
+        <p className="discussion-rule">
+          {t(
+            "One message before kickoff and one after full time. A reply uses the same allowance.",
           )}
-          <Button type="submit" size="sm" disabled={pending || !body.trim()}>
-            Post
-          </Button>
-        </form>
-      )}
-    </div>
+        </p>
+        {!canPost ? (
+          <p role="status">
+            {t(
+              thread.postingPhase === null
+                ? "Posting is closed. Your second message opens after full time."
+                : "You have already used your message for this phase.",
+            )}
+          </p>
+        ) : (
+          <form onSubmit={submit}>
+            <div className="discussion-composer-heading">
+              <label htmlFor={fieldId}>{t("Say something")}</label>
+              <span>{phaseLabel(thread.postingPhase!)}</span>
+            </div>
+            {replyTarget && (
+              <div className="discussion-reply-target">
+                <span>
+                  {t("Replying to {p0}", {
+                    p0: replyTarget.authorName ?? t("A member"),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyTarget(undefined);
+                    composer.current?.focus();
+                  }}
+                >
+                  {t("Cancel reply")}
+                </button>
+              </div>
+            )}
+            <textarea
+              ref={composer}
+              id={fieldId}
+              className="field"
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              maxLength={280}
+              required
+              disabled={pending}
+              aria-describedby={`${fieldId}-count`}
+            />
+            {error && (
+              <Banner tone="negative" role="alert">
+                {t(error)}
+              </Banner>
+            )}
+            <div className="discussion-compose-actions">
+              <span id={`${fieldId}-count`}>
+                {body.length}/280 · {t("1 message remaining")}
+              </span>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={pending || !body.trim()}
+              >
+                {t(pending ? "Posting…" : "Post")}
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
   );
 }

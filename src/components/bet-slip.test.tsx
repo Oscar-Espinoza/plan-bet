@@ -133,6 +133,31 @@ describe("BetSlip - open", () => {
     expect(screen.queryByLabelText("Stake")).not.toBeInTheDocument();
   });
 
+  it("preserves the selected team threshold and stake when categories change", () => {
+    render(
+      <BetSlip
+        data={openData()}
+        matchup={{ home: "Real Madrid", away: "Barcelona" }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Teams" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "2+ goals2.50" })[0]!,
+    );
+    fireEvent.change(screen.getByLabelText("Stake"), {
+      target: { value: "25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Popular" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Real Madrid — 2+ goals",
+    );
+    expect(screen.getByLabelText("Stake")).toHaveValue(25);
+    fireEvent.click(screen.getByRole("button", { name: "Teams" }));
+    expect(
+      screen.getAllByRole("button", { name: "2+ goals2.50" })[0],
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("arms the slip in one tap and shows the armed selection, stake, and returns", () => {
     render(<BetSlip data={openData()} />);
 
@@ -381,7 +406,7 @@ describe("BetSlip - open", () => {
     );
 
     expect(
-      screen.getByText("Sunday League — Dani has 25 on Over 2.5."),
+      screen.getByText("Sunday League — Dani: 25 · Over 2.5"),
     ).toBeInTheDocument();
   });
 
@@ -494,7 +519,7 @@ describe("BetSlip - group picks outlive kickoff", () => {
     render(<BetSlip data={data} />);
 
     expect(
-      screen.getByText("Sunday League — Dani has 25 on Over 2.5."),
+      screen.getByText("Sunday League — Dani: 25 · Over 2.5"),
     ).toBeInTheDocument();
   });
 });
@@ -502,7 +527,7 @@ describe("BetSlip - group picks outlive kickoff", () => {
 // Same shape as groupPicks above: threads render off WagerPanelData directly,
 // in every panel state, not gated on state.kind === "open".
 describe("BetSlip - comment threads", () => {
-  it("renders a thread's block below the picks even once the game has closed", () => {
+  it("leaves discussion rendering to the separate match section", () => {
     const data: WagerPanelData = {
       signedIn: true,
       routeId: "soc-rma-01",
@@ -515,6 +540,7 @@ describe("BetSlip - comment threads", () => {
           groupName: "Sunday League",
           comments: [],
           hasCommented: false,
+          postingPhase: "after",
           viewerSelectionLabel: null,
           pins: {},
         },
@@ -523,8 +549,8 @@ describe("BetSlip - comment threads", () => {
     render(<BetSlip data={data} />);
 
     expect(
-      screen.getByRole("heading", { name: "Sunday League" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Say something")).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Sunday League" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Say something")).not.toBeInTheDocument();
   });
 });

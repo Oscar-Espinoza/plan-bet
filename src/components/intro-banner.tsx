@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { useMatchdayStore } from "@/lib/store";
  * a stored dismissal from flashing the banner before localStorage loads.
  */
 export function IntroBanner() {
+  const { t } = useTranslation();
   const hydrated = useMatchdayStore((state) => state.hydrated);
   const dismissed = useMatchdayStore((state) => state.introDismissed);
   const dismissIntro = useMatchdayStore((state) => state.dismissIntro);
@@ -23,21 +25,22 @@ export function IntroBanner() {
     <div
       className="banner intro-banner"
       role="region"
-      aria-label="About Matchday Plan"
+      aria-label={t("About Matchday Plan")}
     >
       <p>
-        <strong>Practice your calls on real fixtures.</strong> Pick a game, back
-        a side with fictional credits, and watch how your read ages. Not a
-        sportsbook — credits cannot be bought, transferred, or withdrawn.{" "}
-        <Link href="/rules">How it works</Link>
+        <strong>{t("Practice your calls on real fixtures.")}</strong>{" "}
+        {t(
+          "Pick a game, back a side with fictional credits, and watch how your read ages. Not a sportsbook — credits cannot be bought, transferred, or withdrawn.",
+        )}{" "}
+        <Link href="/rules">{t("How it works")}</Link>
       </p>
       <Button
         variant="ghost"
         size="sm"
         onClick={dismissIntro}
-        aria-label="Dismiss this introduction"
+        aria-label={t("Dismiss this introduction")}
       >
-        Dismiss
+        {t("Dismiss")}{" "}
       </Button>
     </div>
   );

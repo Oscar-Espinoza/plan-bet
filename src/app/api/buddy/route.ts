@@ -1,3 +1,4 @@
+import { parseLocale } from "@/lib/locale";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { hashClientAddress } from "@/data/buddy-repository";
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
   const userId = account.ok ? account.userId : undefined;
 
   const preflight = await prepareBuddyTurn({
+    locale: parseLocale(request.cookies.get("locale")?.value),
     conversation: body.data.conversation,
     route: body.data.route,
     question: body.data.question,

@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 
 export function ResetBankroll() {
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -44,27 +46,28 @@ export function ResetBankroll() {
     >
       <AlertDialog.Trigger asChild>
         <Button variant="secondary" size="sm">
-          Reset bankroll
+          {t("Reset bankroll")}{" "}
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="alert-overlay" />
         <AlertDialog.Content className="alert-content">
           <AlertDialog.Title className="alert-title">
-            Reset your bankroll?
+            {t("Reset your bankroll?")}{" "}
           </AlertDialog.Title>
           <AlertDialog.Description className="alert-description">
-            This returns your credit balance to the starting amount. It does not
-            affect any wagers already placed.
+            {t(
+              "This returns your credit balance to the starting amount. It does not affect any wagers already placed.",
+            )}{" "}
           </AlertDialog.Description>
           {error ? (
             <Banner tone="negative" role="alert">
-              {error}
+              {t(error)}
             </Banner>
           ) : null}
           <div className="alert-actions">
             <AlertDialog.Cancel asChild>
-              <Button variant="secondary">Cancel</Button>
+              <Button variant="secondary">{t("Cancel")}</Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action asChild>
               <Button
@@ -76,7 +79,7 @@ export function ResetBankroll() {
                   void handleReset();
                 }}
               >
-                Reset bankroll
+                {t("Reset bankroll")}{" "}
               </Button>
             </AlertDialog.Action>
           </div>

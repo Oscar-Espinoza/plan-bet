@@ -1,3 +1,4 @@
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,10 @@ import { configuredProviderNames, requireAccount, signIn } from "@/lib/auth";
 import { safeCallbackUrl } from "@/lib/api-request";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return { title: t("Sign in") };
+}
 
 const PROVIDER_LABEL: Record<string, string> = {
   github: "Continue with GitHub",
@@ -30,6 +34,7 @@ type Props = {
 };
 
 export default async function Page({ searchParams }: Props) {
+  const { t } = await getTranslation();
   const { callbackUrl: rawCallbackUrl, error } = await searchParams;
   const callbackUrl = safeCallbackUrl(rawCallbackUrl);
 
@@ -42,11 +47,12 @@ export default async function Page({ searchParams }: Props) {
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Account</p>
-          <h1 className="display-title">Sign in</h1>
+          <p className="eyebrow">{t("Account")}</p>
+          <h1 className="display-title">{t("Sign in")}</h1>
           <p className="page-description">
-            Signing in gives you a free-to-play credit ledger for the wager
-            simulator. The rest of the workspace works without one.
+            {t(
+              "Signing in gives you a free-to-play credit ledger for the wager simulator. The rest of the workspace works without one.",
+            )}{" "}
           </p>
         </div>
       </header>
@@ -54,9 +60,9 @@ export default async function Page({ searchParams }: Props) {
       {error && (
         <section className="panel" role="alert">
           <div className="panel-body flex items-start gap-3">
-            <StatusTag tone="warning">Sign-in failed</StatusTag>
+            <StatusTag tone="warning">{t("Sign-in failed")}</StatusTag>
             <p className="muted">
-              {ERROR_MESSAGE[error] ?? FALLBACK_ERROR_MESSAGE}
+              {t(ERROR_MESSAGE[error] ?? FALLBACK_ERROR_MESSAGE)}
             </p>
           </div>
         </section>
@@ -65,7 +71,9 @@ export default async function Page({ searchParams }: Props) {
       <section className="panel" aria-labelledby="sign-in-heading">
         <div className="panel-header">
           <h2 className="panel-title" id="sign-in-heading">
-            {providers.length ? "Choose a provider" : "Sign-in unavailable"}
+            {providers.length
+              ? t("Choose a provider")
+              : t("Sign-in unavailable")}
           </h2>
         </div>
         {providers.length ? (
@@ -79,7 +87,7 @@ export default async function Page({ searchParams }: Props) {
                 }}
               >
                 <Button type="submit" className="w-full">
-                  {PROVIDER_LABEL[provider] ?? `Continue with ${provider}`}
+                  {t(PROVIDER_LABEL[provider] ?? `Continue with ${provider}`)}
                 </Button>
               </form>
             ))}
@@ -87,9 +95,9 @@ export default async function Page({ searchParams }: Props) {
         ) : (
           <div className="panel-body">
             <p className="muted">
-              No sign-in provider is configured in this environment. The games
-              board works without an account — sign-in only unlocks the
-              free-to-play credit ledger.
+              {t(
+                "No sign-in provider is configured in this environment. The games board works without an account — sign-in only unlocks the free-to-play credit ledger.",
+              )}{" "}
             </p>
           </div>
         )}

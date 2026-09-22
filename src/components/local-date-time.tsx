@@ -1,5 +1,7 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
+import { intlLocale } from "@/lib/locale";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { formatDateTime, formatShortDate } from "@/lib/utils";
 
@@ -31,10 +33,14 @@ export function LocalDateTime({
   value: string;
   short?: boolean;
 }) {
+  const { locale } = useTranslation();
   const hydrated = useHydrated();
   return (
     <time dateTime={value}>
-      {hydrated && (short ? formatShortDate(value) : formatDateTime(value))}
+      {hydrated &&
+        (short
+          ? formatShortDate(value, intlLocale(locale))
+          : formatDateTime(value, intlLocale(locale)))}
     </time>
   );
 }
@@ -51,15 +57,17 @@ function relativeKickoffLabel(value: string) {
 }
 
 export function RelativeKickoff({ value }: { value: string }) {
+  const { t } = useTranslation();
   const hydrated = useHydrated();
   return (
-    <time dateTime={value}>{hydrated && relativeKickoffLabel(value)}</time>
+    <time dateTime={value}>{hydrated && t(relativeKickoffLabel(value))}</time>
   );
 }
 
-function clockAt(value: string, timeZone?: string) {
-  return new Intl.DateTimeFormat(undefined, {
+function clockAt(value: string, locale: string, timeZone?: string) {
+  return new Intl.DateTimeFormat(intlLocale(locale === "es" ? "es" : "en"), {
     hour: "numeric",
+    hourCycle: locale === "es" ? "h23" : undefined,
     minute: "2-digit",
     timeZone,
   }).format(new Date(value));
@@ -68,21 +76,27 @@ function clockAt(value: string, timeZone?: string) {
 /** The slate row's fixed mono time column — just the clock, no date. The day
  * group heading above the row already carries the date. */
 export function KickoffTime({ value }: { value: string }) {
+  const { locale } = useTranslation();
   const hydrated = useHydrated();
-  return <time dateTime={value}>{hydrated && clockAt(value)}</time>;
+  return <time dateTime={value}>{hydrated && clockAt(value, locale)}</time>;
 }
 
 /** Names the zone every unlabelled time on the page is in, once. */
 export function TimezoneLegend() {
+  const { t } = useTranslation();
+  const { locale } = useTranslation();
   const hydrated = useHydrated();
   if (!hydrated) return null;
-  const zone = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+  const zone = new Intl.DateTimeFormat(
+    intlLocale(locale === "es" ? "es" : "en"),
+    { timeZoneName: "short" },
+  )
     .formatToParts(new Date())
     .find((part) => part.type === "timeZoneName")?.value;
   if (!zone) return null;
   return (
     <p className="slate-tz">
-      All times <span>{zone}</span> · your time
+      {t("All times")} <span>{zone}</span> {t("· your time")}{" "}
     </p>
   );
 }
@@ -95,6 +109,7 @@ export function TimezoneLegend() {
  * what "now" is for the reader.
  */
 export function Countdown({ value }: { value: string }) {
+  const { t } = useTranslation();
   // `now` starts at 0 so the server render and the hydration render agree —
   // the same reason every other component in this file waits for the browser.
   const [now, setNow] = useState(0);
@@ -115,7 +130,7 @@ export function Countdown({ value }: { value: string }) {
   if (now === 0) return <time dateTime={value} />;
 
   const remaining = new Date(value).getTime() - now;
-  if (remaining <= 0) return <time dateTime={value}>Underway</time>;
+  if (remaining <= 0) return <time dateTime={value}>{t("Underway")}</time>;
 
   const seconds = Math.floor(remaining / 1000);
   const days = Math.floor(seconds / 86_400);

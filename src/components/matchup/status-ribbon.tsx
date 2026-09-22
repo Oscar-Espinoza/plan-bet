@@ -1,3 +1,5 @@
+"use client";
+import { useTranslation } from "@/components/language-provider";
 import type { MatchView } from "@/lib/game-view";
 
 /**
@@ -16,11 +18,12 @@ export function StatusRibbon({
 }: {
   status: MatchView["timing"]["status"];
 }) {
+  const { t } = useTranslation();
   const label = RIBBON[status];
   if (!label) return null;
   return (
     <p className="mp-ribbon" data-status={status}>
-      {label}
+      {t(label)}
     </p>
   );
 }

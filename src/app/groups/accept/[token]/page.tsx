@@ -1,3 +1,4 @@
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,7 +9,10 @@ import { isGroupMember, previewInvite } from "@/data/groups-repository";
 import { requireAccount } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Accept invite" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return { title: t("Accept invite") };
+}
 
 // A read never mutates the row, so a pending invite past its expiry reads as
 // expired here even before acceptGroupInvite flips its status.
@@ -16,17 +20,18 @@ function isExpired(expiresAt: string): boolean {
   return new Date(expiresAt).getTime() <= Date.now();
 }
 
-function NotAvailable({ title, copy }: { title: string; copy: string }) {
+async function NotAvailable({ title, copy }: { title: string; copy: string }) {
+  const { t } = await getTranslation();
   return (
     <div className="empty-state">
       <div>
         <span className="empty-icon">
           <MailX aria-hidden="true" />
         </span>
-        <h3 className="empty-title">{title}</h3>
-        <p className="empty-copy">{copy}</p>
+        <h3 className="empty-title">{t(title)}</h3>
+        <p className="empty-copy">{t(copy)}</p>
         <Button asChild variant="secondary" className="mt-5">
-          <Link href="/groups">Your groups</Link>
+          <Link href="/groups">{t("Your groups")}</Link>
         </Button>
       </div>
     </div>
@@ -43,14 +48,17 @@ type Props = { params: Promise<{ token: string }> };
  * <AcceptInvite>.
  */
 export default async function Page({ params }: Props) {
+  const { t } = await getTranslation();
   const { token } = await params;
   const account = await requireAccount();
   if (!account.ok) {
     if (account.reason === "unconfigured") {
       return (
         <NotAvailable
-          title="Sign-in is not configured"
-          copy="This environment has no auth provider configured, so this invite cannot be accepted."
+          title={t("Sign-in is not configured")}
+          copy={t(
+            "This environment has no auth provider configured, so this invite cannot be accepted.",
+          )}
         />
       );
     }
@@ -61,8 +69,8 @@ export default async function Page({ params }: Props) {
   if (!preview) {
     return (
       <NotAvailable
-        title="Invite not accepted"
-        copy="This invite link is no longer valid."
+        title={t("Invite not accepted")}
+        copy={t("This invite link is no longer valid.")}
       />
     );
   }
@@ -77,13 +85,13 @@ export default async function Page({ params }: Props) {
           <span className="empty-icon">
             <MailX aria-hidden="true" />
           </span>
-          <h3 className="empty-title">Already joined</h3>
+          <h3 className="empty-title">{t("Already joined")}</h3>
           <p className="empty-copy">
-            You&rsquo;re already in {preview.groupName}.
+            {t("You’re already in")} {preview.groupName}.
           </p>
           <Button asChild variant="secondary" className="mt-5">
             <Link href={`/groups/${preview.groupSlug}`}>
-              Go to {preview.groupName}
+              {t("Go to")} {preview.groupName}
             </Link>
           </Button>
         </div>
@@ -94,24 +102,24 @@ export default async function Page({ params }: Props) {
   if (preview.status === "revoked") {
     return (
       <NotAvailable
-        title="Invite not accepted"
-        copy="This invite was revoked. Ask the group for a new one."
+        title={t("Invite not accepted")}
+        copy={t("This invite was revoked. Ask the group for a new one.")}
       />
     );
   }
   if (preview.status === "accepted") {
     return (
       <NotAvailable
-        title="Invite not accepted"
-        copy="This invite link is no longer valid."
+        title={t("Invite not accepted")}
+        copy={t("This invite link is no longer valid.")}
       />
     );
   }
   if (preview.status === "expired" || isExpired(preview.expiresAt)) {
     return (
       <NotAvailable
-        title="Invite not accepted"
-        copy="This invite has expired. Ask the group for a new one."
+        title={t("Invite not accepted")}
+        copy={t("This invite has expired. Ask the group for a new one.")}
       />
     );
   }

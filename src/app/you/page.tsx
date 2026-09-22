@@ -1,3 +1,4 @@
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,7 +21,10 @@ import type { RecordSlice } from "@/lib/contracts";
 export const dynamic = "force-dynamic";
 // Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
 export const unstable_dynamicStaleTime = 300;
-export const metadata: Metadata = { title: "You" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return { title: t("You") };
+}
 
 const PAGE_SIZE = 20;
 
@@ -64,14 +68,15 @@ function hitRateLabel(won: number, lost: number) {
   return decided > 0 ? `${Math.round((won / decided) * 100)}%` : "Not provided";
 }
 
-function SliceRow({ slice }: { slice: RecordSlice }) {
+async function SliceRow({ slice }: { slice: RecordSlice }) {
+  const { t } = await getTranslation();
   return (
     <div className="stat-row">
-      <span>{slice.label}</span>
+      <span>{t(slice.label)}</span>
       <strong>
         {slice.won}-{slice.lost}
         {slice.voided ? `-${slice.voided}` : ""} ·{" "}
-        {hitRateLabel(slice.won, slice.lost)}
+        {t(hitRateLabel(slice.won, slice.lost))}
       </strong>
     </div>
   );
@@ -82,6 +87,7 @@ type Props = {
 };
 
 export default async function Page({ searchParams }: Props) {
+  const { formatNumber, t } = await getTranslation();
   const account = await requireAccount();
 
   // Deviation from the plan's literal "requireAccount() -> redirect": Next's
@@ -96,18 +102,19 @@ export default async function Page({ searchParams }: Props) {
       <>
         <header className="page-heading">
           <div>
-            <p className="eyebrow">Free-to-play record</p>
-            <h1 className="display-title">Where you stand</h1>
+            <p className="eyebrow">{t("Free-to-play record")}</p>
+            <h1 className="display-title">{t("Where you stand")}</h1>
             <p className="page-description">
-              Balance, record, open wagers, and history — one surface for where
-              you stand.
+              {t(
+                "Balance, record, open wagers, and history — one surface for where you stand.",
+              )}{" "}
             </p>
           </div>
         </header>
         <section className="panel" aria-labelledby="you-unavailable-heading">
           <div className="panel-header">
             <h2 className="panel-title" id="you-unavailable-heading">
-              Sign-in unavailable
+              {t("Sign-in unavailable")}{" "}
             </h2>
           </div>
           <div className="empty-state">
@@ -115,10 +122,11 @@ export default async function Page({ searchParams }: Props) {
               <span className="empty-icon">
                 <AlertTriangle aria-hidden="true" />
               </span>
-              <h3 className="empty-title">Sign-in is not configured</h3>
+              <h3 className="empty-title">{t("Sign-in is not configured")}</h3>
               <p className="empty-copy">
-                This environment has no auth provider configured, so there is no
-                wager record to show.
+                {t(
+                  "This environment has no auth provider configured, so there is no wager record to show.",
+                )}{" "}
               </p>
             </div>
           </div>
@@ -182,34 +190,41 @@ export default async function Page({ searchParams }: Props) {
       <header className="page-heading">
         <div>
           <p className="eyebrow">
-            {account.name ?? account.email ?? "Free-to-play record"}
+            {account.name ?? account.email ?? t("Free-to-play record")}
           </p>
-          <h1 className="display-title">Where you stand</h1>
+          <h1 className="display-title">{t("Where you stand")}</h1>
           <div className="standing-lead">
             <div>
-              <p className="eyebrow">Balance</p>
+              <p className="eyebrow">{t("Balance")}</p>
               <p className="standing-figure">
-                {summary.balance.toLocaleString()} <small>credits</small>
+                {formatNumber(summary.balance)} <small>{t("credits")}</small>
               </p>
             </div>
             <div>
-              <p className="eyebrow">Record</p>
+              <p className="eyebrow">{t("Record")}</p>
               <p className="standing-figure standing-figure-minor">
-                {summary.won}W {summary.lost}L {summary.voided}V
+                {summary.won}
+                {t("W")} {summary.lost}
+                {t("L")} {summary.voided}
+                {t("V")}{" "}
               </p>
             </div>
           </div>
           <p className="page-description">
-            Fictional credits, house prices, never real money.
+            {t("Fictional credits, house prices, never real money.")}{" "}
           </p>
         </div>
       </header>
 
       <div className="section-grid">
         <Card
-          title="Open wagers"
+          title={t("Open wagers")}
           titleId="open-wagers-heading"
-          headerExtra={<StatusTag>{openCount} open</StatusTag>}
+          headerExtra={
+            <StatusTag>
+              {openCount} {t("open")}
+            </StatusTag>
+          }
         >
           <BetsHistory
             items={openWagers.items}
@@ -220,7 +235,7 @@ export default async function Page({ searchParams }: Props) {
           />
         </Card>
 
-        <Card title="Just settled" titleId="just-settled-heading">
+        <Card title={t("Just settled")} titleId="just-settled-heading">
           <BetsHistory
             items={justSettled.items}
             emptyState={{
@@ -230,8 +245,8 @@ export default async function Page({ searchParams }: Props) {
           />
         </Card>
 
-        <Card title="Slices" titleId="slices-heading">
-          <p className="stat-group-label">By sport</p>
+        <Card title={t("Slices")} titleId="slices-heading">
+          <p className="stat-group-label">{t("By sport")}</p>
           {slices.bySport.length ? (
             slices.bySport.map((slice) => (
               <SliceRow slice={slice} key={slice.key} />
@@ -239,11 +254,12 @@ export default async function Page({ searchParams }: Props) {
           ) : (
             <div className="panel-body">
               <p className="not-provided">
-                No settled wagers yet. <Link href="/">Browse the board</Link>.
+                {t("No settled wagers yet.")}{" "}
+                <Link href="/">{t("Browse the board")}</Link>.
               </p>
             </div>
           )}
-          <p className="stat-group-label">By market</p>
+          <p className="stat-group-label">{t("By market")}</p>
           {slices.byMarket.length ? (
             slices.byMarket.map((slice) => (
               <SliceRow slice={slice} key={slice.key} />
@@ -251,25 +267,28 @@ export default async function Page({ searchParams }: Props) {
           ) : (
             <div className="panel-body">
               <p className="not-provided">
-                No settled wagers yet. <Link href="/">Browse the board</Link>.
+                {t("No settled wagers yet.")}{" "}
+                <Link href="/">{t("Browse the board")}</Link>.
               </p>
             </div>
           )}
         </Card>
 
-        <Card title="Detail" titleId="detail-heading">
+        <Card title={t("Detail")} titleId="detail-heading">
           <div className="stat-row">
-            <span>Hit rate</span>
-            <strong>{hitRateLabel(summary.won, summary.lost)}</strong>
+            <span>{t("Hit rate")}</span>
+            <strong>{t(hitRateLabel(summary.won, summary.lost))}</strong>
           </div>
           <div className="stat-row">
-            <span>Net</span>
-            <strong>{summary.net.toLocaleString()} credits</strong>
+            <span>{t("Net")}</span>
+            <strong>
+              {formatNumber(summary.net)} {t("credits")}
+            </strong>
           </div>
           <div className="form-block">
             <span>
-              Times reset: {summary.resetCount.toLocaleString()} — a reset makes
-              this record less meaningful.
+              {t("Times reset:")} {formatNumber(summary.resetCount)}{" "}
+              {t("— a reset makes this record less meaningful.")}{" "}
             </span>
           </div>
         </Card>
@@ -278,19 +297,21 @@ export default async function Page({ searchParams }: Props) {
       <section className="panel" aria-labelledby="you-history-heading">
         <div className="panel-header">
           <h2 className="panel-title" id="you-history-heading">
-            History
+            {t("History")}{" "}
           </h2>
-          <span className="fine-print">Page {page}</span>
+          <span className="fine-print">
+            {t("Page")} {page}
+          </span>
         </div>
 
         <form
           method="get"
-          aria-label="Filter wager history"
+          aria-label={t("Filter wager history")}
           className="filter-bar"
         >
           <div>
             <label htmlFor="you-sport" className="field-label">
-              Sport
+              {t("Sport")}{" "}
             </label>
             <select
               id="you-sport"
@@ -298,14 +319,14 @@ export default async function Page({ searchParams }: Props) {
               className="control-select"
               defaultValue={filters.sport}
             >
-              <option value="all">All sports</option>
-              <option value="soccer">Soccer</option>
-              <option value="baseball">Baseball</option>
+              <option value="all">{t("All sports")}</option>
+              <option value="soccer">{t("Soccer")}</option>
+              <option value="baseball">{t("Baseball")}</option>
             </select>
           </div>
           <div>
             <label htmlFor="you-outcome" className="field-label">
-              Outcome
+              {t("Outcome")}{" "}
             </label>
             <select
               id="you-outcome"
@@ -313,16 +334,16 @@ export default async function Page({ searchParams }: Props) {
               className="control-select"
               defaultValue={filters.outcome}
             >
-              <option value="all">All outcomes</option>
-              <option value="open">Open</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="void">Void</option>
+              <option value="all">{t("All outcomes")}</option>
+              <option value="open">{t("Open")}</option>
+              <option value="won">{t("Won")}</option>
+              <option value="lost">{t("Lost")}</option>
+              <option value="void">{t("Void")}</option>
             </select>
           </div>
           <div>
             <label htmlFor="you-range" className="field-label">
-              Time range
+              {t("Time range")}{" "}
             </label>
             <select
               id="you-range"
@@ -330,15 +351,15 @@ export default async function Page({ searchParams }: Props) {
               className="control-select"
               defaultValue={filters.range}
             >
-              <option value="all">All time</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
+              <option value="all">{t("All time")}</option>
+              <option value="7d">{t("Last 7 days")}</option>
+              <option value="30d">{t("Last 30 days")}</option>
+              <option value="90d">{t("Last 90 days")}</option>
             </select>
           </div>
           <div>
             <label htmlFor="you-scope" className="field-label">
-              Placed
+              {t("Placed")}{" "}
             </label>
             <select
               id="you-scope"
@@ -346,13 +367,13 @@ export default async function Page({ searchParams }: Props) {
               className="control-select"
               defaultValue={filters.scope}
             >
-              <option value="all">Solo and group</option>
-              <option value="solo">Solo only</option>
-              <option value="group">Group only</option>
+              <option value="all">{t("Solo and group")}</option>
+              <option value="solo">{t("Solo only")}</option>
+              <option value="group">{t("Group only")}</option>
             </select>
           </div>
           <Button type="submit" size="sm">
-            Apply filters
+            {t("Apply filters")}{" "}
           </Button>
         </form>
 
@@ -361,20 +382,20 @@ export default async function Page({ searchParams }: Props) {
         <div className="panel-body flex items-center justify-between">
           {page > 1 ? (
             <Button asChild variant="secondary" size="sm">
-              <Link href={buildHref(filters, page - 1)}>Prev</Link>
+              <Link href={buildHref(filters, page - 1)}>{t("Prev")}</Link>
             </Button>
           ) : (
             <Button variant="secondary" size="sm" disabled>
-              Prev
+              {t("Prev")}{" "}
             </Button>
           )}
           {history.hasMore ? (
             <Button asChild variant="secondary" size="sm">
-              <Link href={buildHref(filters, page + 1)}>Next</Link>
+              <Link href={buildHref(filters, page + 1)}>{t("Next")}</Link>
             </Button>
           ) : (
             <Button variant="secondary" size="sm" disabled>
-              Next
+              {t("Next")}{" "}
             </Button>
           )}
         </div>
@@ -383,12 +404,12 @@ export default async function Page({ searchParams }: Props) {
       <section className="panel" aria-labelledby="you-settings-heading">
         <div className="panel-header">
           <h2 className="panel-title" id="you-settings-heading">
-            Settings
+            {t("Settings")}{" "}
           </h2>
         </div>
         <div className="panel-body flex flex-wrap items-center gap-3">
           <span className="fine-print">
-            Reset your bankroll back to the starting balance.
+            {t("Reset your bankroll back to the starting balance.")}{" "}
           </span>
           <ResetBankroll />
           <form
@@ -398,14 +419,14 @@ export default async function Page({ searchParams }: Props) {
             }}
           >
             <Button type="submit" variant="secondary" size="sm">
-              Sign out
+              {t("Sign out")}{" "}
             </Button>
           </form>
         </div>
         <div className="form-block">
           <span>
-            Read the <Link href="/rules">simulator rules</Link> before you place
-            a wager.
+            {t("Read the")} <Link href="/rules">{t("simulator rules")}</Link>{" "}
+            {t("before you place a wager.")}{" "}
           </span>
         </div>
       </section>

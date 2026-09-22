@@ -1,3 +1,4 @@
+import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { AlertTriangle, CheckCircle2, Repeat } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -5,7 +6,10 @@ import { StatusTag } from "@/components/ui/status-tag";
 import { getSystemMetrics } from "@/data/system-metrics";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "System" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return { title: t("System") };
+}
 
 function sportLabel(sport: string) {
   return sport === "soccer" ? "Soccer" : "Baseball";
@@ -18,18 +22,19 @@ function runTone(status: "running" | "succeeded" | "failed") {
 }
 
 export default async function Page() {
+  const { t } = await getTranslation();
   const metrics = await getSystemMetrics();
 
   return (
     <>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Operational telemetry</p>
-          <h1 className="display-title">System</h1>
+          <p className="eyebrow">{t("Operational telemetry")}</p>
+          <h1 className="display-title">{t("System")}</h1>
           <p className="page-description">
-            Provider freshness, ingestion runs, and settlement health for this
-            deployment. Aggregates and timestamps only — no per-visitor detail
-            is ever shown here.
+            {t(
+              "Provider freshness, ingestion runs, and settlement health for this deployment. Aggregates and timestamps only — no per-visitor detail is ever shown here.",
+            )}{" "}
           </p>
         </div>
       </header>
@@ -38,7 +43,7 @@ export default async function Page() {
         <section className="panel" aria-labelledby="system-unavailable-heading">
           <div className="panel-header">
             <h2 className="panel-title" id="system-unavailable-heading">
-              Operational data unavailable
+              {t("Operational data unavailable")}{" "}
             </h2>
           </div>
           <div className="empty-state">
@@ -48,13 +53,17 @@ export default async function Page() {
               </span>
               <h3 className="empty-title">
                 {metrics.reason === "unconfigured"
-                  ? "Database is not configured"
-                  : "Database is unreachable"}
+                  ? t("Database is not configured")
+                  : t("Database is unreachable")}
               </h3>
               <p className="empty-copy">
                 {metrics.reason === "unconfigured"
-                  ? "This environment has no DATABASE_URL set, so there is no ingestion or settlement history to show."
-                  : "The database could not be reached just now. This page will show data again once it recovers."}
+                  ? t(
+                      "This environment has no DATABASE_URL set, so there is no ingestion or settlement history to show.",
+                    )
+                  : t(
+                      "The database could not be reached just now. This page will show data again once it recovers.",
+                    )}
               </p>
             </div>
           </div>
@@ -64,49 +73,52 @@ export default async function Page() {
           <section className="panel" aria-labelledby="freshness-heading">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Per sport</p>
+                <p className="eyebrow">{t("Per sport")}</p>
                 <h2 className="panel-title" id="freshness-heading">
-                  Provider freshness
+                  {t("Provider freshness")}{" "}
                 </h2>
               </div>
               <span className="fine-print">
-                Generated <LocalDateTime value={metrics.generatedAt} short />
+                {t("Generated")}{" "}
+                <LocalDateTime value={metrics.generatedAt} short />
               </span>
             </div>
             {metrics.freshness.length ? (
               metrics.freshness.map((row) => (
                 <div className="stat-stack" key={row.sport}>
                   <div className="stat-row">
-                    <span>{sportLabel(row.sport)} provider</span>
+                    <span>
+                      {t("{p0} provider", { p0: t(sportLabel(row.sport)) })}
+                    </span>
                     <strong>{row.provider}</strong>
                   </div>
                   <div className="stat-row">
-                    <span>Freshness mode</span>
+                    <span>{t("Freshness mode")}</span>
                     <strong>
                       <StatusTag
                         tone={row.mode === "live" ? "positive" : "warning"}
                       >
-                        {row.mode}
+                        {t(row.mode)}
                       </StatusTag>
                     </strong>
                   </div>
                   <div className="stat-row">
-                    <span>Last fetch</span>
+                    <span>{t("Last fetch")}</span>
                     <strong>
                       {row.scheduleFetchedAt ? (
                         <LocalDateTime value={row.scheduleFetchedAt} short />
                       ) : (
-                        "Not provided"
+                        t("Not provided")
                       )}
                     </strong>
                   </div>
                   <div className="stat-row">
-                    <span>Expires</span>
+                    <span>{t("Expires")}</span>
                     <strong>
                       {row.scheduleExpiresAt ? (
                         <LocalDateTime value={row.scheduleExpiresAt} short />
                       ) : (
-                        "Not provided"
+                        t("Not provided")
                       )}
                     </strong>
                   </div>
@@ -114,7 +126,7 @@ export default async function Page() {
               ))
             ) : (
               <div className="panel-body">
-                <p className="fine-print">Not provided</p>
+                <p className="fine-print">{t("Not provided")}</p>
               </div>
             )}
           </section>
@@ -122,14 +134,20 @@ export default async function Page() {
           <section className="panel" aria-labelledby="ingestion-heading">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Last {metrics.windowHours}h</p>
+                <p className="eyebrow">
+                  {t("Last")} {metrics.windowHours}h
+                </p>
                 <h2 className="panel-title" id="ingestion-heading">
-                  Ingestion
+                  {t("Ingestion")}{" "}
                 </h2>
               </div>
               <span className="fine-print">
-                {metrics.ingestion.recent.length} recent run
-                {metrics.ingestion.recent.length === 1 ? "" : "s"}
+                {t(
+                  metrics.ingestion.recent.length === 1
+                    ? "{p0} recent run"
+                    : "{p0} recent runs",
+                  { p0: metrics.ingestion.recent.length },
+                )}
               </span>
             </div>
             {metrics.ingestion.byProvider.length ? (
@@ -138,30 +156,33 @@ export default async function Page() {
                   <div className="stat-row">
                     <span>{row.provider}</span>
                     <strong>
-                      {row.succeeded}/{row.total} succeeded
+                      {t("{p0}/{p1} succeeded", {
+                        p0: row.succeeded,
+                        p1: row.total,
+                      })}
                     </strong>
                   </div>
                   <div className="stat-row">
-                    <span>Failed</span>
+                    <span>{t("Failed")}</span>
                     <strong>{row.failed}</strong>
                   </div>
                   <div className="stat-row">
-                    <span>Last run</span>
+                    <span>{t("Last run")}</span>
                     <strong>
                       {row.lastRunAt ? (
                         <LocalDateTime value={row.lastRunAt} short />
                       ) : (
-                        "Not provided"
+                        t("Not provided")
                       )}
                     </strong>
                   </div>
                   <div className="stat-row">
-                    <span>Last success</span>
+                    <span>{t("Last success")}</span>
                     <strong>
                       {row.lastSuccessAt ? (
                         <LocalDateTime value={row.lastSuccessAt} short />
                       ) : (
-                        "Not provided"
+                        t("Not provided")
                       )}
                     </strong>
                   </div>
@@ -170,7 +191,7 @@ export default async function Page() {
             ) : (
               <div className="panel-body">
                 <p className="fine-print">
-                  No ingestion runs in the last {metrics.windowHours}h.
+                  {t("No ingestion runs in the last")} {metrics.windowHours}h.
                 </p>
               </div>
             )}
@@ -184,16 +205,16 @@ export default async function Page() {
                       </span>
                       <div>
                         <strong>
-                          {run.provider} · {run.operation}
+                          {run.provider} · {t(run.operation)}
                         </strong>
                         <p>
                           <StatusTag tone={runTone(run.status)}>
-                            {run.status}
+                            {t(run.status)}
                           </StatusTag>{" "}
-                          {run.scope} ·{" "}
+                          {t(run.scope)} ·{" "}
                           {run.durationMs !== null
-                            ? `${run.durationMs} ms`
-                            : "Not provided"}
+                            ? t("{p0} ms", { p0: run.durationMs })
+                            : t("Not provided")}
                           {run.errorCode ? ` · ${run.errorCode}` : ""}
                         </p>
                       </div>
@@ -202,7 +223,9 @@ export default async function Page() {
                   ))}
                 </div>
               ) : (
-                <p className="fine-print">No ingestion runs recorded yet.</p>
+                <p className="fine-print">
+                  {t("No ingestion runs recorded yet.")}
+                </p>
               )}
             </div>
           </section>
@@ -210,34 +233,36 @@ export default async function Page() {
           <section className="panel" aria-labelledby="settlement-heading">
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Last {metrics.windowHours}h</p>
+                <p className="eyebrow">
+                  {t("Last")} {metrics.windowHours}h
+                </p>
                 <h2 className="panel-title" id="settlement-heading">
-                  Settlement
+                  {t("Settlement")}{" "}
                 </h2>
               </div>
               <span className="fine-print">
                 {metrics.settlement.status ? (
                   <StatusTag tone={runTone(metrics.settlement.status)}>
-                    {metrics.settlement.status}
+                    {t(metrics.settlement.status)}
                   </StatusTag>
                 ) : (
-                  "No runs yet"
+                  t("No runs yet")
                 )}
               </span>
             </div>
             <div className="stat-stack">
               <div className="stat-row">
-                <span>Last run</span>
+                <span>{t("Last run")}</span>
                 <strong>
                   {metrics.settlement.lastRunAt ? (
                     <LocalDateTime value={metrics.settlement.lastRunAt} short />
                   ) : (
-                    "Not provided"
+                    t("Not provided")
                   )}
                 </strong>
               </div>
               <div className="stat-row">
-                <span>Last success</span>
+                <span>{t("Last success")}</span>
                 <strong>
                   {metrics.settlement.lastSuccessAt ? (
                     <LocalDateTime
@@ -245,12 +270,12 @@ export default async function Page() {
                       short
                     />
                   ) : (
-                    "Not provided"
+                    t("Not provided")
                   )}
                 </strong>
               </div>
               <div className="stat-row">
-                <span>Oldest open wager</span>
+                <span>{t("Oldest open wager")}</span>
                 <strong>
                   {metrics.settlement.oldestOpenWagerAt ? (
                     <LocalDateTime
@@ -258,7 +283,7 @@ export default async function Page() {
                       short
                     />
                   ) : (
-                    "None open"
+                    t("None open")
                   )}
                 </strong>
               </div>
@@ -268,17 +293,17 @@ export default async function Page() {
                 <div className="metric-card panel">
                   <CheckCircle2 aria-hidden="true" size={17} />
                   <strong>{metrics.settlement.byOutcome.won}</strong>
-                  <span>Won</span>
+                  <span>{t("Won")}</span>
                 </div>
                 <div className="metric-card panel">
                   <AlertTriangle aria-hidden="true" size={17} />
                   <strong>{metrics.settlement.byOutcome.lost}</strong>
-                  <span>Lost</span>
+                  <span>{t("Lost")}</span>
                 </div>
                 <div className="metric-card panel">
                   <Repeat aria-hidden="true" size={17} />
                   <strong>{metrics.settlement.byOutcome.void}</strong>
-                  <span>Void</span>
+                  <span>{t("Void")}</span>
                 </div>
               </div>
             </div>

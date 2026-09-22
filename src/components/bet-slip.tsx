@@ -1,10 +1,12 @@
 "use client";
+import { useTranslation } from "@/components/language-provider";
 
 import { useId, useState } from "react";
 import Link from "next/link";
+import { Ticket } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ActionPortal } from "@/components/action-bar";
-import { GameThread, type CommentThreadView } from "@/components/game-thread";
+import { type CommentThreadView } from "@/components/game-thread";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,14 @@ import {
   type RecordSlice,
   type Wager,
 } from "@/lib/contracts";
-import { MIN_STAKE, type Market } from "@/lib/markets";
+import {
+  MIN_STAKE,
+  wagerSelectionLabel,
+  inMarketCategory,
+  namedSelection,
+  type Market,
+  type MarketCategory,
+} from "@/lib/markets";
 import { useMatchdayStore } from "@/lib/store";
 import {
   CLOSED_COPY,
@@ -58,10 +67,6 @@ export type WagerPanelData =
 
 type ArmedSelection = { marketId: string; selectionId: string };
 
-function lineSuffix(line: number | undefined) {
-  return typeof line === "number" ? ` ${line}` : "";
-}
-
 /** The only ceiling is the balance; MAX_STAKE is a column bound, not a rule. */
 function clampStake(value: number, balance: number) {
   return Math.min(balance, Math.max(MIN_STAKE, value));
@@ -89,6 +94,7 @@ function ScoreEntry({
   armedId?: string;
   onArm: (selectionId?: string) => void;
 }) {
+  const { formatNumber, t } = useTranslation();
   const [score, setScore] = useState(() => {
     const [h, a] = armedId?.split("-") ?? [];
     return { home: h ?? "", away: a ?? "" };
@@ -121,7 +127,7 @@ function ScoreEntry({
           max={3}
           step={1}
           placeholder="0"
-          aria-label={`${home} goals`}
+          aria-label={t("{p0} goals", { p0: home })}
           value={score.home}
           onChange={(event) => change("home", event.target.value)}
         />
@@ -138,17 +144,17 @@ function ScoreEntry({
           max={3}
           step={1}
           placeholder="0"
-          aria-label={`${away} goals`}
+          aria-label={t("{p0} goals", { p0: away })}
           value={score.away}
           onChange={(event) => change("away", event.target.value)}
         />
       </label>
       <p className="mp-score-price" data-unpriced={priced ? undefined : ""}>
         {priced
-          ? `Pays ${priced.price.toFixed(2)}`
+          ? t("Pays {p0}", { p0: formatNumber(priced.price, 2) })
           : complete
-            ? "Not priced — 0-0 through 3-3 only"
-            : "Type a score"}
+            ? t("Not priced — 0-0 through 3-3 only")
+            : t("Type a score")}
       </p>
     </div>
   );
@@ -157,12 +163,15 @@ function ScoreEntry({
 export function BetSlip({
   data,
   matchup,
+  matchFinished = false,
 }: {
   data: WagerPanelData;
+  matchFinished?: boolean;
   // Names for the exact-score entry. Absent in the unit tests, which render
   // the slip on its own.
   matchup?: { home: string; away: string };
 }) {
+  const { formatNumber, t } = useTranslation();
   const router = useRouter();
   const formId = useId();
   const searchParams = useSearchParams();
@@ -176,7 +185,6 @@ export function BetSlip({
   const byMarket =
     data.signedIn && data.state.kind === "open" ? data.state.byMarket : [];
   const groupPicks = data.signedIn ? data.groupPicks : [];
-  const threads = data.signedIn ? data.threads : [];
 
   // marketId/selectionId collapse into one armed selection: tapping a price
   // in the grid *is* the selection, so changing market never resets a pick
@@ -195,6 +203,13 @@ export function BetSlip({
     return { marketId, selectionId };
   });
   const market = openMarkets.find((m) => m.id === armed?.marketId);
+  const [category, setCategory] = useState<MarketCategory>(
+    () => market?.category ?? "popular",
+  );
+  const marketHeading = (m: Market) =>
+    m.team
+      ? `${matchup?.[m.team] ?? t(m.team === "home" ? "Home" : "Away")} · ${t(m.label)}`
+      : t(m.label);
   const selection = market?.selections.find((s) => s.id === armed?.selectionId);
   const reaction = byMarket.find((slice) => slice.key === market?.id);
   const hasReaction =
@@ -260,9 +275,12 @@ export function BetSlip({
       (payload as { data: unknown }).data,
     );
     setConfirmation(
-      `Placed ${result.wager.stake} on ${result.wager.selectionLabel}${lineSuffix(
-        result.wager.line,
-      )} → returns ${result.wager.potentialReturn}. New balance: ${result.summary.balance}.`,
+      t("Placed {p0} on {p1} → returns {p2}. New balance: {p3}.", {
+        p0: result.wager.stake,
+        p1: t(wagerSelectionLabel(result.wager)),
+        p2: result.wager.potentialReturn,
+        p3: result.summary.balance,
+      }),
     );
     setArmed(undefined);
     setStakeText(String(MIN_STAKE));
@@ -277,10 +295,10 @@ export function BetSlip({
         <div className="panel-header">
           <div>
             <h2 className="panel-title">
-              <span>Your bet</span>
+              <span>{t(matchFinished ? "Match finished" : "Make a bet")}</span>
             </h2>
             <p className="panel-purpose">
-              Free-to-play, on fictional credits. Nothing real is staked.
+              {t("Simulate a bet on this match with fictional credits.")}{" "}
             </p>
           </div>
         </div>
@@ -288,13 +306,14 @@ export function BetSlip({
           <ActionPortal area="action">
             <Button asChild className="w-full">
               <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
-                Sign in
+                {t("Sign in")}{" "}
               </Link>
             </Button>
           </ActionPortal>
           <p className="fine-print">
-            Signing in only unlocks the credit ledger — the rest of the page
-            works signed out.
+            {t(
+              "Signing in only unlocks the credit ledger — the rest of the page works signed out.",
+            )}{" "}
           </p>
         </div>
       </section>
@@ -308,12 +327,23 @@ export function BetSlip({
       <div className="panel-header">
         <div>
           <h2 className="panel-title" id="wager-heading">
-            <span>Your bet</span>
+            {state.kind === "open" && (
+              <Ticket aria-hidden="true" className="bet-ticket-icon" />
+            )}
+            <span>
+              {t(
+                state.kind === "open"
+                  ? "Make a bet"
+                  : state.kind === "closed" && state.reason === "finished"
+                    ? "Your match results"
+                    : "Betting closed",
+              )}
+            </span>
           </h2>
           <p className="panel-purpose">
             {state.kind === "open"
-              ? "Tap a price to pick a side, then set a stake."
-              : "Fictional credits, house prices this app publishes itself."}
+              ? t("Simulate a bet on this match with fictional credits.")
+              : t("Your bets and returns for this match.")}
           </p>
         </div>
         {/* The balance used to appear only after a selection was armed, so the
@@ -321,17 +351,17 @@ export function BetSlip({
             panel hid. Ink on concrete: money stays quiet. */}
         {state.kind === "open" && (
           <span className="bet-balance">
-            <small>Balance</small>
-            {state.balance}
+            <small>{t("Balance")}</small>
+            {formatNumber(state.balance)}
           </span>
         )}
       </div>
 
       {state.kind === "unavailable" && (
-        <p className="side-form">This game is not open for bets.</p>
+        <p className="side-form">{t("This game is not open for bets.")}</p>
       )}
       {state.kind === "closed" && (
-        <p className="side-form">{CLOSED_COPY[state.reason]}</p>
+        <p className="side-form">{t(CLOSED_COPY[state.reason])}</p>
       )}
 
       <ActionPortal area="feedback">
@@ -339,18 +369,18 @@ export function BetSlip({
           {confirmation && (
             <div className="enter-pop">
               <Banner tone="positive" role="status">
-                {confirmation}
+                {t(confirmation)}
               </Banner>
             </div>
           )}
           {error && (
             <Banner tone="negative" role="alert">
-              {error}
+              {t(error)}
             </Banner>
           )}
           {state.kind === "open" && insufficientCredits && selection && (
             <Banner tone="negative" role="alert">
-              Stake exceeds your balance of {balance}.
+              {t("Stake exceeds your balance of")} {balance}.
             </Banner>
           )}
         </div>
@@ -358,7 +388,7 @@ export function BetSlip({
       {state.kind === "open" && (
         <>
           <ActionPortal area="returns">
-            <span className="action-bar-label">Returns</span>
+            <span className="action-bar-label">{t("Returns")}</span>
             <span className="return-figure">
               {selection ? potentialReturn : "—"}
             </span>
@@ -370,7 +400,7 @@ export function BetSlip({
             {selection && (
               <div className="action-bar-stake">
                 <label className="action-bar-label" htmlFor="wager-stake">
-                  Stake
+                  {t("Stake")}{" "}
                 </label>
                 <input
                   id="wager-stake"
@@ -400,7 +430,7 @@ export function BetSlip({
                       setStakeText(String(clampStake(balance, balance)))
                     }
                   >
-                    max
+                    {t("max")}{" "}
                   </button>
                 </div>
               </div>
@@ -414,12 +444,12 @@ export function BetSlip({
               }
             >
               {pending
-                ? "Placing…"
+                ? t("Placing…")
                 : !selection
-                  ? "Choose a selection"
+                  ? t("Choose a selection")
                   : stakeEntered
-                    ? `Place ${stake} credits`
-                    : "Enter a stake"}
+                    ? t("Place {p0} credits", { p0: stake })
+                    : t("Enter a stake")}
             </Button>
           </ActionPortal>
         </>
@@ -427,9 +457,45 @@ export function BetSlip({
 
       {state.kind === "open" && (
         <div className="selection-grid">
+          <div
+            className="market-filters"
+            role="group"
+            aria-label={t("Bet categories")}
+          >
+            {(["popular", "totals", "teams"] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={category === value}
+                onClick={() => setCategory(value)}
+              >
+                {t(
+                  value === "popular"
+                    ? "Popular"
+                    : value === "teams"
+                      ? "Teams"
+                      : openMarkets.some((m) => m.id.startsWith("soccer-"))
+                        ? "Goals"
+                        : "Runs",
+                )}
+              </button>
+            ))}
+          </div>
+          {market && selection && (
+            <div className="bet-selected-summary" role="status">
+              <span>{t("Your selection")}</span>
+              <strong>{marketHeading(market)}</strong>
+              <span>{t(namedSelection(market, selection, matchup))}</span>
+              <b>{formatNumber(selection.price, 2)}×</b>
+            </div>
+          )}
           {openMarkets.map((m) => (
-            <div className="selection-market" key={m.id}>
-              <h3 className="field-label">{m.label}</h3>
+            <div
+              className="selection-market"
+              key={m.id}
+              hidden={!inMarketCategory(m, category)}
+            >
+              <h3 className="field-label">{marketHeading(m)}</h3>
               {m.kind === "exact_score" ? (
                 <ScoreEntry
                   market={m}
@@ -446,7 +512,7 @@ export function BetSlip({
                 <div
                   className="selection-row"
                   role="group"
-                  aria-label={m.label}
+                  aria-label={marketHeading(m)}
                 >
                   {m.selections.map((s) => {
                     const active =
@@ -464,8 +530,10 @@ export function BetSlip({
                       >
                         {/* s.label already carries the line for a total market
                           ("Over 2.5"), so no separate lineSuffix here. */}
-                        <span>{s.label}</span>
-                        <span>{s.price.toFixed(2)}</span>
+                        <span>
+                          {t(m.team ? s.label : namedSelection(m, s, matchup))}
+                        </span>
+                        <span>{formatNumber(s.price, 2)}</span>
                       </button>
                     );
                   })}
@@ -475,7 +543,9 @@ export function BetSlip({
           ))}
           {!selection && (
             <p className="bet-hint">
-              Nothing picked yet — tap any price above to set a stake.
+              {t(
+                "Nothing picked yet — tap any price above to set a stake.",
+              )}{" "}
             </p>
           )}
         </div>
@@ -483,117 +553,111 @@ export function BetSlip({
 
       {state.kind === "open" && market && selection && (
         <form id={formId} className="side-form enter" onSubmit={submit}>
-          <div className="data-pair">
-            <span>{market.label}</span>
-            <span>
-              {selection.label} · {selection.price.toFixed(2)}
-            </span>
-          </div>
-
           {hasReaction && (
             <p className="fine-print">
-              You&rsquo;re {reaction!.won}-{reaction!.lost} on {reaction!.label}
-              .
+              {t("You’re")} {reaction!.won}-{reaction!.lost} {t("on")}{" "}
+              {t(reaction!.label)}.
             </p>
           )}
 
-          <span className="field-label">Place</span>
+          <span className="field-label">{t("Place")}</span>
           {groups.length > 0 ? (
             <select
               id="wager-group"
-              aria-label="Place"
+              aria-label={t("Place")}
               className="field"
               value={groupId}
               onChange={(event) => setGroupId(event.target.value)}
             >
-              <option value="">Alone</option>
+              <option value="">{t("Alone")}</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
-                  With {group.name}
+                  {t("With")} {group.name}
                 </option>
               ))}
             </select>
           ) : (
             <p className="fine-print">
-              Betting with friends?{" "}
-              <Link href="/groups/new">Create a group</Link> and your picks show
-              up on its board.
+              {t("Betting with friends?")}{" "}
+              <Link href="/groups/new">{t("Create a group")}</Link>{" "}
+              {t("and your picks show up on its board.")}{" "}
             </p>
           )}
 
           <div className="data-pair">
-            <span>Balance after</span>
+            <span>{t("Balance after")}</span>
             <span>{balanceAfter}</span>
           </div>
 
           <p className="fine-print">
-            Fictional credits, house prices. See the{" "}
-            <Link href="/rules">rules</Link>.
+            {t("Fictional credits, house prices. See the")}{" "}
+            <Link href="/rules">{t("rules")}</Link>.
           </p>
         </form>
       )}
 
       {wagers.length > 0 && (
         <div className="side-form">
-          <h3 className="field-label">Your bets on this game</h3>
+          <h3 className="field-label">{t("Your bets on this game")}</h3>
           {wagers.map((wager) => (
-            <div className="data-pair" key={wager.id}>
-              <span>
-                {wager.selectionLabel}
-                {lineSuffix(wager.line)}
-              </span>
-              <span>
-                {wager.settlement ? (
-                  <StatusTag tone={outcomeTone(wager.settlement.outcome)}>
-                    {settlementLabel(wager.settlement.outcome)}
-                  </StatusTag>
-                ) : (
-                  <StatusTag tone="neutral">open</StatusTag>
-                )}{" "}
-                {wager.price.toFixed(2)} · {wager.stake} →{" "}
-                {wager.potentialReturn}{" "}
-                <LocalDateTime value={wager.placedAt} short />
-              </span>
+            <div className="personal-wager" key={wager.id}>
+              <div className="personal-wager-heading">
+                <strong>
+                  {matchup && ["home", "away"].includes(wager.selectionId)
+                    ? matchup[wager.selectionId as "home" | "away"]
+                    : t(wager.selectionLabel)}
+                </strong>
+                <StatusTag
+                  tone={
+                    wager.settlement
+                      ? outcomeTone(wager.settlement.outcome)
+                      : "neutral"
+                  }
+                >
+                  {t(
+                    wager.settlement
+                      ? settlementLabel(wager.settlement.outcome)
+                      : "open",
+                  )}
+                </StatusTag>
+              </div>
+              <dl>
+                <div>
+                  <dt>{t("Odds")}</dt>
+                  <dd>{formatNumber(wager.price, 2)}</dd>
+                </div>
+                <div>
+                  <dt>{t("Stake")}</dt>
+                  <dd>{formatNumber(wager.stake)}</dd>
+                </div>
+                <div>
+                  <dt>
+                    {t(wager.settlement ? "Returned" : "Potential return")}
+                  </dt>
+                  <dd>
+                    {formatNumber(
+                      wager.settlement?.returned ?? wager.potentialReturn,
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              <LocalDateTime value={wager.placedAt} short />
             </div>
           ))}
         </div>
       )}
 
-      {/* Who else is in, and the argument about it. Real context on your own
-          pick, but not what the page is for — one line, opened on demand,
-          rather than two more sections under the action. */}
-      {(groupPicks.length > 0 || threads.length > 0) && (
+      {groupPicks.length > 0 && (
         <details className="mp-aside">
-          <summary>
-            {[
-              groupPicks.length > 0 && `${groupPicks.length} in your groups`,
-              threads.length > 0 &&
-                `${threads.reduce((total, thread) => total + thread.comments.length, 0)} comments`,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </summary>
-
-          {groupPicks.length > 0 && (
-            <div className="side-form">
-              <h3 className="field-label">Group picks on this game</h3>
-              {groupPicks.map((pick) => (
-                <p className="fine-print" key={pick.wager.id}>
-                  {pick.groupName} — {pick.userName ?? "A member"} has{" "}
-                  {pick.wager.stake} on {pick.wager.selectionLabel}
-                  {lineSuffix(pick.wager.line)}.
-                </p>
-              ))}
-            </div>
-          )}
-
-          {threads.map((thread) => (
-            <GameThread
-              key={thread.groupId}
-              routeId={data.routeId}
-              thread={thread}
-            />
-          ))}
+          <summary>{t("Group picks on this game")}</summary>
+          <div className="side-form">
+            {groupPicks.map((pick) => (
+              <p className="fine-print" key={pick.wager.id}>
+                {pick.groupName} — {pick.userName ?? t("A member")}:{" "}
+                {pick.wager.stake} · {t(wagerSelectionLabel(pick.wager))}
+              </p>
+            ))}
+          </div>
         </details>
       )}
     </section>

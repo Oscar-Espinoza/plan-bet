@@ -1,0 +1,56 @@
+[     528ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=f790cf07:14333
+[     866ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[    1000ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3101/favicon.ico:0
+[   72573ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:3101/@vite/client:528
+[   72573ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:3101/@vite/client:528
+[   72715ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[  171481ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:3101/@vite/client:528
+[  171585ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[  216589ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[  216820ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[  216921ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3101/api/groups:0
+[  217054ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3101/@fs/home/oscar/Projects/plan-bet/node_modules/.vite/deps/react-dom_client.js?v=aac5020c:14333
+[  272775ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  272846ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  364651ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  364677ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  364799ms] [LOG] [Fast Refresh] done in 103ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  365519ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  365533ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  365593ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  365595ms] Error: Internal Next.js error: Router action dispatched before initialization.
+    at dispatchAppRouterAction (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:916:37)
+    at http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:11923:61
+    at startTransition (http://localhost:3000/_next/static/chunks/1hzq_next_dist_compiled_15fod9_._.js:1279:31)
+    at Object.hmrRefresh (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:11922:40)
+    at http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:14090:64
+    at startTransition (http://localhost:3000/_next/static/chunks/1hzq_next_dist_compiled_15fod9_._.js:1279:31)
+    at processMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:14089:44)
+    at WebSocket.handleMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:13458:52)
+[  365659ms] [LOG] [Fast Refresh] done in 40ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  367042ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  367059ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518375ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518602ms] [WARNING] [HMR] Invalid message: {"isTrusted":true}
+TypeError: Cannot convert undefined or null to object
+    at Object.keys (<anonymous>)
+    at extractModulesFromTurbopackMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:13754:39)
+    at TurbopackHmr.onTurbopackMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:13701:32)
+    at processMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:14059:30)
+    at WebSocket.handleMessage (http://localhost:3000/_next/static/chunks/1hzq_next_dist_client_1fts3ny._.js:13458:52) @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518602ms] [LOG] [Fast Refresh] done in 275ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518720ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518853ms] [LOG] [Fast Refresh] done in 233ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  518970ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  519024ms] [LOG] [Fast Refresh] done in 154ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  519427ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  519454ms] [LOG] [Fast Refresh] done in 127ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  519911ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489
+[  519923ms] [LOG] [Fast Refresh] done in 113ms @ http://localhost:3000/_next/static/chunks/1hzq_next_dist_0fd3vku._.js:2489

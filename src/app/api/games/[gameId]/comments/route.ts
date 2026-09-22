@@ -56,11 +56,24 @@ export async function POST(request: NextRequest, { params }: Params) {
     groupId: body.data.groupId,
     canonicalGameId: game.canonicalId,
     body: body.data.body,
+    parentCommentId: body.data.parentCommentId,
     now: new Date(),
   });
 
   if (!outcome.ok) {
     switch (outcome.reason) {
+      case "invalid_parent":
+        return apiFailure(
+          "invalid_request",
+          "That reply target is not available in this group and match.",
+          context,
+        );
+      case "phase_closed":
+        return apiFailure(
+          "invalid_request",
+          "Posting is closed. Your second message opens after full time.",
+          context,
+        );
       case "not_eligible":
         return apiFailure(
           "forbidden",
@@ -70,7 +83,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       case "already_commented":
         return apiFailure(
           "invalid_request",
-          "You've already commented for this side of kickoff.",
+          "You have already used your message for this phase.",
           context,
         );
       case "unavailable":

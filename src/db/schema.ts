@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -552,8 +553,8 @@ export const gameCommentPhaseEnum = pgEnum("game_comment_phase", [
 ]);
 
 /**
- * One comment each side of kickoff, between people who share a group and
- * both have a wager on this game. The unique index below *is* the "one
+ * One comment before kickoff and one after full time, between group members who
+ * have a wager on this game. The unique index below *is* the "one
  * before, one after" rule — no counter, no status column, no advisory lock,
  * the same move as `credit_entries_wager_return_uidx`. Append-only: no
  * `updated_at`, no edit or delete path, like `wagers`. Keyed on
@@ -572,6 +573,10 @@ export const gameComments = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    parentCommentId: uuid("parent_comment_id").references(
+      (): AnyPgColumn => gameComments.id,
+      { onDelete: "restrict" },
+    ),
     phase: gameCommentPhaseEnum("phase").notNull(),
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -584,6 +589,10 @@ export const gameComments = pgTable(
       table.canonicalGameId,
       table.userId,
       table.phase,
+    ),
+    index("game_comments_parent_idx").on(
+      table.parentCommentId,
+      table.createdAt,
     ),
     index("game_comments_thread_idx").on(
       table.groupId,

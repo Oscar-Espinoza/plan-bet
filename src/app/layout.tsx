@@ -1,3 +1,7 @@
+import { getTranslation } from "@/lib/locale-server";
+import { cookies } from "next/headers";
+import { parseLocale } from "@/lib/locale";
+import { LanguageProvider } from "@/components/language-provider";
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { AccountControl } from "@/components/account-control";
@@ -10,7 +14,7 @@ const siteUrl =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "http://localhost:3000");
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: "Matchday Plan — Practice your calls",
@@ -56,30 +60,59 @@ export const metadata: Metadata = {
   },
 };
 
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslation();
+  return {
+    ...metadata,
+    title: {
+      default: t("Matchday Plan — Practice your calls"),
+      template: "%s · Matchday Plan",
+    },
+    description: t(metadata.description ?? ""),
+    openGraph: {
+      ...metadata.openGraph,
+      description: t(
+        "Real fixtures. Your call. Practice on fictional credits with source-backed context.",
+      ),
+    },
+    twitter: {
+      ...metadata.twitter,
+      description: t(
+        "A sports preparation workspace. Browsing needs no account. Not a sportsbook.",
+      ),
+    },
+  };
+}
+
 export const viewport: Viewport = {
   themeColor: "#08090b",
   colorScheme: "dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = parseLocale((await cookies()).get("locale")?.value);
   return (
-    <html lang="en">
+    <html lang={locale} data-scroll-behavior="smooth">
       <body>
-        {/* The chip awaits a session lookup plus two ledger aggregates. Left
+        <LanguageProvider locale={locale}>
+          {/* The chip awaits a session lookup plus two ledger aggregates. Left
             unsuspended in the root layout it blocks the whole shell from
             flushing on every route. fallback={null} is what the component
             itself renders when sign-in is unconfigured, so nothing shifts. */}
-        <AppShell
-          accountControl={
-            <Suspense fallback={null}>
-              <AccountControl />
-            </Suspense>
-          }
-        >
-          {children}
-        </AppShell>
+          <Suspense fallback={null}>
+            <AppShell
+              accountControl={
+                <Suspense fallback={null}>
+                  <AccountControl />
+                </Suspense>
+              }
+            >
+              {children}
+            </AppShell>
+          </Suspense>
+        </LanguageProvider>
       </body>
     </html>
   );
