@@ -11,11 +11,14 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "@/components/language-provider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Scorebug } from "@/components/matchup/scorebug";
+import { MatchChrome } from "@/components/matchup/match-chrome";
+import { BetSlipSkeleton } from "@/components/matchup/bet-slip-skeleton";
+import { StatusRibbon } from "@/components/matchup/status-ribbon";
+import { clubAccentStyle } from "@/lib/club-accent";
 import type { MatchView } from "@/lib/game-view";
 
 export type PreviewMetadata = {
-  match?: Pick<MatchView, "identity"> & { scheduledAt: string };
+  match?: Pick<MatchView, "identity" | "timing">;
   groupName?: string;
 };
 type Destination = {
@@ -84,22 +87,56 @@ export function DestinationPreview({
   const pathname = href.split(/[?#]/)[0];
   if (pathname.startsWith("/games/")) {
     return (
-      <div className="mp" role="status" aria-label={t("Loading game")}>
-        {metadata?.match ? (
-          <Scorebug
-            identity={metadata.match.identity}
-            timing={{
-              scheduledAt: metadata.match.scheduledAt,
-              status: "unknown",
-            }}
-            preview
-          />
-        ) : (
-          <div className="mp-skeleton mp-skeleton-bug" />
-        )}
-        <div className="mp-layout" aria-hidden="true">
-          <div className="mp-skeleton mp-skeleton-action" />
-          <div className="mp-skeleton mp-skeleton-read" />
+      <div
+        className="mp"
+        role="status"
+        aria-label={t("Loading game")}
+        style={
+          metadata?.match
+            ? clubAccentStyle({
+                colors: { primary: metadata.match.identity.clubColor },
+              })
+            : undefined
+        }
+      >
+        <MatchChrome view={metadata?.match} />
+        <div className="mp-tab-panel">
+          <div className="mp-overview">
+            {metadata?.match && (
+              <StatusRibbon status={metadata.match.timing.status} />
+            )}
+            <BetSlipSkeleton
+              sport={metadata?.match?.identity.sport}
+              finished={metadata?.match?.timing.status === "finished"}
+              matchup={
+                metadata?.match
+                  ? {
+                      home: metadata.match.identity.homeTeam,
+                      away: metadata.match.identity.awayTeam,
+                    }
+                  : undefined
+              }
+            />
+            <div className="mp-blocks" aria-hidden="true">
+              {[0, 1].map((key) => (
+                <section className="mp-block match-context-skeleton" key={key}>
+                  <span className="match-placeholder">
+                    <span>{t("Match information")}</span>
+                  </span>
+                  {[0, 1, 2].map((row) => (
+                    <div className="match-context-row" key={row}>
+                      <span className="match-placeholder">
+                        <span>{t("Loading…")}</span>
+                      </span>
+                      <span className="match-placeholder">
+                        <span>00 – 00</span>
+                      </span>
+                    </div>
+                  ))}
+                </section>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -10,6 +10,7 @@ import {
   type WagerPanelState,
 } from "@/components/bet-slip";
 import { GameDetail } from "@/components/game-detail";
+import { BetSlipSkeleton } from "@/components/matchup/bet-slip-skeleton";
 import { getCreditSummary } from "@/data/credits";
 import {
   commentPhase,
@@ -111,7 +112,6 @@ async function loadWagering(
 }
 
 export default async function GamePage({ params }: Props) {
-  const { t } = await getTranslation();
   const { id } = await params;
   const detail = await loadGame(id);
   if (!detail) notFound();
@@ -124,13 +124,14 @@ export default async function GamePage({ params }: Props) {
       wageringPanel={
         <Suspense
           fallback={
-            <aside
-              className="mp-action"
-              aria-busy="true"
-              aria-label={t("Place a bet")}
-            >
-              <p role="status">{t("Loading…")}</p>
-            </aside>
+            <BetSlipSkeleton
+              sport={detail.snapshot.game.sport}
+              finished={detail.snapshot.game.status === "finished"}
+              matchup={{
+                home: detail.snapshot.game.homeTeam,
+                away: detail.snapshot.game.awayTeam,
+              }}
+            />
           }
         >
           <WageringPanel

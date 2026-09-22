@@ -41,7 +41,12 @@ function matchPreview(game: GameSummary): PreviewMetadata {
         trackedSide: game.homeTeamSlug === team.slug ? "home" : "away",
         clubColor: team.colors.primary,
       },
-      scheduledAt: game.scheduledAt,
+      timing: {
+        scheduledAt: game.scheduledAt,
+        status: game.status,
+        result: game.result,
+        venue: game.venue?.trim() || undefined,
+      },
     },
   };
 }

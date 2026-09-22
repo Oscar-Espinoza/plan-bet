@@ -22,7 +22,8 @@ test("Barcelona matchup renders its evidence and survives a reload", async ({
 
   // The matchup's context is rendered from the server on every load — no
   // browser-local state decides whether it is there.
-  await expect(page.locator(".mp-block").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/games\/soc-fcb-01$/);
+  await expect(page.locator(".route-content .mp-block").first()).toBeVisible();
 
   await page.reload();
   await expect(page.locator(".mp-block").first()).toBeVisible();

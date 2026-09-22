@@ -196,3 +196,78 @@ test("failed client fetch recovers through Next navigation without a stuck previ
   await expect(page.locator(".mp-block").first()).toBeVisible();
   await expect(preview(page)).toHaveCount(0);
 });
+
+for (const scenario of [
+  { width: 390, locale: "es", game: "soc-rma-01" },
+  { width: 320, locale: "en", game: "soc-fcb-01" },
+  { width: 1280, locale: "es", game: "mlb-nyy-01" },
+]) {
+  test(`match chrome stays in place at ${scenario.width}px in ${scenario.locale}`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await page.setViewportSize({ width: scenario.width, height: 844 });
+    await context.addCookies([
+      { name: "locale", value: scenario.locale, url: baseURL! },
+    ]);
+    const release = await holdDestination(page, `/games/${scenario.game}`);
+    const selectors = [
+      ".mp-breadcrumb",
+      ".mp-bug",
+      ".mp-sides",
+      ".mp-clock",
+      ".mp-when",
+      ".mp-tabs",
+      ".mp-tab-panel",
+    ];
+    const measure = (root: string) =>
+      page.locator(root).evaluate(
+        (element, selectors) =>
+          selectors.map((selector) => {
+            const { x, y, width, height } = element
+              .querySelector(selector)!
+              .getBoundingClientRect();
+            return { selector, x, y, width, height };
+          }),
+        selectors,
+      );
+    let before: Awaited<ReturnType<typeof measure>>;
+    try {
+      await page.goto("/");
+      const link = page.locator(`.game-row[href="/games/${scenario.game}"]`);
+      const kickoff = await link.locator("time").getAttribute("datetime");
+      await link.tap();
+      await expect(preview(page).locator(".mp-clock time")).not.toBeEmpty();
+      await expect(preview(page).locator(".mp-when time")).toHaveAttribute(
+        "datetime",
+        kickoff!,
+      );
+      await expect(preview(page).locator(".mp-when time")).not.toBeEmpty();
+      await expect(
+        preview(page).locator(".wager-panel .selection-row").first(),
+      ).toBeVisible();
+      await expect(preview(page).locator("button:enabled")).toHaveCount(0);
+      before = await measure("[data-navigation-preview]");
+    } finally {
+      release();
+    }
+    await expect(page.locator(".route-content .mp-clock time")).not.toBeEmpty();
+    await expect(preview(page)).toHaveCount(0);
+    const after = await measure(".route-content");
+    for (let i = 0; i < before!.length; i++) {
+      for (const axis of ["x", "y", "width"] as const) {
+        expect(
+          Math.abs(after[i][axis] - before![i][axis]),
+          `${selectors[i]} ${axis}`,
+        ).toBeLessThanOrEqual(1);
+      }
+      // The panel grows with real data; the header and tabs must not move.
+      if (selectors[i] !== ".mp-tab-panel")
+        expect(
+          Math.abs(after[i].height - before![i].height),
+          `${selectors[i]} height`,
+        ).toBeLessThanOrEqual(1);
+    }
+  });
+}

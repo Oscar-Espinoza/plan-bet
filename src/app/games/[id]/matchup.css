@@ -1658,3 +1658,36 @@
 .wager-panel .selection-market[hidden] {
   display: none;
 }
+
+/* Skeletons retain the real card's typography, grid and spacing. Only the
+   values are covered, so loading does not resize the header or market rows. */
+.match-placeholder {
+  display: inline-block;
+  border-radius: 0.25rem;
+  background: var(--rule-strong);
+  color: transparent;
+}
+.wager-panel .selection-button span.match-placeholder {
+  color: transparent;
+}
+.match-placeholder > span {
+  visibility: hidden;
+}
+.mp-tabs button:disabled,
+.market-filters button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.match-header-skeleton .mp-side-name {
+  min-width: 7rem;
+  min-height: 2.1em;
+}
+.match-context-skeleton {
+  padding: 1rem;
+}
+.match-context-row {
+  display: flex;
+  justify-content: space-between;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--rule);
+}

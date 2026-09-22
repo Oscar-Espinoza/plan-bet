@@ -99,14 +99,21 @@ app and compare real navigation latency, query duration and cache refresh load.
 ## Instant destination previews
 
 Internal links now display a destination preview while Next.js navigates. Match
-cards supply only names, logos, competition, and kickoff from the current board.
+cards supply public matchup details, status, venue, and kickoff from the current board.
 The preview is held in memory, never in URLs or persistent storage; betting,
-balances, scores, and permissions still come from the destination server render.
+balances, and permissions still come from the destination server render, which
+also replaces the preview's public data with the latest snapshot.
 The same preview serves the route loading boundary. Direct links use a skeleton.
+
+Loading and completed matches share their breadcrumb, scorebug, countdown, and
+tabs. The betting skeleton uses the real card and market grid classes and also
+serves the streamed wagering fallback. Geometry checks at 320, 390, and 1280 px
+in English and Spanish keep the header and tabs within one pixel of their final
+positions. Unknown prices and balances remain masked and controls stay disabled.
 
 On the local production demo build, a mobile tap displayed the match preview in
 14.9 ms while the destination response was deliberately held for another second.
-This measures feedback, not completion of the server request. All 35 real-app
+This measures feedback, not completion of the server request. All 38 real-app
 browser tests pass, including cancellation, competing destinations, browser back,
 keyboard navigation, reduced motion, and failed client-fetch recovery. The 420
 unit tests and automatic quality checks also pass locally.

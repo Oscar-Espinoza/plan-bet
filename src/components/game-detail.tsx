@@ -6,20 +6,12 @@ import { useState } from "react";
 import { BarChart3, Info, Trophy } from "lucide-react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { ContextBlocks } from "@/components/matchup/context-blocks";
-import { Scorebug } from "@/components/matchup/scorebug";
+import { MatchChrome, type MatchTab } from "@/components/matchup/match-chrome";
 import { StatusRibbon } from "@/components/matchup/status-ribbon";
 import { clubAccentStyle } from "@/lib/club-accent";
 import type { GameDetailData, Team } from "@/lib/contracts";
 import { buildMatchView } from "@/lib/game-view";
 
-type MatchTab = "overview" | "stats" | "lineups" | "h2h";
-
-const TABS: { id: MatchTab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "stats", label: "Stats" },
-  { id: "lineups", label: "Lineups" },
-  { id: "h2h", label: "H2H" },
-];
 export function GameDetail({
   data,
   team,
@@ -52,28 +44,6 @@ export function GameDetail({
         ? game.homeTeam
         : game.awayTeam
     : undefined;
-  const moveTab = (
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) => {
-    const direction =
-      event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    const targetIndex =
-      event.key === "Home"
-        ? 0
-        : event.key === "End"
-          ? TABS.length - 1
-          : direction
-            ? (index + direction + TABS.length) % TABS.length
-            : -1;
-    if (targetIndex < 0) return;
-    event.preventDefault();
-    const target = TABS[targetIndex]!;
-    setTab(target.id);
-    requestAnimationFrame(() =>
-      document.getElementById(`match-tab-${target.id}`)?.focus(),
-    );
-  };
 
   return (
     <div className="mp" style={clubAccentStyle(team)}>
@@ -88,34 +58,7 @@ export function GameDetail({
           : t("{p0} vs {p1}", { p0: game.homeTeam, p1: game.awayTeam })}
       </h1>
 
-      <p className="mp-breadcrumb">
-        <span>{game.sport === "soccer" ? t("Soccer") : t("Baseball")}</span>
-        <span aria-hidden="true">›</span>
-        <span>{t(game.competition)}</span>
-      </p>
-      <Scorebug {...view} />
-
-      <div
-        className="mp-tabs"
-        role="tablist"
-        aria-label={t("Match information")}
-      >
-        {TABS.map(({ id, label }, index) => (
-          <button
-            type="button"
-            role="tab"
-            id={`match-tab-${id}`}
-            aria-controls={`match-panel-${id}`}
-            aria-selected={tab === id}
-            tabIndex={tab === id ? 0 : -1}
-            key={id}
-            onClick={() => setTab(id)}
-            onKeyDown={(event) => moveTab(event, index)}
-          >
-            {t(label)}
-          </button>
-        ))}
-      </div>
+      <MatchChrome view={view} tab={tab} onTabChange={setTab} />
 
       <div
         className="mp-tab-panel"
