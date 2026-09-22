@@ -2,7 +2,13 @@
 
 import { LanguageSwitch, useTranslation } from "@/components/language-provider";
 import type { Message } from "@/lib/locale";
-import Link from "next/link";
+import { useLayoutEffect, useRef } from "react";
+import { NavigationLink as Link } from "@/components/fast-link";
+import {
+  NavigationProvider,
+  DestinationPreview,
+  useNavigationPreview,
+} from "@/components/navigation-preview";
 import { LocalLink } from "@/components/fast-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -59,14 +65,46 @@ export function AppShell({
   children: React.ReactNode;
   accountControl?: React.ReactNode;
 }) {
+  return (
+    <NavigationProvider>
+      <ShellContent accountControl={accountControl}>{children}</ShellContent>
+    </NavigationProvider>
+  );
+}
+
+function ShellContent({
+  children,
+  accountControl,
+}: {
+  children: React.ReactNode;
+  accountControl?: React.ReactNode;
+}) {
   const { t } = useTranslation();
-  const pathname = usePathname();
+  const committedPathname = usePathname();
+  const navigation = useNavigationPreview();
+  const pending = navigation?.pending;
+  const pathname = pending?.pathname ?? committedPathname;
   const searchParams = useSearchParams();
+  const scroller = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!pending || !scroller.current) return;
+    const element = scroller.current;
+    const previousTop = element.scrollTop;
+    element.scrollTop = 0;
+    // A cancelled navigation restores the old page at its original position.
+    return () => {
+      element.scrollTop = previousTop;
+    };
+  }, [pending]);
   // The bar exists on a game page and nowhere else: it is the wager action,
   // not shell furniture. The board deliberately ends at the nav.
   const onGame = pathname.startsWith("/games/");
-  const activeSection = searchParams.get("section") ?? "profile";
-  const showUtilityChrome = pathname !== "/" && !onGame;
+  const activeSection =
+    (pending
+      ? new URL(pending.href, "http://local").searchParams
+      : searchParams
+    ).get("section") ?? "profile";
+  const showUtilityChrome = !pending && pathname !== "/" && !onGame;
 
   return (
     <div className="app-shell">
@@ -119,9 +157,31 @@ export function AppShell({
             </div>
           </div>
         </header>
-        <div className="workspace-scroll" key={pathname}>
+        <div
+          className="workspace-scroll"
+          key={committedPathname}
+          ref={scroller}
+        >
           <main id="main-content" className="main-content" tabIndex={-1}>
-            {children}
+            {pending && (
+              <div
+                className="navigation-preview"
+                data-navigation-preview={pending.pathname}
+                key={pending.href}
+              >
+                <DestinationPreview
+                  href={pending.href}
+                  metadata={pending.metadata}
+                />
+              </div>
+            )}
+            <div
+              className="route-content"
+              hidden={Boolean(pending)}
+              inert={Boolean(pending)}
+            >
+              {children}
+            </div>
           </main>
           <footer className="app-footer">
             <p className="fine-print">

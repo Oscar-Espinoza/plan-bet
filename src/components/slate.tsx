@@ -2,9 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { LocalLink, MatchLink } from "@/components/fast-link";
+import type { PreviewMetadata } from "@/components/navigation-preview";
 import { useTranslation } from "@/components/language-provider";
 import { intlLocale, type Locale } from "@/lib/locale";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { CalendarDays, ChevronRight, Radio } from "lucide-react";
 import { TeamLogo } from "@/components/team-logo";
 import { clubAccentStyle } from "@/lib/club-accent";
@@ -25,6 +26,25 @@ import type { GameSummary, Sport } from "@/lib/contracts";
 import { cn } from "@/lib/utils";
 
 export type SportFilter = "all" | Sport;
+
+function matchPreview(game: GameSummary): PreviewMetadata {
+  const team = teams.find((team) => team.slug === game.teamSlug)!;
+  return {
+    match: {
+      identity: {
+        sport: game.sport,
+        competition: game.competition,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        homeTeamLogo: gameTeamLogo(game, "home"),
+        awayTeamLogo: gameTeamLogo(game, "away"),
+        trackedSide: game.homeTeamSlug === team.slug ? "home" : "away",
+        clubColor: team.colors.primary,
+      },
+      scheduledAt: game.scheduledAt,
+    },
+  };
+}
 
 const FILTERS: { value: SportFilter; label: string; href: string }[] = [
   { value: "all", label: "All", href: "/" },
@@ -169,7 +189,11 @@ export function Slate({
               </span>
             </div>
             <Button asChild className="next-up-cta">
-              <MatchLink eager href={`/games/${nextUp.id}`}>
+              <MatchLink
+                eager
+                href={`/games/${nextUp.id}`}
+                preview={matchPreview(nextUp)}
+              >
                 {t("View Match & Place Bet")}{" "}
                 <ChevronRight aria-hidden="true" size={20} />
               </MatchLink>
@@ -249,6 +273,8 @@ export function Slate({
               <MatchLink
                 className="game-row game-row-live"
                 href={`/games/${game.id}`}
+                preview={matchPreview(game)}
+                visiblePrefetch={games.indexOf(game) < 4}
                 key={game.id}
               >
                 <span className="game-time">{t("LIVE")}</span>
@@ -295,6 +321,8 @@ export function Slate({
                       game.id === nextUp?.id && "game-row-next",
                     )}
                     href={`/games/${game.id}`}
+                    preview={matchPreview(game)}
+                    visiblePrefetch={games.indexOf(game) < 4}
                     key={game.id}
                     aria-label={t("Open {p0} versus {p1}", {
                       p0: game.homeTeam,

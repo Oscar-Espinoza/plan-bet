@@ -1,6 +1,6 @@
 "use client";
 import { useTranslation } from "@/components/language-provider";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { Receipt } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Button } from "@/components/ui/button";

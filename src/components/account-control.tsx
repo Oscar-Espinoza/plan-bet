@@ -1,5 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { Coins } from "lucide-react";
 import { getCreditSummary } from "@/data/credits";
 import { countOpenWagers } from "@/data/wagers-repository";

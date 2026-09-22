@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { redirect } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { z } from "zod";

@@ -14,7 +14,11 @@ import type { MatchView } from "@/lib/game-view";
  * usually not a tracked team and has no colour of its own, and inventing one
  * would be inventing data.
  */
-export function Scorebug({ identity, timing }: MatchView) {
+export function Scorebug({
+  identity,
+  timing,
+  preview = false,
+}: Pick<MatchView, "identity" | "timing"> & { preview?: boolean }) {
   const { t } = useTranslation();
   const { homeTeam, awayTeam, trackedSide, clubColor, competition, stage } =
     identity;
@@ -49,15 +53,17 @@ export function Scorebug({ identity, timing }: MatchView) {
       <PitchArt sport={identity.sport} />
       <span className="mp-bug-scrim" aria-hidden="true" />
       <span className="mp-status-pill">
-        {status === "finished"
-          ? t("Full time")
-          : status === "live"
-            ? t("Live")
-            : status === "postponed"
-              ? t("Postponed")
-              : status === "cancelled"
-                ? t("Cancelled")
-                : t("Next match")}
+        {preview
+          ? t("Loading game")
+          : status === "finished"
+            ? t("Full time")
+            : status === "live"
+              ? t("Live")
+              : status === "postponed"
+                ? t("Postponed")
+                : status === "cancelled"
+                  ? t("Cancelled")
+                  : t("Next match")}
       </span>
       <p className="mp-comp">
         <span>{t(competition)}</span>
@@ -87,7 +93,7 @@ export function Scorebug({ identity, timing }: MatchView) {
         <p className="mp-aftermath">{t("After penalties")}</p>
       )}
 
-      {!result && (
+      {!result && !preview && (
         <div className="mp-clock">
           <span className="mp-clock-label">{t("Kickoff in")}</span>
           <strong className="mp-clock-figure">

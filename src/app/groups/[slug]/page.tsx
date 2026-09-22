@@ -4,7 +4,7 @@ import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { ArrowLeft, Users } from "lucide-react";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { JoinLink } from "@/components/join-link";

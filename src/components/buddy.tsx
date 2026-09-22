@@ -2,7 +2,7 @@
 import { useTranslation } from "@/components/language-provider";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { usePathname } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { MessageCircle, X } from "lucide-react";

@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/language-provider";
 
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { RouteError } from "@/components/route-error";
 
 export default function GroupsError({ reset }: { reset: () => void }) {

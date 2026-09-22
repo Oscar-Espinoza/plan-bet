@@ -1,5 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 
 export default async function GameNotFound() {
   const { t } = await getTranslation();

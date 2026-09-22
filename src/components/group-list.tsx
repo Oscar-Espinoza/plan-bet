@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { ChevronRight, UsersRound } from "lucide-react";
 import { useTranslation } from "@/components/language-provider";
 
@@ -16,6 +16,7 @@ export function GroupList({
         <Link
           className="group-card"
           href={`/groups/${group.slug}`}
+          preview={{ groupName: group.name }}
           key={group.id}
         >
           <span className="group-card-icon">

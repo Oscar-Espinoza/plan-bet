@@ -1,7 +1,1 @@
-import { getTranslation } from "@/lib/locale-server";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export default async function GroupLoading() {
-  const { t } = await getTranslation();
-  return <Skeleton label={t("Loading group")} variant="record" />;
-}
+export { RouteLoading as default } from "@/components/navigation-preview";

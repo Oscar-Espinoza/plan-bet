@@ -2,7 +2,7 @@
 import { useTranslation } from "@/components/language-provider";
 
 import { useId, useState } from "react";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { Ticket } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ActionPortal } from "@/components/action-bar";

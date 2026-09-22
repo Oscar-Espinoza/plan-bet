@@ -1,6 +1,6 @@
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { redirect } from "next/navigation";
 import { MailX } from "lucide-react";
 import { AcceptInvite } from "@/components/accept-invite";

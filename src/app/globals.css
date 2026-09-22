@@ -180,6 +180,29 @@ a {
   overflow: clip;
 }
 
+.route-content {
+  display: contents;
+}
+.route-content[hidden] {
+  display: none;
+}
+.navigation-preview {
+  animation: navigation-enter 120ms ease-out;
+}
+@keyframes navigation-enter {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navigation-preview {
+    animation: none;
+  }
+}
+
 /* Primary navigation rides in the topbar from 1024px up; below that the
    bottom bar carries it. Exactly one copy is ever displayed, so exactly one
    is ever in the accessibility tree. */

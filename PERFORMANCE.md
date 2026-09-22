@@ -66,8 +66,8 @@ to repeat the index checks.
   CLI jobs have no Next request context and rely on the 30-second revalidation
   interval; stale-while-revalidate can serve an older response while rebuilding.
 - Browser route reuse is 30 seconds, with refresh while visible and on focus
-  after the interval. Only the main match destination is eagerly prefetched;
-  other match links prefetch on intent. Local sport/section changes preserve URLs.
+  after the interval. Up to four visible match destinations prefetch on normal connections;
+  other match links and constrained connections prefetch on intent. Local sport/section changes preserve URLs.
 - Match content, betting and discussion render independently. Account sections
   stream independently too. Existing input state survives background refreshes.
 - Private data is never stored in the shared sports cache. Session, membership,
@@ -95,3 +95,24 @@ Apply the checked-in Drizzle migration through the normal deployment process.
 It creates three non-unique indexes and changes no records. On a large production
 database, plan the index build for an appropriate maintenance window. Deploy the
 app and compare real navigation latency, query duration and cache refresh load.
+
+## Instant destination previews
+
+Internal links now display a destination preview while Next.js navigates. Match
+cards supply only names, logos, competition, and kickoff from the current board.
+The preview is held in memory, never in URLs or persistent storage; betting,
+balances, scores, and permissions still come from the destination server render.
+The same preview serves the route loading boundary. Direct links use a skeleton.
+
+On the local production demo build, a mobile tap displayed the match preview in
+14.9 ms while the destination response was deliberately held for another second.
+This measures feedback, not completion of the server request. All 35 real-app
+browser tests pass, including cancellation, competing destinations, browser back,
+keyboard navigation, reduced motion, and failed client-fetch recovery. The 420
+unit tests and automatic quality checks also pass locally.
+
+Automatic CI runs formatting, lint, typecheck, unit tests, and a production build.
+Run **Extended checks** manually in GitHub Actions for migration drift, PostgreSQL
+integration, and real-app Playwright tests. Each check still fails on errors.
+`pnpm test:fixtures` remains available locally but is excluded from both workflows:
+its old fixed action-bar and tour expectations need updating for the current UI.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/fast-link";
 import { ChevronRight, MessageCircle, Trophy, Receipt } from "lucide-react";
 import { useTranslation } from "./language-provider";
 import { TeamLogo } from "./team-logo";
