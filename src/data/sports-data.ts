@@ -1,7 +1,14 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { unstable_cache, revalidateTag } from "next/cache";
+import { unstable_cache } from "next/cache";
+import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
+import {
+  DASHBOARD_TAG,
+  SPORTS_TAG,
+  invalidatePublicSports,
+} from "@/data/public-cache";
+export { DASHBOARD_TAG } from "@/data/public-cache";
 import { after } from "next/server";
 import { isDatabaseConfigured, getDatabase } from "@/db/client";
 import { seedConfiguredTeams } from "@/db/seed";
@@ -62,8 +69,6 @@ function logIngestion(
 
 const inProcessRefresh = new Map<Sport, Promise<RefreshOutcome>>();
 
-export const DASHBOARD_TAG = "dashboard";
-
 // after() and revalidateTag() throw outside a request context (CLI, tests).
 function refreshInBackground(sport: Sport, requestId: string, now: Date) {
   const run = () => refreshSportData(sport, requestId, now).catch(() => {});
@@ -72,12 +77,6 @@ function refreshInBackground(sport: Sport, requestId: string, now: Date) {
   } catch {
     void run();
   }
-}
-
-function invalidateDashboard() {
-  try {
-    revalidateTag(DASHBOARD_TAG, "max");
-  } catch {}
 }
 
 async function cachedMetadata(
@@ -149,6 +148,7 @@ async function performSportRefresh(
       try {
         await persistSportsTeamData({ bundle, fetchedAt: now });
         refreshed += 1;
+        invalidatePublicSports();
         logIngestion("info", {
           requestId,
           sport,
@@ -205,7 +205,7 @@ async function performSportRefresh(
       refreshed,
       durationMs: Date.now() - startedAt,
     });
-    if (!failure && refreshed) invalidateDashboard();
+
     return {
       sport,
       provider: provider.provider,
@@ -290,7 +290,7 @@ export async function getTeamSchedule(
   }
 
   const cached = await storedSchedule(slug, now);
-  // Stale renders now, refresh goes out of band. Only a cold cache waits.
+  // Stale renders now, refresh goes out of band. Cold reads also return immediately with a labelled fallback.
   if (cached && !options.forceRefresh) {
     if (cached.freshness.mode !== "live") {
       refreshInBackground(team.sport, requestId, now);
@@ -298,13 +298,12 @@ export async function getTeamSchedule(
     return cached;
   }
 
-  try {
-    await refreshSportData(team.sport, requestId, now);
-  } catch {
-    // A database/provider failure must not prevent stale or demo fallback.
+  if (!options.forceRefresh) {
+    refreshInBackground(team.sport, requestId, now);
+    return demoSchedule(slug, now);
   }
-  const refreshed = await storedSchedule(slug, now);
-  return refreshed ?? cached ?? demoSchedule(slug, now);
+  await refreshSportData(team.sport, requestId, now).catch(() => undefined);
+  return (await storedSchedule(slug, now)) ?? cached ?? demoSchedule(slug, now);
 }
 
 export async function getDashboardData(
@@ -322,23 +321,55 @@ export async function getDashboardData(
   return Object.fromEntries(entries) as DashboardData;
 }
 
-// Zero-arg on purpose: the per-call requestId would key every entry uniquely.
+// Cache only successful stored reads. Missing rows and failures must not poison
+// the shared cache with demo data. Freshness and refresh scheduling run outside it.
 const cachedDashboard = unstable_cache(
-  () => getDashboardData(),
-  ["dashboard"],
-  {
-    revalidate: 3600,
-    tags: [DASHBOARD_TAG],
+  async () => {
+    const entries = await Promise.all(
+      teams.map(async (team) => {
+        const schedule = await readStoredSchedule(team.slug);
+        if (!schedule) throw new Error("Schedule not stored");
+        return [team.slug, { ...schedule, games: schedule.games.slice(0, 1) }];
+      }),
+    );
+    return Object.fromEntries(entries) as DashboardData;
   },
+  ["dashboard-stored-v2"],
+  { revalidate: 30, tags: [DASHBOARD_TAG, SPORTS_TAG] },
 );
 
-export function getCachedDashboardData() {
-  // Demo data is in-memory and date-relative: nothing to save, and caching it
-  // would un-anchor the Playwright board.
-  return process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo"
-    ? getDashboardData()
-    : cachedDashboard();
+export async function getCachedDashboardData() {
+  if (
+    process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo" ||
+    !isDatabaseConfigured()
+  )
+    return getDashboardData();
+  try {
+    const data = await cachedDashboard();
+    const now = new Date();
+    const stale = new Set<Sport>();
+    const entries = Object.entries(data).map(([slug, schedule]) => {
+      const current = applyScheduleMode(schedule, now);
+      if (current.freshness.mode === "stale") stale.add(current.team.sport);
+      return [slug, current];
+    });
+    for (const sport of stale) refreshInBackground(sport, randomUUID(), now);
+    return Object.fromEntries(entries) as DashboardData;
+  } catch {
+    return getDashboardData();
+  }
 }
+
+const cachedStoredDetail = unstable_cache(
+  async (gameId: string) => {
+    const snapshot = await readStoredSnapshot(gameId);
+    if (!snapshot) throw new Error("Snapshot not stored");
+    const context = await readFixtureContext(gameId);
+    return context ? withContextFacts(snapshot, context.facts) : snapshot;
+  },
+  ["stored-match-v2"],
+  { revalidate: 30, tags: [SPORTS_TAG] },
+);
 
 async function storedSnapshot(gameId: string, now: Date) {
   try {
@@ -359,17 +390,19 @@ export async function getGameDetail(
   if (process.env.MATCHDAY_DATA_MODE?.toLowerCase() === "demo")
     return undefined;
 
-  let snapshot = await storedSnapshot(gameId, now);
-  if (snapshot?.freshness.mode === "stale") {
-    // Same rule as the schedule read above.
-    refreshInBackground(snapshot.game.sport, requestId, now);
-  } else if (!snapshot) {
-    for (const sport of ["soccer", "baseball"] as const) {
-      await refreshSportData(sport, requestId, now).catch(() => undefined);
-      snapshot = await storedSnapshot(gameId, now);
-      if (snapshot) break;
+  if (!options.now && isDatabaseConfigured()) {
+    try {
+      const snapshot = applySnapshotMode(await cachedStoredDetail(gameId), now);
+      if (snapshot.freshness.mode === "stale")
+        refreshInBackground(snapshot.game.sport, requestId, now);
+      return { snapshot };
+    } catch {
+      /* Retry uncached, without caching missing or failed reads. */
     }
   }
+  let snapshot = await storedSnapshot(gameId, now);
+  if (snapshot?.freshness.mode === "stale")
+    refreshInBackground(snapshot.game.sport, requestId, now);
   if (!snapshot) return undefined;
   // Stored fixture context is a bonus, never a dependency: no database, no row,
   // or a row written in a shape the contract has since moved past all leave the

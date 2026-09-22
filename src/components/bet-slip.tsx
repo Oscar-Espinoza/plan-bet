@@ -161,7 +161,7 @@ function ScoreEntry({
 }
 
 export function BetSlip({
-  data,
+  data: serverData,
   matchup,
   matchFinished = false,
 }: {
@@ -171,6 +171,14 @@ export function BetSlip({
   // the slip on its own.
   matchup?: { home: string; away: string };
 }) {
+  const [confirmedData, setConfirmedData] =
+    useState<WagerPanelData>(serverData);
+  const [previousData, setPreviousData] = useState(serverData);
+  if (previousData !== serverData) {
+    setPreviousData(serverData);
+    setConfirmedData(serverData);
+  }
+  const data = previousData === serverData ? confirmedData : serverData;
   const { formatNumber, t } = useTranslation();
   const router = useRouter();
   const formId = useId();
@@ -274,6 +282,18 @@ export function BetSlip({
     const result = wagerPlacementResultSchema.parse(
       (payload as { data: unknown }).data,
     );
+    if (data.signedIn)
+      setConfirmedData({
+        ...data,
+        state:
+          data.state.kind === "open"
+            ? { ...data.state, balance: result.summary.balance }
+            : data.state,
+        wagers: [
+          result.wager,
+          ...data.wagers.filter((wager) => wager.id !== result.wager.id),
+        ],
+      });
     setConfirmation(
       t("Placed {p0} on {p1} → returns {p2}. New balance: {p3}.", {
         p0: result.wager.stake,

@@ -1,5 +1,12 @@
+import { placement } from "../../browser-fixtures/data";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import type { CommentThreadView } from "@/components/game-thread";
 import type { Wager } from "@/lib/contracts";
@@ -30,6 +37,7 @@ vi.mock("next/link", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   searchParams = new URLSearchParams();
 });
 
@@ -120,6 +128,35 @@ describe("BetSlip - open", () => {
       threads: threads ?? [],
     };
   };
+
+  it("uses the confirmed balance immediately without waiting for a route refresh", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data: placement }), { status: 201 }),
+        ),
+    );
+    render(<BetSlip data={openData()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    fireEvent.change(screen.getByLabelText("Stake"), {
+      target: { value: "25" },
+    });
+    fireEvent.submit(
+      (screen.getByLabelText("Stake") as HTMLInputElement).form!,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/New balance: 975/)).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    fireEvent.change(screen.getByLabelText("Stake"), {
+      target: { value: "976" },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Stake exceeds your balance of 975",
+    );
+  });
 
   it("renders every market's selections as priced buttons, with no selection armed yet", () => {
     render(<BetSlip data={openData()} />);

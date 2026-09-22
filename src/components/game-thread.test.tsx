@@ -343,9 +343,7 @@ it("keeps a reply draft and expanded thread when switching language, and cancel 
   fireEvent.click(
     screen.getByRole("button", { name: "Show all comments (1)" }),
   );
-  fireEvent.click(
-    screen.getAllByRole("button", { name: "Reply" })[0]!,
-  );
+  fireEvent.click(screen.getAllByRole("button", { name: "Reply" })[0]!);
   fireEvent.change(screen.getByRole("textbox"), {
     target: { value: "My draft" },
   });
@@ -360,4 +358,59 @@ it("keeps a reply draft and expanded thread when switching language, and cancel 
   fireEvent.click(screen.getByRole("button", { name: "Cancelar respuesta" }));
   expect(screen.queryByText("Respondiendo a Dani")).not.toBeInTheDocument();
   expect(screen.getByRole("textbox")).toHaveValue("My draft");
+});
+
+it("updates vote counts immediately and rolls back a rejected vote", async () => {
+  let finish!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  render(
+    <GameThread
+      routeId="game"
+      thread={thread({
+        viewerSelectionLabel: "Home",
+        comments: [comment({ id: "opponent", authorSelectionLabel: "Away" })],
+      })}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Shame (0)" }));
+  expect(screen.getByRole("button", { name: "Shame (1)" })).toBeDisabled();
+  await act(async () =>
+    finish(
+      new Response(JSON.stringify({ error: { message: "Vote rejected" } }), {
+        status: 403,
+      }),
+    ),
+  );
+  expect(screen.getByRole("button", { name: "Shame (0)" })).toBeEnabled();
+  expect(screen.getByRole("alert")).toHaveTextContent("Vote rejected");
+});
+
+it("shows a pending comment immediately and keeps its draft after failure", async () => {
+  let finish!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  render(<GameThread routeId="game" thread={thread()} />);
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: "My immediate comment" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Post" }));
+  expect(screen.getByRole("status")).toHaveTextContent("My immediate comment");
+  await act(async () => finish(new Response("{}", { status: 500 })));
+  expect(screen.getByRole("textbox")).toHaveValue("My immediate comment");
+  expect(screen.queryByText(/My immediate comment —/)).not.toBeInTheDocument();
 });

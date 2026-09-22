@@ -1,3 +1,4 @@
+import { Suspense, type ReactNode } from "react";
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -20,7 +21,7 @@ import type { RecordSlice } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 // Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
-export const unstable_dynamicStaleTime = 300;
+export const unstable_dynamicStaleTime = 30;
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslation();
   return { title: t("You") };
@@ -145,30 +146,25 @@ export default async function Page({ searchParams }: Props) {
   };
   const page = pageSchema.parse(first(raw.page));
 
-  const [summary, openCount, openWagers, justSettled, slices, history] =
-    await Promise.all([
-      getCreditSummary(account.userId),
-      countOpenWagers(account.userId),
-      listWagerHistory(account.userId, {
-        outcome: "open",
-        limit: 5,
-        offset: 0,
-      }),
-      listWagerHistory(account.userId, {
-        outcome: "settled",
-        limit: 5,
-        offset: 0,
-      }),
-      getRecordSlices(account.userId),
-      listWagerHistory(account.userId, {
-        sport: filters.sport === "all" ? undefined : filters.sport,
-        outcome: filters.outcome === "all" ? undefined : filters.outcome,
-        since: sinceFor(filters.range),
-        scope: filters.scope === "all" ? undefined : filters.scope,
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
-      }),
-    ]);
+  const summaryPromise = getCreditSummary(account.userId);
+  const openPromise = Promise.all([
+    countOpenWagers(account.userId),
+    listWagerHistory(account.userId, { outcome: "open", limit: 5, offset: 0 }),
+  ]);
+  const settledPromise = listWagerHistory(account.userId, {
+    outcome: "settled",
+    limit: 5,
+    offset: 0,
+  });
+  const slicesPromise = getRecordSlices(account.userId);
+  const historyPromise = listWagerHistory(account.userId, {
+    sport: filters.sport === "all" ? undefined : filters.sport,
+    outcome: filters.outcome === "all" ? undefined : filters.outcome,
+    since: sinceFor(filters.range),
+    scope: filters.scope === "all" ? undefined : filters.scope,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+  });
 
   const filtersActive =
     filters.sport !== "all" ||
@@ -193,23 +189,33 @@ export default async function Page({ searchParams }: Props) {
             {account.name ?? account.email ?? t("Free-to-play record")}
           </p>
           <h1 className="display-title">{t("Where you stand")}</h1>
-          <div className="standing-lead">
-            <div>
-              <p className="eyebrow">{t("Balance")}</p>
-              <p className="standing-figure">
-                {formatNumber(summary.balance)} <small>{t("credits")}</small>
-              </p>
-            </div>
-            <div>
-              <p className="eyebrow">{t("Record")}</p>
-              <p className="standing-figure standing-figure-minor">
-                {summary.won}
-                {t("W")} {summary.lost}
-                {t("L")} {summary.voided}
-                {t("V")}{" "}
-              </p>
-            </div>
-          </div>
+          <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+            <Resolved promise={summaryPromise}>
+              {(summary) => (
+                <>
+                  {" "}
+                  <div className="standing-lead">
+                    <div>
+                      <p className="eyebrow">{t("Balance")}</p>
+                      <p className="standing-figure">
+                        {formatNumber(summary.balance)}{" "}
+                        <small>{t("credits")}</small>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="eyebrow">{t("Record")}</p>
+                      <p className="standing-figure standing-figure-minor">
+                        {summary.won}
+                        {t("W")} {summary.lost}
+                        {t("L")} {summary.voided}
+                        {t("V")}{" "}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Resolved>
+          </Suspense>
           <p className="page-description">
             {t("Fictional credits, house prices, never real money.")}{" "}
           </p>
@@ -217,189 +223,219 @@ export default async function Page({ searchParams }: Props) {
       </header>
 
       <div className="section-grid">
-        <Card
-          title={t("Open wagers")}
-          titleId="open-wagers-heading"
-          headerExtra={
-            <StatusTag>
-              {openCount} {t("open")}
-            </StatusTag>
-          }
-        >
-          <BetsHistory
-            items={openWagers.items}
-            emptyState={{
-              title: "No open wagers",
-              copy: "Place a free-to-play wager from a game page to see it here.",
-            }}
-          />
-        </Card>
+        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <Resolved promise={openPromise}>
+            {([openCount, openWagers]) => (
+              <Card
+                title={t("Open wagers")}
+                titleId="open-wagers-heading"
+                headerExtra={
+                  <StatusTag>
+                    {openCount} {t("open")}
+                  </StatusTag>
+                }
+              >
+                <BetsHistory
+                  items={openWagers.items}
+                  emptyState={{
+                    title: "No open wagers",
+                    copy: "Place a free-to-play wager from a game page to see it here.",
+                  }}
+                />
+              </Card>
+            )}
+          </Resolved>
+        </Suspense>
 
-        <Card title={t("Just settled")} titleId="just-settled-heading">
-          <BetsHistory
-            items={justSettled.items}
-            emptyState={{
-              title: "Nothing settled yet",
-              copy: "Settled wagers land here once a game finishes.",
-            }}
-          />
-        </Card>
+        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <Resolved promise={settledPromise}>
+            {(justSettled) => (
+              <Card title={t("Just settled")} titleId="just-settled-heading">
+                <BetsHistory
+                  items={justSettled.items}
+                  emptyState={{
+                    title: "Nothing settled yet",
+                    copy: "Settled wagers land here once a game finishes.",
+                  }}
+                />
+              </Card>
+            )}
+          </Resolved>
+        </Suspense>
 
-        <Card title={t("Slices")} titleId="slices-heading">
-          <p className="stat-group-label">{t("By sport")}</p>
-          {slices.bySport.length ? (
-            slices.bySport.map((slice) => (
-              <SliceRow slice={slice} key={slice.key} />
-            ))
-          ) : (
-            <div className="panel-body">
-              <p className="not-provided">
-                {t("No settled wagers yet.")}{" "}
-                <Link href="/">{t("Browse the board")}</Link>.
-              </p>
-            </div>
-          )}
-          <p className="stat-group-label">{t("By market")}</p>
-          {slices.byMarket.length ? (
-            slices.byMarket.map((slice) => (
-              <SliceRow slice={slice} key={slice.key} />
-            ))
-          ) : (
-            <div className="panel-body">
-              <p className="not-provided">
-                {t("No settled wagers yet.")}{" "}
-                <Link href="/">{t("Browse the board")}</Link>.
-              </p>
-            </div>
-          )}
-        </Card>
+        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <Resolved promise={slicesPromise}>
+            {(slices) => (
+              <Card title={t("Slices")} titleId="slices-heading">
+                <p className="stat-group-label">{t("By sport")}</p>
+                {slices.bySport.length ? (
+                  slices.bySport.map((slice) => (
+                    <SliceRow slice={slice} key={slice.key} />
+                  ))
+                ) : (
+                  <div className="panel-body">
+                    <p className="not-provided">
+                      {t("No settled wagers yet.")}{" "}
+                      <Link href="/">{t("Browse the board")}</Link>.
+                    </p>
+                  </div>
+                )}
+                <p className="stat-group-label">{t("By market")}</p>
+                {slices.byMarket.length ? (
+                  slices.byMarket.map((slice) => (
+                    <SliceRow slice={slice} key={slice.key} />
+                  ))
+                ) : (
+                  <div className="panel-body">
+                    <p className="not-provided">
+                      {t("No settled wagers yet.")}{" "}
+                      <Link href="/">{t("Browse the board")}</Link>.
+                    </p>
+                  </div>
+                )}
+              </Card>
+            )}
+          </Resolved>
+        </Suspense>
 
-        <Card title={t("Detail")} titleId="detail-heading">
-          <div className="stat-row">
-            <span>{t("Hit rate")}</span>
-            <strong>{t(hitRateLabel(summary.won, summary.lost))}</strong>
-          </div>
-          <div className="stat-row">
-            <span>{t("Net")}</span>
-            <strong>
-              {formatNumber(summary.net)} {t("credits")}
-            </strong>
-          </div>
-          <div className="form-block">
-            <span>
-              {t("Times reset:")} {formatNumber(summary.resetCount)}{" "}
-              {t("— a reset makes this record less meaningful.")}{" "}
-            </span>
-          </div>
-        </Card>
+        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <Resolved promise={summaryPromise}>
+            {(summary) => (
+              <Card title={t("Detail")} titleId="detail-heading">
+                <div className="stat-row">
+                  <span>{t("Hit rate")}</span>
+                  <strong>{t(hitRateLabel(summary.won, summary.lost))}</strong>
+                </div>
+                <div className="stat-row">
+                  <span>{t("Net")}</span>
+                  <strong>
+                    {formatNumber(summary.net)} {t("credits")}
+                  </strong>
+                </div>
+                <div className="form-block">
+                  <span>
+                    {t("Times reset:")} {formatNumber(summary.resetCount)}{" "}
+                    {t("— a reset makes this record less meaningful.")}{" "}
+                  </span>
+                </div>
+              </Card>
+            )}
+          </Resolved>
+        </Suspense>
       </div>
 
-      <section className="panel" aria-labelledby="you-history-heading">
-        <div className="panel-header">
-          <h2 className="panel-title" id="you-history-heading">
-            {t("History")}{" "}
-          </h2>
-          <span className="fine-print">
-            {t("Page")} {page}
-          </span>
-        </div>
+      <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <Resolved promise={historyPromise}>
+          {(history) => (
+            <section className="panel" aria-labelledby="you-history-heading">
+              <div className="panel-header">
+                <h2 className="panel-title" id="you-history-heading">
+                  {t("History")}{" "}
+                </h2>
+                <span className="fine-print">
+                  {t("Page")} {page}
+                </span>
+              </div>
 
-        <form
-          method="get"
-          aria-label={t("Filter wager history")}
-          className="filter-bar"
-        >
-          <div>
-            <label htmlFor="you-sport" className="field-label">
-              {t("Sport")}{" "}
-            </label>
-            <select
-              id="you-sport"
-              name="sport"
-              className="control-select"
-              defaultValue={filters.sport}
-            >
-              <option value="all">{t("All sports")}</option>
-              <option value="soccer">{t("Soccer")}</option>
-              <option value="baseball">{t("Baseball")}</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="you-outcome" className="field-label">
-              {t("Outcome")}{" "}
-            </label>
-            <select
-              id="you-outcome"
-              name="outcome"
-              className="control-select"
-              defaultValue={filters.outcome}
-            >
-              <option value="all">{t("All outcomes")}</option>
-              <option value="open">{t("Open")}</option>
-              <option value="won">{t("Won")}</option>
-              <option value="lost">{t("Lost")}</option>
-              <option value="void">{t("Void")}</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="you-range" className="field-label">
-              {t("Time range")}{" "}
-            </label>
-            <select
-              id="you-range"
-              name="range"
-              className="control-select"
-              defaultValue={filters.range}
-            >
-              <option value="all">{t("All time")}</option>
-              <option value="7d">{t("Last 7 days")}</option>
-              <option value="30d">{t("Last 30 days")}</option>
-              <option value="90d">{t("Last 90 days")}</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="you-scope" className="field-label">
-              {t("Placed")}{" "}
-            </label>
-            <select
-              id="you-scope"
-              name="scope"
-              className="control-select"
-              defaultValue={filters.scope}
-            >
-              <option value="all">{t("Solo and group")}</option>
-              <option value="solo">{t("Solo only")}</option>
-              <option value="group">{t("Group only")}</option>
-            </select>
-          </div>
-          <Button type="submit" size="sm">
-            {t("Apply filters")}{" "}
-          </Button>
-        </form>
+              <form
+                method="get"
+                aria-label={t("Filter wager history")}
+                className="filter-bar"
+              >
+                <div>
+                  <label htmlFor="you-sport" className="field-label">
+                    {t("Sport")}{" "}
+                  </label>
+                  <select
+                    id="you-sport"
+                    name="sport"
+                    className="control-select"
+                    defaultValue={filters.sport}
+                  >
+                    <option value="all">{t("All sports")}</option>
+                    <option value="soccer">{t("Soccer")}</option>
+                    <option value="baseball">{t("Baseball")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="you-outcome" className="field-label">
+                    {t("Outcome")}{" "}
+                  </label>
+                  <select
+                    id="you-outcome"
+                    name="outcome"
+                    className="control-select"
+                    defaultValue={filters.outcome}
+                  >
+                    <option value="all">{t("All outcomes")}</option>
+                    <option value="open">{t("Open")}</option>
+                    <option value="won">{t("Won")}</option>
+                    <option value="lost">{t("Lost")}</option>
+                    <option value="void">{t("Void")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="you-range" className="field-label">
+                    {t("Time range")}{" "}
+                  </label>
+                  <select
+                    id="you-range"
+                    name="range"
+                    className="control-select"
+                    defaultValue={filters.range}
+                  >
+                    <option value="all">{t("All time")}</option>
+                    <option value="7d">{t("Last 7 days")}</option>
+                    <option value="30d">{t("Last 30 days")}</option>
+                    <option value="90d">{t("Last 90 days")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="you-scope" className="field-label">
+                    {t("Placed")}{" "}
+                  </label>
+                  <select
+                    id="you-scope"
+                    name="scope"
+                    className="control-select"
+                    defaultValue={filters.scope}
+                  >
+                    <option value="all">{t("Solo and group")}</option>
+                    <option value="solo">{t("Solo only")}</option>
+                    <option value="group">{t("Group only")}</option>
+                  </select>
+                </div>
+                <Button type="submit" size="sm">
+                  {t("Apply filters")}{" "}
+                </Button>
+              </form>
 
-        <BetsHistory items={history.items} emptyState={emptyState} />
+              <BetsHistory items={history.items} emptyState={emptyState} />
 
-        <div className="panel-body flex items-center justify-between">
-          {page > 1 ? (
-            <Button asChild variant="secondary" size="sm">
-              <Link href={buildHref(filters, page - 1)}>{t("Prev")}</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" size="sm" disabled>
-              {t("Prev")}{" "}
-            </Button>
+              <div className="panel-body flex items-center justify-between">
+                {page > 1 ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={buildHref(filters, page - 1)}>{t("Prev")}</Link>
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" disabled>
+                    {t("Prev")}{" "}
+                  </Button>
+                )}
+                {history.hasMore ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={buildHref(filters, page + 1)}>{t("Next")}</Link>
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" disabled>
+                    {t("Next")}{" "}
+                  </Button>
+                )}
+              </div>
+            </section>
           )}
-          {history.hasMore ? (
-            <Button asChild variant="secondary" size="sm">
-              <Link href={buildHref(filters, page + 1)}>{t("Next")}</Link>
-            </Button>
-          ) : (
-            <Button variant="secondary" size="sm" disabled>
-              {t("Next")}{" "}
-            </Button>
-          )}
-        </div>
-      </section>
+        </Resolved>
+      </Suspense>
 
       <section className="panel" aria-labelledby="you-settings-heading">
         <div className="panel-header">
@@ -432,4 +468,14 @@ export default async function Page({ searchParams }: Props) {
       </section>
     </>
   );
+}
+
+async function Resolved<T>({
+  promise,
+  children,
+}: {
+  promise: Promise<T>;
+  children: (value: T) => ReactNode;
+}) {
+  return children(await promise);
 }

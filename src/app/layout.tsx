@@ -5,8 +5,10 @@ import { LanguageProvider } from "@/components/language-provider";
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { AccountControl } from "@/components/account-control";
+import { RefreshVisiblePage } from "@/components/refresh-visible-page";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
+import "./games/[id]/matchup.css";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -109,6 +111,7 @@ export default async function RootLayout({
                 </Suspense>
               }
             >
+              <RefreshVisiblePage />
               {children}
             </AppShell>
           </Suspense>

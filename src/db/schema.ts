@@ -437,6 +437,16 @@ export const wagers = pgTable(
     index("wagers_user_created_idx").on(table.userId, table.createdAt),
     index("wagers_game_idx").on(table.canonicalGameId),
     index("wagers_group_idx").on(table.groupId),
+    index("wagers_user_game_group_idx").on(
+      table.userId,
+      table.canonicalGameId,
+      table.groupId,
+    ),
+    index("wagers_group_game_user_idx").on(
+      table.groupId,
+      table.canonicalGameId,
+      table.userId,
+    ),
   ],
 );
 
@@ -483,6 +493,9 @@ export const creditEntries = pgTable(
   },
   (table) => [
     index("credit_entries_user_created_idx").on(table.userId, table.createdAt),
+    index("credit_entries_wager_activity_idx")
+      .on(table.wagerId)
+      .where(sql`${table.kind} in ('stake', 'return')`),
     // The real guarantee behind "concurrent account creation cannot produce two
     // grants" — same technique as ingestion_runs_active_lease_uidx.
     uniqueIndex("credit_entries_user_grant_uidx")

@@ -4,16 +4,24 @@ import { Slate } from "@/components/slate";
 import type { DashboardData } from "@/data/sports-data";
 import type { Freshness, GameSchedule, Team } from "@/lib/contracts";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => null,
+  usePathname: () => "/",
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch,
     ...props
   }: {
     children: React.ReactNode;
     href: string;
+    prefetch?: boolean;
   }) => (
-    <a href={href} {...props}>
+    <a data-prefetch={String(prefetch)} href={href} {...props}>
       {children}
     </a>
   ),

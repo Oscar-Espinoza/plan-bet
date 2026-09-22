@@ -31,7 +31,7 @@ function updateLast(turns: Turn[], patch: Partial<Turn>): Turn[] {
   return next;
 }
 
-export function Buddy() {
+export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const hydrated = useMatchdayStore((state) => state.hydrated);
@@ -39,7 +39,7 @@ export function Buddy() {
   const conversation = useMatchdayStore((state) => state.buddyConversation);
   const draftComment = useMatchdayStore((state) => state.draftComment);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);

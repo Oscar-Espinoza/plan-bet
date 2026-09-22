@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidatePublicSports } from "@/data/public-cache";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
 import {
@@ -209,6 +210,7 @@ export async function settleWagers(input: {
     ...counts,
   });
 
+  if (counts.settled) invalidatePublicSports();
   if (runError) throw runError;
 
   // Sent after the lease is released, so a slow mail provider never holds the

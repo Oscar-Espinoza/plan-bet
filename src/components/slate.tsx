@@ -1,4 +1,7 @@
 "use client";
+
+import { useSearchParams } from "next/navigation";
+import { LocalLink, MatchLink } from "@/components/fast-link";
 import { useTranslation } from "@/components/language-provider";
 import { intlLocale, type Locale } from "@/lib/locale";
 import Link from "next/link";
@@ -70,7 +73,7 @@ function dayLabel(
 
 export function Slate({
   data,
-  sport,
+  sport: _initialSport,
   tz,
 }: {
   data: DashboardData;
@@ -78,6 +81,10 @@ export function Slate({
   tz: string;
 }) {
   const { t, locale } = useTranslation();
+  const params = useSearchParams();
+  const filter = params ? (params.get("sport") ?? "all") : _initialSport;
+  const sport: SportFilter =
+    filter === "soccer" || filter === "baseball" ? filter : "all";
   const games = Object.values(data)
     .flatMap((schedule) => schedule.games)
     .filter((game) => !isDuplicate(game))
@@ -162,10 +169,10 @@ export function Slate({
               </span>
             </div>
             <Button asChild className="next-up-cta">
-              <Link href={`/games/${nextUp.id}`}>
+              <MatchLink eager href={`/games/${nextUp.id}`}>
                 {t("View Match & Place Bet")}{" "}
                 <ChevronRight aria-hidden="true" size={20} />
-              </Link>
+              </MatchLink>
             </Button>
           </div>
           <div className="slate-freshness slate-freshness-standalone">
@@ -210,7 +217,7 @@ export function Slate({
 
       <nav className="slate-filters" aria-label={t("Filter by sport")}>
         {FILTERS.map((filter) => (
-          <Link
+          <LocalLink
             key={filter.value}
             href={filter.href}
             className={cn(
@@ -220,7 +227,7 @@ export function Slate({
             aria-current={sport === filter.value ? "page" : undefined}
           >
             <span>{t(filter.label)}</span>
-          </Link>
+          </LocalLink>
         ))}
         <TimezoneLegend />
       </nav>
@@ -239,7 +246,7 @@ export function Slate({
           </div>
           <div className="game-list live-game-list">
             {liveGames.map((game) => (
-              <Link
+              <MatchLink
                 className="game-row game-row-live"
                 href={`/games/${game.id}`}
                 key={game.id}
@@ -256,7 +263,7 @@ export function Slate({
                   </span>
                 </span>
                 <ChevronRight aria-hidden="true" className="game-chevron" />
-              </Link>
+              </MatchLink>
             ))}
           </div>
         </section>
@@ -282,7 +289,7 @@ export function Slate({
               </div>
               <div className="game-list">
                 {group.games.map((game) => (
-                  <Link
+                  <MatchLink
                     className={cn(
                       "game-row",
                       game.id === nextUp?.id && "game-row-next",
@@ -323,7 +330,7 @@ export function Slate({
                       aria-hidden="true"
                       size={18}
                     />
-                  </Link>
+                  </MatchLink>
                 ))}
               </div>
             </section>

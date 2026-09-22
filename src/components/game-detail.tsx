@@ -24,10 +24,14 @@ export function GameDetail({
   data,
   team,
   wagering,
+  wageringPanel,
+  socialPanel,
 }: {
   data: GameDetailData;
   team: Team;
   wagering?: WagerPanelData;
+  wageringPanel?: React.ReactNode;
+  socialPanel?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const view = buildMatchView(data.snapshot, team);
@@ -142,6 +146,7 @@ export function GameDetail({
                 </p>
               </div>
             )}
+            {wageringPanel}
             {wagering && (
               <aside
                 className="mp-action"
@@ -158,6 +163,7 @@ export function GameDetail({
                 />
               </aside>
             )}
+            {socialPanel}
             {wagering?.signedIn && wagering.threads.length > 0 && (
               <section
                 className="group-discussion"

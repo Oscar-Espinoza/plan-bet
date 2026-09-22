@@ -1,4 +1,5 @@
 import "server-only";
+import { invalidatePublicSports } from "@/data/public-cache";
 
 import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
@@ -102,6 +103,7 @@ export async function upsertFixtureContext(input: {
       target: fixtureContext.gameId,
       set: { facts: input.facts, summary: input.summary, builtAt },
     });
+  invalidatePublicSports();
 }
 
 export type DueGame = {

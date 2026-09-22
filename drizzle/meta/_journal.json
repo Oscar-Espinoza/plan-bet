@@ -99,6 +99,13 @@
       "when": 1790043554414,
       "tag": "0013_puzzling_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790047455377,
+      "tag": "0014_rare_nighthawk",
+      "breakpoints": true
     }
   ]
 }

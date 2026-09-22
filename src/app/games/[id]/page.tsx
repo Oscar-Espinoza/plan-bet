@@ -1,8 +1,14 @@
+import { getTranslation } from "@/lib/locale-server";
+import { GameThread } from "@/components/game-thread";
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cache } from "react";
-import type { WagerPanelData, WagerPanelState } from "@/components/bet-slip";
+import { cache, Suspense } from "react";
+import {
+  BetSlip,
+  type WagerPanelData,
+  type WagerPanelState,
+} from "@/components/bet-slip";
 import { GameDetail } from "@/components/game-detail";
 import { getCreditSummary } from "@/data/credits";
 import {
@@ -26,7 +32,9 @@ import { getTeam } from "@/lib/seed";
 type Props = { params: Promise<{ id: string }> };
 
 export const dynamic = "force-dynamic";
-export const unstable_dynamicStaleTime = 300;
+export const unstable_dynamicStaleTime = 30;
+const loadWagerGame = cache(readGameForWager);
+const loadGameWagers = cache(listWagersForGame);
 const loadGame = cache((id: string) =>
   getGameDetail(id, { requestId: randomUUID() }),
 );
@@ -58,7 +66,7 @@ async function loadWagering(
       : { signedIn: false, routeId };
   }
 
-  const game = await readGameForWager(routeId);
+  const game = await loadWagerGame(routeId);
   if (!game) {
     return {
       signedIn: true,
@@ -70,15 +78,13 @@ async function loadWagering(
     };
   }
 
-  const [summary, gameWagers, groups, record, groupPicks, threads] =
-    await Promise.all([
-      getCreditSummary(account.userId),
-      listWagersForGame(account.userId, game.canonicalId),
-      listGroupsForUser(account.userId),
-      getRecordSlices(account.userId),
-      listGroupWagersForGame(account.userId, game.canonicalId),
-      listCommentThreads(account.userId, game.canonicalId),
-    ]);
+  const [summary, gameWagers, groups, record, groupPicks] = await Promise.all([
+    getCreditSummary(account.userId),
+    loadGameWagers(account.userId, game.canonicalId),
+    listGroupsForUser(account.userId),
+    getRecordSlices(account.userId),
+    listGroupWagersForGame(account.userId, game.canonicalId),
+  ]);
   const availability = evaluateWagerAvailability(game.summary);
   const state: WagerPanelState = availability.open
     ? {
@@ -90,14 +96,6 @@ async function loadWagering(
       }
     : { kind: "closed", reason: availability.reason };
 
-  // Derived once here, the same clock postComment re-derives on write —
-  // never trusted from anywhere else.
-  const currentPhase = commentPhase(
-    game.summary.scheduledAt,
-    new Date(),
-    game.summary.status,
-  );
-
   return {
     signedIn: true,
     routeId,
@@ -108,6 +106,102 @@ async function loadWagering(
       userName: pick.userName,
       groupName: pick.groupName,
     })),
+    threads: [],
+  };
+}
+
+export default async function GamePage({ params }: Props) {
+  const { t } = await getTranslation();
+  const { id } = await params;
+  const detail = await loadGame(id);
+  if (!detail) notFound();
+  const team = getTeam(detail.snapshot.game.teamSlug);
+  if (!team) notFound();
+  return (
+    <GameDetail
+      data={detail}
+      team={team}
+      wageringPanel={
+        <Suspense
+          fallback={
+            <aside
+              className="mp-action"
+              aria-busy="true"
+              aria-label={t("Place a bet")}
+            >
+              <p role="status">{t("Loading…")}</p>
+            </aside>
+          }
+        >
+          <WageringPanel
+            finished={detail.snapshot.game.status === "finished"}
+            routeId={id}
+            home={detail.snapshot.game.homeTeam}
+            away={detail.snapshot.game.awayTeam}
+          />
+        </Suspense>
+      }
+      socialPanel={
+        <Suspense fallback={null}>
+          <SocialPanel
+            routeId={id}
+            home={detail.snapshot.game.homeTeam}
+            away={detail.snapshot.game.awayTeam}
+          />
+        </Suspense>
+      }
+    />
+  );
+}
+
+async function WageringPanel({
+  routeId,
+  home,
+  away,
+  finished,
+}: {
+  routeId: string;
+  home: string;
+  away: string;
+  finished: boolean;
+}) {
+  const { t } = await getTranslation();
+  const data = await loadWagering(routeId);
+  if (!data) return null;
+  return (
+    <aside
+      className="mp-action"
+      aria-label={t(finished ? "Your match results" : "Place a bet")}
+    >
+      <BetSlip data={data} matchFinished={finished} matchup={{ home, away }} />
+    </aside>
+  );
+}
+
+async function SocialPanel({
+  routeId,
+  home,
+  away,
+}: {
+  routeId: string;
+  home: string;
+  away: string;
+}) {
+  const account = await requireAccount();
+  if (!account.ok) return null;
+  const game = await loadWagerGame(routeId);
+  if (!game) return null;
+  const [threads, gameWagers, { t }] = await Promise.all([
+    listCommentThreads(account.userId, game.canonicalId),
+    loadGameWagers(account.userId, game.canonicalId),
+    getTranslation(),
+  ]);
+  const currentPhase = commentPhase(
+    game.summary.scheduledAt,
+    new Date(),
+    game.summary.status,
+  );
+  const data = {
     threads: threads.map((thread) => ({
       groupId: thread.groupId,
       groupName: thread.groupName,
@@ -125,14 +219,22 @@ async function loadWagering(
       pins: pickPins(thread.comments),
     })),
   };
-}
-
-export default async function GamePage({ params }: Props) {
-  const { id } = await params;
-  const detail = await loadGame(id);
-  if (!detail) notFound();
-  const team = getTeam(detail.snapshot.game.teamSlug);
-  if (!team) notFound();
-  const wagering = await loadWagering(id);
-  return <GameDetail data={detail} team={team} wagering={wagering} />;
+  if (!data.threads.length) return null;
+  return (
+    <section
+      className="group-discussion"
+      id="group-discussion"
+      aria-labelledby="group-discussion-heading"
+    >
+      <h2 id="group-discussion-heading">{t("Group discussion")}</h2>
+      {data.threads.map((thread) => (
+        <GameThread
+          key={thread.groupId}
+          routeId={routeId}
+          thread={thread}
+          matchup={{ home, away }}
+        />
+      ))}
+    </section>
+  );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { LocalDateTime } from "./local-date-time";
+import { gameCommentSchema } from "@/lib/contracts";
 import type {
   CommentVoteKind,
   GameComment,
@@ -56,6 +57,9 @@ export function GameThread({
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [localComments, setLocalComments] = useState<GameComment[]>([]);
+  const [optimisticVotes, setOptimisticVotes] = useState<string[]>([]);
+  const [pendingBody, setPendingBody] = useState("");
   const [votePending, setVotePending] = useState("");
   const [voteError, setVoteError] = useState("");
   const fieldId = `comment-${thread.groupId}`;
@@ -91,6 +95,7 @@ export function GameThread({
     event.preventDefault();
     if (!canPost || pending) return;
     setPending(true);
+    setPendingBody(body);
     setError("");
     const response = await fetch(`/api/games/${routeId}/comments`, {
       method: "POST",
@@ -102,6 +107,7 @@ export function GameThread({
       }),
     }).catch(() => null);
     setPending(false);
+    setPendingBody("");
 
     if (!response?.ok) {
       const payload: unknown = await response?.json().catch(() => null);
@@ -115,6 +121,9 @@ export function GameThread({
       return;
     }
 
+    const payload = await response.json().catch(() => null);
+    const saved = gameCommentSchema.safeParse(payload?.data?.comment);
+    if (saved.success) setLocalComments((current) => [...current, saved.data]);
     if (replyTarget)
       setExpanded((ids) => [
         ...new Set([...ids, replyTarget.parentCommentId ?? replyTarget.id]),
@@ -127,6 +136,8 @@ export function GameThread({
 
   const vote = async (commentId: string, kind: CommentVoteKind) => {
     const key = `${commentId}:${kind}`;
+    if (votePending || optimisticVotes.includes(key)) return;
+    setOptimisticVotes((current) => [...current, key]);
     setVotePending(key);
     setVoteError("");
     const response = await fetch(`/api/comments/${commentId}/votes`, {
@@ -144,6 +155,7 @@ export function GameThread({
               (payload as { error: { message?: string } }).error?.message ?? "",
             )
           : "";
+      setOptimisticVotes((current) => current.filter((value) => value !== key));
       setVoteError(text || "The vote did not go through. Try again.");
       return;
     }
@@ -151,9 +163,26 @@ export function GameThread({
     router.refresh();
   };
 
-  const comments = [...thread.comments].sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt),
-  );
+  const comments = [
+    ...thread.comments,
+    ...localComments.filter(
+      (local) => !thread.comments.some((comment) => comment.id === local.id),
+    ),
+  ]
+    .map((comment) => {
+      const added = (["shame", "slander"] as const).filter(
+        (kind) =>
+          optimisticVotes.includes(`${comment.id}:${kind}`) &&
+          !comment.viewerVoted.includes(kind),
+      );
+      return {
+        ...comment,
+        shameVotes: comment.shameVotes + Number(added.includes("shame")),
+        slanderVotes: comment.slanderVotes + Number(added.includes("slander")),
+        viewerVoted: [...comment.viewerVoted, ...added],
+      };
+    })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const ids = new Set(comments.map((comment) => comment.id));
   const roots = comments.filter(
     (comment) => !comment.parentCommentId || !ids.has(comment.parentCommentId),
@@ -244,6 +273,11 @@ export function GameThread({
       {comments.length === 0 && (
         <p className="discussion-empty">
           {t("No comments yet. Start the conversation.")}
+        </p>
+      )}
+      {pendingBody && (
+        <p className="discussion-body" role="status" aria-busy="true">
+          {pendingBody} — {t("Posting…")}
         </p>
       )}
       <div className="discussion-threads">

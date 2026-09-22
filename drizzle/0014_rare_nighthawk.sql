@@ -1,0 +1,3 @@
+CREATE INDEX "credit_entries_wager_activity_idx" ON "credit_entries" USING btree ("wager_id") WHERE "credit_entries"."kind" in ('stake', 'return');--> statement-breakpoint
+CREATE INDEX "wagers_user_game_group_idx" ON "wagers" USING btree ("user_id","canonical_game_id","group_id");--> statement-breakpoint
+CREATE INDEX "wagers_group_game_user_idx" ON "wagers" USING btree ("group_id","canonical_game_id","user_id");

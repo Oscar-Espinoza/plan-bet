@@ -4,6 +4,7 @@ import { Slate } from "@/components/slate";
 import { getCachedDashboardData } from "@/data/sports-data";
 
 export const dynamic = "force-dynamic";
+export const unstable_dynamicStaleTime = 30;
 
 const sportFilterSchema = z.enum(["all", "soccer", "baseball"]).catch("all");
 

@@ -3,6 +3,7 @@
 import { LanguageSwitch, useTranslation } from "@/components/language-provider";
 import type { Message } from "@/lib/locale";
 import Link from "next/link";
+import { LocalLink } from "@/components/fast-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -11,7 +12,7 @@ import {
   Trophy,
   UserRound,
 } from "lucide-react";
-import { Buddy } from "@/components/buddy";
+import { Buddy } from "@/components/buddy-launcher";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,7 @@ export function AppShell({
               </Link>
             )}
             <Link
+              prefetch={false}
               href="/"
               className="brand"
               aria-label={t("Matchday Plan home")}
@@ -99,7 +101,7 @@ export function AppShell({
                   activeSection,
                 );
                 return (
-                  <Link
+                  <LocalLink
                     className={cn("nav-link", active && "nav-link-active")}
                     href={item.href}
                     key={item.href}
@@ -107,7 +109,7 @@ export function AppShell({
                   >
                     <item.icon aria-hidden="true" size={17} />
                     {t(item.label as Message)}
-                  </Link>
+                  </LocalLink>
                 );
               })}
             </nav>
@@ -167,7 +169,7 @@ export function AppShell({
             activeSection,
           );
           return (
-            <Link
+            <LocalLink
               className={cn(
                 "mobile-nav-link",
                 active && "mobile-nav-link-active",
@@ -178,7 +180,7 @@ export function AppShell({
             >
               <item.icon aria-hidden="true" size={18} />
               {t(item.label as Message)}
-            </Link>
+            </LocalLink>
           );
         })}
       </nav>

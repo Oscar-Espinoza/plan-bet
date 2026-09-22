@@ -318,9 +318,8 @@ export type WagerHistoryFilter = {
  * Newest first, `limit + 1` rows fetched so "there is a next page" needs no
  * separate count query — the caller slices to `limit` and treats a longer
  * result as `hasMore`. Filtering on outcome/open needs the settlement join
- * up front (a wager the plain `wagers` table alone can't answer); the actual
- * settlement payload for the returned page still comes from `attachSettled`,
- * the one place that shape is built.
+ * up front (a wager the plain `wagers` table alone can't answer); settlement
+ * and final-score fields come from the same query, avoiding two follow-up reads.
  */
 export async function listWagerHistory(
   userId: string,
@@ -340,7 +339,13 @@ export async function listWagerHistory(
   else if (filter.scope === "group") conditions.push(isNotNull(wagers.groupId));
 
   const rows = await getDatabase()
-    .select({ wager: wagers })
+    .select({
+      wager: wagers,
+      outcome: creditEntries.outcome,
+      returned: creditEntries.amount,
+      settledAt: creditEntries.createdAt,
+      summary: games.summary,
+    })
     .from(wagers)
     .leftJoin(
       creditEntries,
@@ -349,14 +354,33 @@ export async function listWagerHistory(
         eq(creditEntries.kind, "return"),
       ),
     )
+    .leftJoin(games, eq(games.canonicalId, wagers.canonicalGameId))
     .where(and(...conditions))
     .orderBy(desc(wagers.createdAt))
     .limit(filter.limit + 1)
     .offset(filter.offset);
 
   const hasMore = rows.length > filter.limit;
-  const page = rows.slice(0, filter.limit).map((row) => row.wager);
-  return { items: await attachSettled(page), hasMore };
+  const items = rows.slice(0, filter.limit).map((row) => {
+    const result = row.summary
+      ? gameSummarySchema.parse(row.summary).result
+      : undefined;
+    return rowToWager(
+      row.wager,
+      row.outcome && row.settledAt
+        ? {
+            outcome: row.outcome,
+            returned: row.returned!,
+            settledAt: row.settledAt.toISOString(),
+            finalScore:
+              row.outcome !== "void" && result
+                ? { homeScore: result.homeScore, awayScore: result.awayScore }
+                : undefined,
+          }
+        : undefined,
+    );
+  });
+  return { items, hasMore };
 }
 
 const SPORT_LABELS: Record<Sport, string> = {
@@ -373,7 +397,9 @@ const SPORT_LABELS: Record<Sport, string> = {
  * rather than one query with `grouping sets`, since two readable selects beat
  * one clever one for a two-dimension breakdown nobody is paginating.
  */
-export async function getRecordSlices(userId: string): Promise<RecordSlices> {
+export const getRecordSlices = cache(async function getRecordSlices(
+  userId: string,
+): Promise<RecordSlices> {
   const counts = {
     won: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'won')::int`,
     lost: sql<number>`count(*) filter (where ${creditEntries.outcome} = 'lost')::int`,
@@ -423,7 +449,7 @@ export async function getRecordSlices(userId: string): Promise<RecordSlices> {
       voided: row.voided,
     })),
   });
-}
+});
 
 /** React.cache()'d — /you reads this for the page and the topbar chip both. */
 export const countOpenWagers = cache(async function countOpenWagers(
