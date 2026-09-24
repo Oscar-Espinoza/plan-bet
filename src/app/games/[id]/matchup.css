@@ -964,13 +964,12 @@
 
 /* ---------- the bet bar ---------- */
 
-/* Pinned to the bottom of the scroll area while the slip is on screen.
-   Opaque, with a shadow up, so the markets scrolling under it stay readable.
-   No offset on a phone: .workspace-scroll's bottom padding already clears
-   the tour bar, and sticky insets count from inside that padding. */
+/* Pinned to the bottom of the scroll area while the slip is on screen, above
+   the tour bar when that is showing. Opaque, with a shadow up, so the markets
+   scrolling under it stay readable. */
 .bet-bar {
   position: sticky;
-  bottom: 0;
+  bottom: var(--tour-h);
   z-index: 2;
   display: grid;
   gap: 10px;
@@ -978,13 +977,6 @@
   border-top: 1px solid var(--rule-strong);
   background: var(--slat-muted);
   box-shadow: 0 -12px 24px rgb(0 0 0 / 35%);
-}
-
-/* Above 1024px the document scrolls and the tour bar is fixed to it. */
-@media (min-width: 1024px) {
-  .bet-bar {
-    bottom: var(--tour-h);
-  }
 }
 
 .bet-bar .wager-feedback:empty {

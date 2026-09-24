@@ -263,13 +263,10 @@ a {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-/* The tour bar is fixed over the bottom of the scroller; the padding lets the
-   last row scroll clear of it. */
 .workspace-scroll {
   display: flex;
   min-height: 0;
   flex-direction: column;
-  padding-bottom: var(--tour-h);
   overflow-y: auto;
   overscroll-behavior-y: contain;
 }
@@ -379,9 +376,13 @@ a {
   border-radius: var(--radius-sm);
 }
 
+/* The tour bar is fixed over the bottom of the page; the footer's padding
+   lets the last row scroll clear of it. On the footer rather than the
+   scroller because the footer starts below the fold, so the bar mounting
+   after hydration moves nothing on screen. */
 .app-footer {
   border-top: 1px solid var(--rule);
-  padding: 1rem;
+  padding: 1rem 1rem calc(1rem + var(--tour-h));
 }
 
 /* Room for the floating Buddy button, so it never sits on the fine print. */
@@ -1634,7 +1635,7 @@ a {
   }
 
   .app-footer {
-    padding: 1rem 2rem;
+    padding-inline: 2rem;
   }
 }
 
