@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Call the jcodemunch_guide tool and strictly follow its instructions.
-
 ## Project
 
 Matchday Plan (repo `plan-bet`): a Next.js 16 App Router workspace for practicing wager calls on real upcoming fixtures for four teams (Real Madrid, Barcelona, Yankees, Red Sox), with source-backed context, sign-in-gated accounts, and a free-to-play wager simulator on fictional credits. Deployed at plan-bet.vercel.app.
