@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_STAKE, MIN_STAKE } from "@/lib/markets";
 
 export const sportSchema = z.enum(["soccer", "baseball"]);
 export type Sport = z.infer<typeof sportSchema>;
@@ -247,10 +248,9 @@ export const wagerPlacementSchema = z.object({
   selectionId: z.string().min(1).max(100),
   // Echo only: compared against the server's price, never stored.
   price: z.number().positive(),
-  // 63_161_283 is MAX_STAKE in src/lib/markets.ts — a column bound, not a
-  // product limit; the real limit is the balance, checked in the placement
-  // transaction. markets.test.ts asserts this literal still matches.
-  stake: z.number().int().min(1).max(63_161_283),
+  // MAX_STAKE is a column bound, not a product limit; the real limit is the
+  // balance, checked in the placement transaction.
+  stake: z.number().int().min(MIN_STAKE).max(MAX_STAKE),
   // Absent = solo wager. Re-checked against real membership server-side,
   // same as price — a client-supplied groupId is never trusted alone.
   groupId: z.uuid().optional(),

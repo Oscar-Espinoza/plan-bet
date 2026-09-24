@@ -28,7 +28,7 @@ export async function GET() {
   >;
 
   // Four providers x two queries each, plus the buddy lookup below, is nine
-  // round trips. Health is polled by monitors and by the e2e suite, so they run
+  // round trips. Health is polled by monitors, so they run
   // concurrently rather than one after another.
   const states = await Promise.all(
     (

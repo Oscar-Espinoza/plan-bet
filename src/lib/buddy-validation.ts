@@ -3,7 +3,7 @@ export const MAX_REPLY_CHARS = 700;
 
 /**
  * Narrower than the briefing's ban: the buddy is allowed to lean and predict,
- * CLAUDE.md's rule change is what permits that. What it may never do is talk
+ * AGENTS.md's out-of-scope rule is what permits that. What it may never do is talk
  * like a sportsbook, invent a number it has no basis for, or turn on the
  * reader personally.
  *

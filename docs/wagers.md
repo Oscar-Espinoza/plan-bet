@@ -1,0 +1,16 @@
+# Wager simulator rules
+
+Sessions 06–09, implemented. How placement and settlement are built is in [architecture › Wager simulator](architecture.md#wager-simulator-markets-placement-and-settlement).
+
+- Wagers are append-only. No status column, no `updated_at`, no update or delete path. State is derived from whether a `credit_entries` row of kind `return` exists for that wager, the same way freshness is derived from stored expiry.
+- Balance is the sum of an append-only credit ledger, never a stored column.
+- Settlement inserts once (`credit_entries_wager_return_uidx`, a partial unique index on `wager_id where kind = 'return'`, conflict-do-nothing) so a repeated run cannot pay twice, and is decided by the provider result feed alone — via `gradeSelection` in `src/lib/markets.ts` — never by the language model.
+- There is no separate `settlements` table. The `return` credit_entries row **is** the settlement record (`outcome` + `settlement_run_id` columns, null on every other kind); a second table would only duplicate what the unique index above already guarantees atomically.
+- Settlement (`src/data/settlement.ts`, `POST /api/cron/settle`) reuses `ingestion_runs` for its lease and run record — `provider = "settlement"`, `operation = "settle"`, `scope = "all"` — rather than a bespoke lease table, the same partial-unique-on-`running` index that guards provider refreshes.
+- The price shown at placement is re-read server-side, frozen into the wager, and never recalculated. A client-supplied price is never trusted.
+- **The only limit on a stake is the balance**, summed from the ledger and checked inside the placement transaction (`src/data/wagers.ts`) before any row is written. `MAX_STAKE` in `src/lib/markets.ts` is not a product cap: it is the int4 column bound, derived as `INT4_MAX / HIGHEST_PRICE` (the highest price is computed from the price tables) so a maximum return still fits `wagers.potential_return`. `contracts.ts` imports it — `markets.ts` only imports types from `contracts.ts`, so there is no runtime cycle. Typing over the balance warns and disables Place rather than rewriting the entered value.
+- A market is only placeable when both a cached price and a stored result field that grades it exist. Corners, cards, and assists are not gradable from current providers and are not offered — a known, permanent gap, not a TODO.
+- There is no `push` outcome. Every published line ends in `.5` (`soccer-total-2-5`, `baseball-total-8-5`), so a push cannot arise; `Grade` is `won | lost | void` only.
+- Wagers key on the canonical game ID (`football-data-564645`, `mlb-{gamePk}`), not the team-perspective route ID, so one real game is not counted twice.
+- Prices are fixed house prices published by this app (`src/lib/markets.ts`), identical for every game of a sport and never recomputed from a vendor feed — never licensed from a sportsbook. There is no odds API.
+- `src/data/wagers.ts` (placement) + `src/data/wagers-repository.ts` (reads) + `src/data/settlement.ts` (grading). `pg_advisory_xact_lock` classids 3–7 are taken (3 credit reset, 4 wager placement, 5 group invites — creating/reusing a join link, revoking, accepting, 6 buddy session quota, 7 buddy IP quota); 1 and 2 were the briefing quotas and are free again, but the next feature needing one claims classid 8 rather than reusing them.

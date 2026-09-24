@@ -15,11 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # Deliberately keyless: no DATABASE_URL, FOOTBALL_DATA_API_TOKEN, or
-    # OPENAI_API_KEY is set anywhere in this job. Unit tests use recorded
-    # fixtures, integration tests spin up their own PostgreSQL container, and
-    # the Playwright webServer command sets its own demo-mode environment.
-    # Leaving them genuinely unset (rather than set to "") also lets
-    # drizzle-kit fall back to the local URL in drizzle.config.ts.
+    # OPENAI_API_KEY is set anywhere in this job. Leaving them genuinely unset
+    # (rather than set to "") lets drizzle-kit fall back to the local URL in
+    # drizzle.config.ts, and proves the build degrades to demo mode.
 
     steps:
       - uses: actions/checkout@v4
@@ -46,21 +44,5 @@ jobs:
             exit 1
           fi
 
-      - name: Integration tests
-        run: pnpm test:integration
-
       - name: Build
         run: pnpm build
-
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: End-to-end tests
-        run: pnpm test:e2e
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7

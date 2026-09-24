@@ -13,10 +13,6 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
@@ -28,8 +24,7 @@
     "data:apisports:teams": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-teams.ts",
     "data:apisports:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/apisports-probe.ts",
     "data:mcp:probe": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/mcp-probe.ts",
-    "data:enrich": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/enrich.ts",
-    "test:fixtures": "playwright test --config playwright.fixtures.config.ts"
+    "data:enrich": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx scripts/enrich.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",
@@ -55,27 +50,17 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
-    "@testcontainers/postgresql": "12.1.0",
-    "@testing-library/jest-dom": "6.9.1",
-    "@testing-library/react": "16.3.2",
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@vitejs/plugin-react": "6.0.5",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.11",
-    "jsdom": "30.0.1",
-    "postgres": "3.4.9",
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.12",
-    "typescript": "6.0.3",
-    "vite": "8.2.1",
-    "vitest": "4.1.10"
+    "typescript": "6.0.3"
   }
 }

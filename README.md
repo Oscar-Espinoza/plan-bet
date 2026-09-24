@@ -30,7 +30,7 @@ See [docs/architecture.md](./docs/architecture.md) for the data-flow diagram, th
 
 ## Stack
 
-Next.js 16.2, React 19.2, TypeScript 6, Tailwind CSS 4, Zod 4, Zustand 5, PostgreSQL 18 on Neon, Drizzle ORM, the Neon serverless driver, the OpenAI Responses API with strict Structured Outputs, Vitest, Testcontainers, and Playwright. Exact versions are pinned in `package.json` and `pnpm-lock.yaml`; the project targets Node 24.18.1 and pnpm 11.
+Next.js 16.2, React 19.2, TypeScript 6, Tailwind CSS 4, Zod 4, Zustand 5, PostgreSQL 18 on Neon, Drizzle ORM, the Neon serverless driver, and the OpenAI Responses API. Exact versions are pinned in `package.json` and `pnpm-lock.yaml`; the project targets Node 24.18.1 and pnpm 11.
 
 ## Local setup
 
@@ -119,13 +119,10 @@ Every fact marker the buddy writes must resolve against evidence IDs present in 
 pnpm format:check
 pnpm lint
 pnpm typecheck
-pnpm test
-pnpm test:integration
 pnpm build
-pnpm test:e2e
 ```
 
-Every one of these runs in CI on pull requests and on `main`, with no sports, OpenAI, or database credentials. `pnpm test:integration` starts and removes an isolated PostgreSQL 18 Docker container and never uses `DATABASE_URL`. Playwright starts the production build in deterministic demo mode on port 3100. CI additionally fails if `src/db/schema.ts` has drifted from the committed migrations.
+No automated tests — side project, move fast. Every one of these runs in CI on pull requests and on `main`, with no sports, OpenAI, or database credentials, which also proves the build degrades to demo mode. The manual **Extended checks** workflow additionally fails if `src/db/schema.ts` has drifted from the committed migrations.
 
 ## Current limitations
 

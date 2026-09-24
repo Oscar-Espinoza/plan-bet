@@ -7,11 +7,6 @@ CLAUDE.md
 /.pnp
 .pnp.*
 
-# testing
-/coverage
-/playwright-report
-/test-results
-
 # next.js
 /.next/
 /out/
@@ -40,7 +35,6 @@ next-env.d.ts
 
 # local agent tooling scratch
 .diagram-design
-AGENTS.md
 
 # per-machine MCP config (holds API tokens)
 .codex/config.toml

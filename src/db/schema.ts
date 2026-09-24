@@ -362,7 +362,7 @@ export const groupMembers = pgTable(
  * Invites target an email address, not a user id — the invitee may not have
  * signed in yet. Accepted once the invitee is signed in with a matching
  * email; classid 5 (the advisory-lock class this feature claims, see
- * CLAUDE.md) serializes concurrent accepts of the same token. A NULL email
+ * docs/wagers.md) serializes concurrent accepts of the same token. A NULL email
  * is a shareable join link: nobody in particular was invited, so accepting
  * one skips the email match entirely (Phase C).
  */

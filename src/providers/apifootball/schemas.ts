@@ -75,7 +75,7 @@ export const apiFootballHeadToHeadSchema = z
 
 /**
  * The percentages are carried through so `buildFacts` can judge whether a
- * fixture is lopsided or close, but no fact ever states one — CLAUDE.md forbids
+ * fixture is lopsided or close, but no fact ever states one — docs/buddy.md forbids
  * the buddy quoting a probability, and these numbers are visibly rough (one
  * fixture read 86/1/1).
  */

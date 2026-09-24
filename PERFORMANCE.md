@@ -72,15 +72,6 @@ slower connections. Cold server starts, production providers, and authenticated
 end-to-end timings were not benchmarked. Private behavior is covered by component
 tests and real PostgreSQL integration tests.
 
-Reproduce browser measurements with:
-
-```sh
-pnpm exec tsx scripts/measure-navigation.ts http://localhost:3102 http://localhost:3100
-```
-
-Use separate production servers with `MATCHDAY_DATA_MODE=demo` and empty database
-and provider credentials. Port 3101 belongs to the existing Vite fixture suite.
-
 ## Database evidence
 
 PostgreSQL 18, migrated schema, 100,000 wagers and 200,000 ledger entries. Each
@@ -96,8 +87,6 @@ sequential scans. Individual timings vary; these are representative single runs.
 
 Wager history now gets settlement and final-score data through joins in one
 query instead of up to three. Existing pagination and settlement semantics remain.
-Run `pnpm exec vitest run --config vitest.integration.config.ts src/db/performance.integration.test.ts`
-to repeat the index checks.
 
 ## Cache and rendering behavior
 
@@ -163,8 +152,6 @@ browser tests pass, including cancellation, competing destinations, browser back
 keyboard navigation, reduced motion, and failed client-fetch recovery. The 420
 unit tests and automatic quality checks also pass locally.
 
-Automatic CI runs formatting, lint, typecheck, unit tests, and a production build.
-Run **Extended checks** manually in GitHub Actions for migration drift, PostgreSQL
-integration, and real-app Playwright tests. Each check still fails on errors.
-`pnpm test:fixtures` remains available locally but is excluded from both workflows:
-its old fixed action-bar and tour expectations need updating for the current UI.
+CI now runs formatting, lint, typecheck and a production build; the test suites
+these sections cite were removed on September 24, 2026 (see the git history).
+**Extended checks** (manual) adds the migration-drift check.

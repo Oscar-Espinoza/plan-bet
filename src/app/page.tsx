@@ -25,9 +25,8 @@ export default async function Home({ searchParams }: Props) {
       { team, games, freshness },
     ]),
   ) as BoardData;
-  // Vercel supplies the viewer's timezone; anywhere else (local dev,
-  // Playwright) falls back to UTC, which is also what makes the e2e board
-  // deterministic.
+  // Vercel supplies the viewer's timezone; anywhere else (local dev) falls
+  // back to UTC.
   const tz = (await headers()).get("x-vercel-ip-timezone") ?? "UTC";
   return (
     <>

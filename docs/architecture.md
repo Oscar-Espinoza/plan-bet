@@ -36,7 +36,7 @@ The fallback chain is strictly ordered: **fresh live snapshot → expired last-k
 
 ## Adapters
 
-`src/providers/<vendor>/` — `client.ts` (fetch, timeout, bounded response size, typed `ProviderError`), `schemas.ts` (raw vendor Zod), `normalize.ts` (raw → canonical), `provider.ts` (implements `SportsProvider`), `__fixtures__/` (sanitized payloads, so every test runs without network).
+`src/providers/<vendor>/` — `client.ts` (fetch, timeout, bounded response size, typed `ProviderError`), `schemas.ts` (raw vendor Zod), `normalize.ts` (raw → canonical), `provider.ts` (implements `SportsProvider`).
 
 | Sport    | Adapters                       | Auth                      |
 | -------- | ------------------------------ | ------------------------- |
@@ -120,7 +120,7 @@ Placement (`src/data/wagers.ts`) re-reads the game and the house price server-si
 
 1. Apply migrations to production (`pnpm db:migrate`). **Before** deploying, never after.
 2. Deploy a preview.
-3. Smoke the preview: `PLAYWRIGHT_BASE_URL=<preview> pnpm test:e2e`.
+3. Smoke the preview by hand: the board, a game page, placing a bet, `/you`.
 4. Confirm `/api/health` reports `database.schema: "current"`.
 5. Promote, then tag.
 

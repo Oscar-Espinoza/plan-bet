@@ -162,8 +162,7 @@ export function BetSlip({
 }: {
   data: WagerPanelData;
   matchFinished?: boolean;
-  // Names for the exact-score entry. Absent in the unit tests, which render
-  // the slip on its own.
+  // Names for the exact-score entry; falls back to "Home"/"Away".
   matchup?: { home: string; away: string };
 }) {
   const [confirmedData, setConfirmedData] =

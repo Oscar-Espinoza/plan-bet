@@ -24,7 +24,7 @@ function slugify(name: string): string {
 }
 
 /**
- * classid 5 (see CLAUDE.md's advisory-lock ledger — 1 and 2 are free, 3 is the
+ * classid 5 (see docs/wagers.md's advisory-lock ledger — 1 and 2 are free, 3 is the
  * bankroll reset, 4 is wager placement) keyed on the candidate slug, so two
  * concurrent creates for the same name cannot both win the same slug.
  */

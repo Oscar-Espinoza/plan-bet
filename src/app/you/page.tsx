@@ -97,7 +97,7 @@ export default async function Page({ searchParams }: Props) {
   // rather than an HTTP 3xx here, which axe and a plain page.goto both read
   // as a mid-test navigation. /bets already established the fix for exactly
   // this "unconfigured" condition — an inline honest panel instead of a
-  // redirect — and CLAUDE.md is explicit that a missing DATABASE_URL "must
+  // redirect — and AGENTS.md is explicit that a missing DATABASE_URL "must
   // not break builds or navigation." Only "unauthenticated" still redirects.
   if (!account.ok && account.reason === "unconfigured") {
     return (

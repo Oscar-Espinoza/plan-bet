@@ -124,8 +124,8 @@ export type AccountResult =
 /**
  * The auth boundary every gated route/page goes through. Returns
  * `unconfigured` without calling `auth()` when Auth.js isn't configured, which
- * is what keeps unconfigured builds, CI, and Playwright's keyless production
- * server from ever exercising a session lookup — and what keeps statically
+ * is what keeps unconfigured builds, CI, and a keyless demo server from ever
+ * exercising a session lookup — and what keeps statically
  * rendered routes static.
  *
  * React.cache()'d because <AccountControl /> in the root layout calls this on
