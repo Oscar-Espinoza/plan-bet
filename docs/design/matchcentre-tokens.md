@@ -1,3 +1,5 @@
+> **Historical.** Matchcentre was replaced by the lime night-match design in `DESIGN.md`, which is the current authority. Kept for the reasoning behind decisions that carried over (money never takes the accent, mono figures).
+
 # Matchcentre — design tokens
 
 The palette and surface contract for the shipped UI. This file is the source of

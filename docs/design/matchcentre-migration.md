@@ -1,3 +1,5 @@
+> **Historical.** Matchcentre was replaced by the lime night-match design in `DESIGN.md`, which is the current authority. Kept for the reasoning behind decisions that carried over (money never takes the accent, mono figures).
+
 # Matchcentre — migration record
 
 What changed when the UI moved from **Slant** (light concrete, sheared plates,

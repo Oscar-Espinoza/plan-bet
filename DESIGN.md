@@ -22,10 +22,10 @@ Matchday Plan uses a night-match visual world: deep navy surfaces, cool structur
 
 ## Typography
 
-- Archivo Variable: interface labels and navigation.
+- Archivo Variable (width axis): headings, team names, interface labels and navigation.
 - IBM Plex Sans: body and supporting copy.
-- Big Shoulders Display: compact uppercase sports headings and team names.
 - DM Mono: times, scores, odds, balances, and tables.
+- All three load through `next/font/local` (`src/app/fonts.ts`), latin subset, preloaded.
 
 ## Components
 

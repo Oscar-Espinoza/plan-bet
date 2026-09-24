@@ -1,4 +1,49 @@
-# Performance changes — September 22, 2026
+# Performance changes
+
+## First load on a phone — September 24, 2026
+
+The September 22 work below made in-app navigation fast; this pass is the
+first visit. Production builds in keyless demo mode, Lighthouse 12 mobile
+(simulated Moto G Power on slow 4G), median of three runs per page, with the
+`x-vercel-ip-timezone` header set to the machine's zone as Vercel would.
+
+| Measurement                          | `/` before | `/` after | Game before | Game after |
+| ------------------------------------ | ---------: | --------: | ----------: | ---------: |
+| Lighthouse performance score         |         76 |        92 |          85 |         96 |
+| First contentful paint               |     1.96 s |    0.90 s |      2.26 s |     0.90 s |
+| Largest contentful paint (simulated) |     4.89 s |    3.39 s |      4.06 s |     2.85 s |
+| Cumulative layout shift              |      0.130 |     0.000 |       0.002 |      0.000 |
+| Total bytes                          |     676 KB |    422 KB |      566 KB |     417 KB |
+| JS referenced by the page (gzip)     |     298 KB |    210 KB |      305 KB |     211 KB |
+
+Unthrottled, the largest paint (the stadium photo behind the next-match card or
+scorebug) lands at ~90 ms; the simulated figure is Lantern charging every byte
+requested before it, fonts and scripts included.
+
+What moved the numbers:
+
+- **zod left the browser** (−64 KB gzip on every route). It was pulled in by the
+  localStorage guard, the board's demo-seed import, and two response parses.
+- **Crests**: football crests re-encoded 500 → 160 px (10 MB → 2 MB on disk,
+  up to 233 KB → ~8 KB each). React was hoisting a `<link rel=preload>` for
+  every row crest; rows now lazy-load.
+- **LCP image found early**: an 800 px stadium photo (66 → 12 KB) preloaded from
+  the page instead of discovered through the stylesheet (3.8 s load delay).
+- **Fonts preloaded** through `next/font/local`, latin only, with
+  metric-matched fallbacks.
+- **Layout shift**: times render on the server instead of blank until
+  hydration; DM Mono is preloaded so server-rendered figures don't reflow; the
+  footer starts below the fold so streamed content and the tour bar can't drag
+  it into view.
+- Spanish dictionary only for Spanish readers; tailwind-merge dropped; refresh
+  every 60 s instead of 30 and never while a field has focus; rows prefetch on
+  intent; no automatic prefetch on 3g either.
+
+The stylesheet also lost ~210 declarations that later rules for the same
+selector overrode (16.6 → 14.8 KB gzip); verified pixel-identical across 9
+routes × 4 widths × 2 locales before the intended visual fixes.
+
+## Navigation — September 22, 2026
 
 The main navigation bottleneck was the matchup stylesheet suspending the route
 while React prepared it. Loading that stylesheet with the shell removes the
