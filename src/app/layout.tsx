@@ -1,5 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { parseLocale } from "@/lib/locale";
 import { LanguageProvider } from "@/components/language-provider";
 import { Suspense } from "react";
@@ -7,6 +7,8 @@ import type { Metadata, Viewport } from "next";
 import { AccountControl } from "@/components/account-control";
 import { RefreshVisiblePage } from "@/components/refresh-visible-page";
 import { AppShell } from "@/components/app-shell";
+import { RequestClockProvider } from "@/components/local-date-time";
+import { archivo, dmMono, plexSans } from "./fonts";
 import "./globals.css";
 import "./games/[id]/matchup.css";
 
@@ -91,30 +93,55 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
+/** The request's own time — what the first paint's relative labels count from. */
+const requestTime = () => Date.now();
+
+/** Vercel's geolocated zone, if it is one Intl accepts; UTC otherwise. */
+function viewerZone(value: string | null) {
+  if (!value) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return value;
+  } catch {
+    return "UTC";
+  }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const locale = parseLocale((await cookies()).get("locale")?.value);
+  const zone = viewerZone((await headers()).get("x-vercel-ip-timezone"));
   return (
-    <html lang={locale} data-scroll-behavior="smooth">
+    <html
+      lang={locale}
+      data-scroll-behavior="smooth"
+      className={`${archivo.variable} ${plexSans.variable} ${dmMono.variable}`}
+    >
+      <head>
+        {/* Opponent crests for baseball come from MLB's asset host. */}
+        <link rel="preconnect" href="https://www.mlbstatic.com" />
+      </head>
       <body>
         <LanguageProvider locale={locale}>
-          {/* The chip awaits a session lookup plus two ledger aggregates. Left
+          <RequestClockProvider zone={zone} now={requestTime()}>
+            {/* The chip awaits a session lookup plus two ledger aggregates. Left
             unsuspended in the root layout it blocks the whole shell from
             flushing on every route. fallback={null} is what the component
             itself renders when sign-in is unconfigured, so nothing shifts. */}
-          <Suspense fallback={null}>
-            <AppShell
-              accountControl={
-                <Suspense fallback={null}>
-                  <AccountControl />
-                </Suspense>
-              }
-            >
-              <RefreshVisiblePage />
-              {children}
-            </AppShell>
-          </Suspense>
+            <Suspense fallback={null}>
+              <AppShell
+                accountControl={
+                  <Suspense fallback={null}>
+                    <AccountControl />
+                  </Suspense>
+                }
+              >
+                <RefreshVisiblePage />
+                {children}
+              </AppShell>
+            </Suspense>
+          </RequestClockProvider>
         </LanguageProvider>
       </body>
     </html>

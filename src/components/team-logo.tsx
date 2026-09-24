@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 
-/** Decorative beside the full team name; unavailable crests leave no broken image. */
-export function TeamLogo({ src }: { src?: string }) {
+/**
+ * Decorative beside the full team name; unavailable crests leave no broken image.
+ * Lazy by default, which also keeps React from hoisting a `<link rel=preload>`
+ * for every row crest ahead of the fonts and stylesheet. `priority` is for the
+ * one or two crests in the page's hero.
+ */
+export function TeamLogo({
+  src,
+  priority = false,
+}: {
+  src?: string;
+  priority?: boolean;
+}) {
   const [failedSrc, setFailedSrc] = useState<string>();
   if (!src || src === failedSrc) {
     return (
@@ -32,6 +43,8 @@ export function TeamLogo({ src }: { src?: string }) {
         width={64}
         height={64}
         decoding="async"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         referrerPolicy="no-referrer"
         onError={() => setFailedSrc(src)}
       />

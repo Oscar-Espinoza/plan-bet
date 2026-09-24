@@ -11,11 +11,7 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { StatusTag } from "@/components/ui/status-tag";
-import {
-  wagerPlacementResultSchema,
-  type RecordSlice,
-  type Wager,
-} from "@/lib/contracts";
+import type { RecordSlice, Wager, WagerPlacementResult } from "@/lib/contracts";
 import {
   MIN_STAKE,
   wagerSelectionLabel,
@@ -279,9 +275,13 @@ export function BetSlip({
       return;
     }
 
-    const result = wagerPlacementResultSchema.parse(
-      (payload as { data: unknown }).data,
-    );
+    // Our own route, already validated server-side: a cast, not a schema,
+    // keeps zod out of the browser bundle.
+    const result = (payload as { data?: WagerPlacementResult } | null)?.data;
+    if (!result?.wager || !result.summary) {
+      setError("The bet did not go through. Try again.");
+      return;
+    }
     if (data.signedIn)
       setConfirmedData({
         ...data,

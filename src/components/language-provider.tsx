@@ -1,8 +1,9 @@
 "use client";
-import { createContext, useContext, useState, useTransition } from "react";
+import { createContext, use, useContext, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { type Locale, translator } from "@/lib/locale";
+import { hasSpanish, type Locale, translator } from "@/lib/locale";
 const LanguageContext = createContext<Locale>("en");
+let loadingSpanish: Promise<unknown> | undefined;
 export function LanguageProvider({
   locale,
   children,
@@ -10,6 +11,10 @@ export function LanguageProvider({
   locale: Locale;
   children: React.ReactNode;
 }) {
+  // The dictionary is its own chunk, fetched only for Spanish readers. Holding
+  // the tree until it lands means nothing ever renders in English first.
+  if (locale === "es" && !hasSpanish())
+    use((loadingSpanish ??= import("@/lib/locale-es")));
   return (
     <LanguageContext.Provider value={locale}>
       {children}

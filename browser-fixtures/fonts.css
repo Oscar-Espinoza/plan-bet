@@ -1,0 +1,5 @@
+:root {
+  --font-archivo: "Archivo Variable", "Arial Narrow", sans-serif;
+  --font-plex: "IBM Plex Sans Variable", system-ui, sans-serif;
+  --font-dm-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+}

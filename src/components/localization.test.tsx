@@ -48,7 +48,7 @@ describe("Spanish interface", () => {
       screen.getByRole("button", { name: "Place 125 credits" }),
     ).toBeInTheDocument();
   });
-  it("translates an open confirmation dialog when the locale changes", () => {
+  it("translates an open confirmation dialog when the locale changes", async () => {
     const { rerender } = render(
       <LanguageProvider locale="en">
         <ResetBankroll />
@@ -61,7 +61,9 @@ describe("Spanish interface", () => {
       </LanguageProvider>,
     );
     expect(
-      screen.getByRole("alertdialog", { name: "¿Restablecer tu saldo?" }),
+      await screen.findByRole("alertdialog", {
+        name: "¿Restablecer tu saldo?",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Cancelar" }),

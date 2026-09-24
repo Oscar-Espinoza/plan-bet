@@ -20,11 +20,20 @@ import { ActionBarContext } from "@/components/action-bar";
 import { Slate, type SportFilter } from "@/components/slate";
 import { BetsHistory } from "@/components/bets-history";
 import { getSnapshot, getTeam } from "@/lib/seed";
+import { buildMatchView } from "@/lib/game-view";
 import { marketsFor } from "@/lib/markets";
 import { CLOSED_COPY, type WagerClosedReason } from "@/lib/wager-copy";
 import { board, emptyBoard, history, wager } from "./data";
 import { useLocation } from "./navigation";
 import Link from "./link";
+// The Next app loads these through next/font (src/app/fonts.ts); Vite
+// can't, so the fixture app imports the same fontsource faces and maps the
+// variables fonts.ts would set.
+import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource/dm-mono/400.css";
+import "@fontsource/dm-mono/500.css";
+import "./fonts.css";
 import "@/app/globals.css";
 import "@/app/games/[id]/matchup.css";
 
@@ -308,9 +317,21 @@ function Fixture() {
       ) : pathname?.startsWith("/games/") ? (
         <GameDetail
           key={location}
-          data={{ snapshot }}
-          team={getTeam(snapshot.game.teamSlug)!}
-          wagering={wagering}
+          view={buildMatchView(snapshot, getTeam(snapshot.game.teamSlug)!)}
+          wageringPanel={
+            wagering && (
+              <aside className="mp-action" aria-label={t("Place a bet")}>
+                <BetSlip
+                  data={wagering}
+                  matchFinished={snapshot.game.status === "finished"}
+                  matchup={{
+                    home: snapshot.game.homeTeam,
+                    away: snapshot.game.awayTeam,
+                  }}
+                />
+              </aside>
+            )
+          }
         />
       ) : (
         <h1>{t("Sign in")}</h1>

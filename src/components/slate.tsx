@@ -9,26 +9,34 @@ import { NavigationLink as Link } from "@/components/fast-link";
 import { CalendarDays, ChevronRight, Radio } from "lucide-react";
 import { TeamLogo } from "@/components/team-logo";
 import { clubAccentStyle } from "@/lib/club-accent";
-import { teams } from "@/lib/seed";
 import { gameTeamLogo } from "@/lib/team-logos";
 import { Button } from "@/components/ui/button";
 import { DemoStamp } from "@/components/demo-stamp";
 import {
-  Countdown,
   KickoffTime,
   LocalDateTime,
   RelativeKickoff,
   TimezoneLegend,
 } from "@/components/local-date-time";
 import { StatusTag } from "@/components/ui/status-tag";
-import type { DashboardData } from "@/data/sports-data";
-import type { GameSummary, Sport } from "@/lib/contracts";
+import type {
+  GameSchedule,
+  GameSummary,
+  Sport,
+  TeamSlug,
+} from "@/lib/contracts";
 import { cn } from "@/lib/utils";
 
 export type SportFilter = "all" | Sport;
 
-function matchPreview(game: GameSummary): PreviewMetadata {
-  const team = teams.find((team) => team.slug === game.teamSlug)!;
+/** What the board renders — a team's `context` stays on the server. */
+export type BoardData = Record<
+  TeamSlug,
+  Pick<GameSchedule, "team" | "games" | "freshness">
+>;
+
+function matchPreview(game: GameSummary, data: BoardData): PreviewMetadata {
+  const team = data[game.teamSlug].team;
   return {
     match: {
       identity: {
@@ -101,7 +109,7 @@ export function Slate({
   sport: _initialSport,
   tz,
 }: {
-  data: DashboardData;
+  data: BoardData;
   sport: SportFilter;
   tz: string;
 }) {
@@ -152,7 +160,7 @@ export function Slate({
   // set on the server so the club colour paints on first byte. A board with
   // nothing on it falls back to the neutral defaults in globals.css.
   const accent = clubAccentStyle(
-    teams.find((team) => team.slug === nextUp?.teamSlug),
+    nextUp ? data[nextUp.teamSlug]?.team : undefined,
   );
 
   return (
@@ -174,7 +182,7 @@ export function Slate({
             </div>
             <h3 className="next-up-teams">
               <span className="next-up-team">
-                <TeamLogo src={gameTeamLogo(nextUp, "home")} />
+                <TeamLogo priority src={gameTeamLogo(nextUp, "home")} />
                 <span>{nextUp.homeTeam}</span>
               </span>
               <span className="next-up-versus">
@@ -182,22 +190,19 @@ export function Slate({
                 <span aria-hidden="true">VS</span>
               </span>
               <span className="next-up-team next-up-away">
-                <TeamLogo src={gameTeamLogo(nextUp, "away")} />
+                <TeamLogo priority src={gameTeamLogo(nextUp, "away")} />
                 <span>{nextUp.awayTeam}</span>
               </span>
             </h3>
             <div className="next-up-detail">
               <span>{t(nextUp.competition)}</span>
               <LocalDateTime value={nextUp.scheduledAt} />
-              <span className="sr-only">
-                {t("Kickoff in")} <Countdown value={nextUp.scheduledAt} />
-              </span>
             </div>
             <Button asChild className="next-up-cta">
               <MatchLink
                 eager
                 href={`/games/${nextUp.id}`}
-                preview={matchPreview(nextUp)}
+                preview={matchPreview(nextUp, data)}
               >
                 {t("View Match & Place Bet")}{" "}
                 <ChevronRight aria-hidden="true" size={20} />
@@ -278,8 +283,7 @@ export function Slate({
               <MatchLink
                 className="game-row game-row-live"
                 href={`/games/${game.id}`}
-                preview={matchPreview(game)}
-                visiblePrefetch={games.indexOf(game) < 4}
+                preview={matchPreview(game, data)}
                 key={game.id}
               >
                 <span className="game-time">{t("LIVE")}</span>
@@ -326,8 +330,7 @@ export function Slate({
                       game.id === nextUp?.id && "game-row-next",
                     )}
                     href={`/games/${game.id}`}
-                    preview={matchPreview(game)}
-                    visiblePrefetch={games.indexOf(game) < 4}
+                    preview={matchPreview(game, data)}
                     key={game.id}
                     aria-label={t("Open {p0} versus {p1}", {
                       p0: game.homeTeam,

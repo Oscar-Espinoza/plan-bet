@@ -1,33 +1,34 @@
 "use client";
-import { GameThread } from "./game-thread";
 import { useTranslation } from "@/components/language-provider";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { BarChart3, Info, Trophy } from "lucide-react";
-import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
 import { ContextBlocks } from "@/components/matchup/context-blocks";
 import { MatchChrome, type MatchTab } from "@/components/matchup/match-chrome";
 import { StatusRibbon } from "@/components/matchup/status-ribbon";
-import { clubAccentStyle } from "@/lib/club-accent";
-import type { GameDetailData, Team } from "@/lib/contracts";
-import { buildMatchView } from "@/lib/game-view";
+import type { MatchView } from "@/lib/game-view";
 
+/**
+ * `view` is built on the server (`buildMatchView`), so the snapshot, its
+ * sources and the badge catalog never reach the browser — only what renders.
+ */
 export function GameDetail({
-  data,
-  team,
-  wagering,
+  view,
+  accent,
   wageringPanel,
   socialPanel,
 }: {
-  data: GameDetailData;
-  team: Team;
-  wagering?: WagerPanelData;
+  view: MatchView;
+  accent?: CSSProperties;
   wageringPanel?: React.ReactNode;
   socialPanel?: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const view = buildMatchView(data.snapshot, team);
-  const { game } = data.snapshot;
+  const game = {
+    homeTeam: view.identity.homeTeam,
+    awayTeam: view.identity.awayTeam,
+    result: view.timing.result,
+  };
   const [tab, setTab] = useState<MatchTab>("overview");
   const form = view.blocks.filter((block) => block.id === "form");
   const standing = view.blocks.filter((block) =>
@@ -46,7 +47,7 @@ export function GameDetail({
     : undefined;
 
   return (
-    <div className="mp" style={clubAccentStyle(team)}>
+    <div className="mp" style={accent}>
       <h1 className="sr-only">
         {game.result
           ? t("{p0} {p1} – {p2} {p3}, final", {
@@ -90,40 +91,7 @@ export function GameDetail({
               </div>
             )}
             {wageringPanel}
-            {wagering && (
-              <aside
-                className="mp-action"
-                aria-label={t(
-                  game.status === "finished"
-                    ? "Your match results"
-                    : "Place a bet",
-                )}
-              >
-                <BetSlip
-                  data={wagering}
-                  matchFinished={game.status === "finished"}
-                  matchup={{ home: game.homeTeam, away: game.awayTeam }}
-                />
-              </aside>
-            )}
             {socialPanel}
-            {wagering?.signedIn && wagering.threads.length > 0 && (
-              <section
-                className="group-discussion"
-                id="group-discussion"
-                aria-labelledby="group-discussion-heading"
-              >
-                <h2 id="group-discussion-heading">{t("Group discussion")}</h2>
-                {wagering.threads.map((thread) => (
-                  <GameThread
-                    key={thread.groupId}
-                    routeId={wagering.routeId}
-                    thread={thread}
-                    matchup={{ home: game.homeTeam, away: game.awayTeam }}
-                  />
-                ))}
-              </section>
-            )}
             <ContextBlocks
               blocks={[...form, ...standing]}
               homeTeam={view.identity.homeTeam}

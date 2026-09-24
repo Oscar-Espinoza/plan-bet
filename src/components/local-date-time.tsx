@@ -2,21 +2,19 @@
 import { useTranslation } from "@/components/language-provider";
 
 import { intlLocale } from "@/lib/locale";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { formatDateTime, formatShortDate } from "@/lib/utils";
 
 /**
- * True only once the browser owns the render.
- *
- * These components format in the reader's own zone, which the server cannot
- * know. The previous attempt formatted on the server too and papered the
- * difference over with `suppressHydrationWarning` — but that flag silences the
- * mismatch without repairing it: React keeps the server text in the DOM while
- * memoizing the client string, so no later render ever diffs unequal and the
- * whole page stayed frozen in the server's zone (UTC on Vercel). Rendering
- * nothing until hydration means the server and hydration renders agree, and the
- * first client render is a genuine change React patches. The reader is never
- * shown a time in a zone that isn't theirs.
+ * True only once the browser owns the render: false on the server and during
+ * hydration, true on the render React schedules right after it, and true
+ * straight away for anything mounted by a client navigation.
  */
 function useHydrated() {
   return useSyncExternalStore(
@@ -24,6 +22,46 @@ function useHydrated() {
     () => true,
     () => false,
   );
+}
+
+type RequestClock = { zone: string; now: number };
+const RequestClockContext = createContext<RequestClock>({
+  zone: "UTC",
+  now: 0,
+});
+
+/**
+ * The viewer's zone as the edge geolocated it (`x-vercel-ip-timezone`, UTC
+ * elsewhere) and the request's own time, set once in the root layout.
+ *
+ * Every time on the page renders from these on the server and in the
+ * hydration pass, so the two agree and the first paint already shows a real
+ * time instead of a blank that pops in once ~240 KB of JS has run. The render
+ * after hydration switches to the browser's own zone and clock — a genuine
+ * re-render React patches, unlike `suppressHydrationWarning`, which kept the
+ * server text frozen in the DOM (the reason these once rendered blank). When
+ * the geolocated zone is right, which is almost always, that re-render changes
+ * nothing on screen.
+ */
+export function RequestClockProvider({
+  zone,
+  now,
+  children,
+}: RequestClock & { children: React.ReactNode }) {
+  return (
+    <RequestClockContext.Provider value={{ zone, now }}>
+      {children}
+    </RequestClockContext.Provider>
+  );
+}
+
+/** `timeZone: undefined` means the browser's own zone. */
+function useClock(): { timeZone?: string; now: () => number } {
+  const hydrated = useHydrated();
+  const request = useContext(RequestClockContext);
+  return hydrated
+    ? { timeZone: undefined, now: Date.now }
+    : { timeZone: request.zone, now: () => request.now };
 }
 
 export function LocalDateTime({
@@ -34,20 +72,19 @@ export function LocalDateTime({
   short?: boolean;
 }) {
   const { locale } = useTranslation();
-  const hydrated = useHydrated();
+  const { timeZone } = useClock();
   return (
     <time dateTime={value}>
-      {hydrated &&
-        (short
-          ? formatShortDate(value, intlLocale(locale))
-          : formatDateTime(value, intlLocale(locale)))}
+      {short
+        ? formatShortDate(value, intlLocale(locale), timeZone)
+        : formatDateTime(value, intlLocale(locale), timeZone)}
     </time>
   );
 }
 
 /** The slate's one urgency signal: "in 40m" / "in 3h" / "in 9d" / "Started". */
-function relativeKickoffLabel(value: string) {
-  const diffMs = new Date(value).getTime() - Date.now();
+function relativeKickoffLabel(value: string, now: number) {
+  const diffMs = new Date(value).getTime() - now;
   if (diffMs <= 0) return "Started";
   const minutes = Math.round(diffMs / 60_000);
   if (minutes < 60) return `in ${minutes}m`;
@@ -58,10 +95,8 @@ function relativeKickoffLabel(value: string) {
 
 export function RelativeKickoff({ value }: { value: string }) {
   const { t } = useTranslation();
-  const hydrated = useHydrated();
-  return (
-    <time dateTime={value}>{hydrated && t(relativeKickoffLabel(value))}</time>
-  );
+  const { now } = useClock();
+  return <time dateTime={value}>{t(relativeKickoffLabel(value, now()))}</time>;
 }
 
 function clockAt(value: string, locale: string, timeZone?: string) {
@@ -77,19 +112,17 @@ function clockAt(value: string, locale: string, timeZone?: string) {
  * group heading above the row already carries the date. */
 export function KickoffTime({ value }: { value: string }) {
   const { locale } = useTranslation();
-  const hydrated = useHydrated();
-  return <time dateTime={value}>{hydrated && clockAt(value, locale)}</time>;
+  const { timeZone } = useClock();
+  return <time dateTime={value}>{clockAt(value, locale, timeZone)}</time>;
 }
 
 /** Names the zone every unlabelled time on the page is in, once. */
 export function TimezoneLegend() {
-  const { t } = useTranslation();
-  const { locale } = useTranslation();
-  const hydrated = useHydrated();
-  if (!hydrated) return null;
+  const { t, locale } = useTranslation();
+  const { timeZone } = useClock();
   const zone = new Intl.DateTimeFormat(
     intlLocale(locale === "es" ? "es" : "en"),
-    { timeZoneName: "short" },
+    { timeZoneName: "short", timeZone },
   )
     .formatToParts(new Date())
     .find((part) => part.type === "timeZoneName")?.value;
@@ -104,15 +137,14 @@ export function TimezoneLegend() {
 /**
  * The scorebug's clock. Ticks once a second inside a day of kickoff, where a
  * running clock is the point; above a day it shows days and hours and the
- * interval is wasted, so it stops there. Returns nothing before hydration for
- * the same reason every component in this file does — the server has no idea
- * what "now" is for the reader.
+ * interval is wasted, so it stops there. Until its first tick it counts from
+ * the request clock, so the server and hydration renders agree.
  */
 export function Countdown({ value }: { value: string }) {
   const { t } = useTranslation();
-  // `now` starts at 0 so the server render and the hydration render agree —
-  // the same reason every other component in this file waits for the browser.
-  const [now, setNow] = useState(0);
+  const clock = useClock();
+  const [ticked, setNow] = useState(0);
+  const now = ticked || clock.now();
 
   useEffect(() => {
     const target = new Date(value).getTime();

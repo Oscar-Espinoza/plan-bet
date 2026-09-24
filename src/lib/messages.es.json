@@ -602,5 +602,6 @@
   "{p0} — Handicap -1.5": "{p0} — Hándicap −1,5",
   "{p0} — Handicap +1.5": "{p0} — Hándicap +1,5",
   "{p0} — draw no bet": "{p0} — empate: anulada",
-  "{p0} or draw": "{p0} o empate"
+  "{p0} or draw": "{p0} o empate",
+  "Resetting…": "Restableciendo…"
 }

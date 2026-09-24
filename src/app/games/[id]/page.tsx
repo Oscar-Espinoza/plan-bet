@@ -27,7 +27,10 @@ import {
   readGameForWager,
 } from "@/data/wagers-repository";
 import { requireAccount } from "@/lib/auth";
+import { clubAccentStyle } from "@/lib/club-accent";
+import { buildMatchView } from "@/lib/game-view";
 import { marketsFor } from "@/lib/markets";
+import { StadiumPreload } from "@/components/stadium-preload";
 import { getTeam } from "@/lib/seed";
 
 type Props = { params: Promise<{ id: string }> };
@@ -118,40 +121,43 @@ export default async function GamePage({ params }: Props) {
   const team = getTeam(detail.snapshot.game.teamSlug);
   if (!team) notFound();
   return (
-    <GameDetail
-      data={detail}
-      team={team}
-      wageringPanel={
-        <Suspense
-          fallback={
-            <BetSlipSkeleton
-              sport={detail.snapshot.game.sport}
+    <>
+      <StadiumPreload />
+      <GameDetail
+        view={buildMatchView(detail.snapshot, team)}
+        accent={clubAccentStyle(team)}
+        wageringPanel={
+          <Suspense
+            fallback={
+              <BetSlipSkeleton
+                sport={detail.snapshot.game.sport}
+                finished={detail.snapshot.game.status === "finished"}
+                matchup={{
+                  home: detail.snapshot.game.homeTeam,
+                  away: detail.snapshot.game.awayTeam,
+                }}
+              />
+            }
+          >
+            <WageringPanel
               finished={detail.snapshot.game.status === "finished"}
-              matchup={{
-                home: detail.snapshot.game.homeTeam,
-                away: detail.snapshot.game.awayTeam,
-              }}
+              routeId={id}
+              home={detail.snapshot.game.homeTeam}
+              away={detail.snapshot.game.awayTeam}
             />
-          }
-        >
-          <WageringPanel
-            finished={detail.snapshot.game.status === "finished"}
-            routeId={id}
-            home={detail.snapshot.game.homeTeam}
-            away={detail.snapshot.game.awayTeam}
-          />
-        </Suspense>
-      }
-      socialPanel={
-        <Suspense fallback={null}>
-          <SocialPanel
-            routeId={id}
-            home={detail.snapshot.game.homeTeam}
-            away={detail.snapshot.game.awayTeam}
-          />
-        </Suspense>
-      }
-    />
+          </Suspense>
+        }
+        socialPanel={
+          <Suspense fallback={null}>
+            <SocialPanel
+              routeId={id}
+              home={detail.snapshot.game.homeTeam}
+              away={detail.snapshot.game.awayTeam}
+            />
+          </Suspense>
+        }
+      />
+    </>
   );
 }
 

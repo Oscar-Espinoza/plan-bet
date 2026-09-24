@@ -22,17 +22,32 @@ it("deduplicates timer/focus refreshes, pauses while hidden, and cleans up", () 
     .mockReturnValue("visible");
   const view = render(<RefreshVisiblePage />);
   act(() => {
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(60_000);
     window.dispatchEvent(new Event("focus"));
   });
   expect(refresh).toHaveBeenCalledTimes(1);
   visibility.mockReturnValue("hidden");
-  act(() => vi.advanceTimersByTime(60_000));
+  act(() => vi.advanceTimersByTime(120_000));
   expect(refresh).toHaveBeenCalledTimes(1);
   visibility.mockReturnValue("visible");
   act(() => document.dispatchEvent(new Event("visibilitychange")));
   expect(refresh).toHaveBeenCalledTimes(2);
   view.unmount();
-  act(() => vi.advanceTimersByTime(60_000));
+  act(() => vi.advanceTimersByTime(120_000));
   expect(refresh).toHaveBeenCalledTimes(2);
+});
+
+it("holds the refresh while a field has focus", () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  const input = document.createElement("input");
+  document.body.append(input);
+  input.focus();
+  render(<RefreshVisiblePage />);
+  act(() => vi.advanceTimersByTime(60_000));
+  expect(refresh).not.toHaveBeenCalled();
+  input.blur();
+  act(() => vi.advanceTimersByTime(60_000));
+  expect(refresh).toHaveBeenCalledTimes(1);
+  input.remove();
 });

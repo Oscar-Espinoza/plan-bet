@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import "./locale-es";
 import { parseLocale, translate, translator } from "./locale";
 import spanish from "./messages.es.json";
 

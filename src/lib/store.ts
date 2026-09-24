@@ -5,7 +5,7 @@ import {
   STORAGE_KEY,
   createDefaultState,
   parseStoredState,
-  storedStateSchema,
+  toStoredState,
   type StoredState,
 } from "@/lib/storage";
 
@@ -26,12 +26,12 @@ type MatchdayActions = {
 
 export type MatchdayStore = StoredState & MatchdayActions;
 
-// `storedStateSchema` strips the action functions and `hydrated` on its own,
-// so the persisted shape follows the schema without a field list to keep in
-// sync every time one is added.
+// `toStoredState` copies only the stored fields, so the action functions and
+// `hydrated` never reach localStorage.
 function persist(state: MatchdayStore) {
   if (typeof window === "undefined") return;
-  const data = storedStateSchema.parse(state);
+  const data = toStoredState(state);
+  if (!data) return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 

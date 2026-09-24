@@ -1,8 +1,6 @@
 @import "tailwindcss";
-@import "@fontsource-variable/archivo/wdth.css";
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource/dm-mono/400.css";
-@import "@fontsource/dm-mono/500.css";
+/* Fonts are loaded by next/font in src/app/fonts.ts, which sets the three
+   --font-archivo / --font-plex / --font-dm-mono variables on <html>. */
 
 :root {
   /* Palette — Matchcentre. A club site compressed onto a phone: near-black
@@ -87,9 +85,9 @@
   --radius-md: 0.7rem;
 
   /* Type faces. */
-  --font-body: "IBM Plex Sans Variable", system-ui, sans-serif;
-  --font-display: "Archivo Variable", "Arial Narrow", sans-serif;
-  --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+  --font-body: var(--font-plex);
+  --font-display: var(--font-archivo);
+  --font-mono: var(--font-dm-mono);
 
   /* Shared easing, promoted from .mp (matchup.css --mp-ease). */
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
@@ -280,9 +278,18 @@ a {
 }
 
 .workspace-scroll {
+  display: flex;
   min-height: 0;
+  flex-direction: column;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+}
+
+/* At least one screen tall, so the footer always starts below the fold: a
+   route that streams in after its loading state no longer drags a visible
+   footer down the page (the board's one layout shift). */
+.workspace-scroll > .main-content {
+  flex: 1 0 100%;
 }
 
 .topbar {
@@ -558,12 +565,14 @@ a {
   height: 2.6rem;
 }
 
+/* Opacity, not background: a compositor-only animation instead of a repaint
+   every frame. */
 @keyframes loading-pulse {
   from {
-    background: var(--slat);
+    opacity: 1;
   }
   to {
-    background: var(--slat-muted);
+    opacity: 0.55;
   }
 }
 
@@ -2268,7 +2277,6 @@ body {
   min-height: 72px;
   border-bottom: 1px solid rgb(58 75 93 / 72%);
   background: rgb(7 17 26 / 94%);
-  backdrop-filter: blur(18px);
 }
 
 .topbar-inner {
@@ -2362,7 +2370,6 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--rule);
   background: rgb(7 17 26 / 96%);
-  backdrop-filter: blur(18px);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -2418,8 +2425,18 @@ body {
   border-radius: 13px;
   background:
     linear-gradient(180deg, rgb(7 17 26 / 45%), rgb(7 17 26 / 90%)),
-    url("/assets/night-stadium.webp") center 58% / cover;
+    url("/assets/night-stadium-800.webp") center 58% / cover;
   box-shadow: 0 16px 42px rgb(0 0 0 / 22%);
+}
+
+/* 12 KB under a 90% scrim on a phone; the full 1600px photo only where the
+   card is wide enough to show it. Keep in step with <StadiumPreload />. */
+@media (min-width: 1024px) {
+  .next-up {
+    background-image:
+      linear-gradient(180deg, rgb(7 17 26 / 45%), rgb(7 17 26 / 90%)),
+      url("/assets/night-stadium.webp");
+  }
 }
 
 .next-up::after {

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { LocalDateTime } from "./local-date-time";
-import { gameCommentSchema } from "@/lib/contracts";
 import type {
   CommentVoteKind,
   GameComment,
@@ -122,8 +121,10 @@ export function GameThread({
     }
 
     const payload = await response.json().catch(() => null);
-    const saved = gameCommentSchema.safeParse(payload?.data?.comment);
-    if (saved.success) setLocalComments((current) => [...current, saved.data]);
+    // Our own route, validated server-side; only check it is a comment.
+    const saved = payload?.data?.comment as GameComment | undefined;
+    if (saved?.id && typeof saved.body === "string")
+      setLocalComments((current) => [...current, saved]);
     if (replyTarget)
       setExpanded((ids) => [
         ...new Set([...ids, replyTarget.parentCommentId ?? replyTarget.id]),

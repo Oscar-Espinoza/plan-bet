@@ -676,7 +676,15 @@
   border-radius: 0;
   background:
     linear-gradient(180deg, rgb(7 17 26 / 48%), rgb(7 17 26 / 88%)),
-    url("/assets/night-stadium.webp") center 59% / cover;
+    url("/assets/night-stadium-800.webp") center 59% / cover;
+}
+
+@media (min-width: 1024px) {
+  .mp-bug {
+    background-image:
+      linear-gradient(180deg, rgb(7 17 26 / 48%), rgb(7 17 26 / 88%)),
+      url("/assets/night-stadium.webp");
+  }
 }
 
 .mp-bug .pitch-art,

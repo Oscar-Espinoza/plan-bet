@@ -117,7 +117,7 @@ export function MatchLink({
     ).connection;
     if (
       connection?.saveData ||
-      /(^|-)2g$/.test(connection?.effectiveType ?? "")
+      /(^|-)[23]g$/.test(connection?.effectiveType ?? "")
     )
       return;
     const observer = new IntersectionObserver((entries) => {

@@ -1,5 +1,6 @@
 import { translate, type Locale } from "@/lib/locale";
 import "server-only";
+import "@/lib/locale-es";
 
 import {
   claimBuddyTurn,

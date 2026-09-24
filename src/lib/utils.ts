@@ -1,11 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 
 /** Bumped whenever the published house rules change; frozen into every wager. */
 export const RULES_VERSION = "2026-09-21";
 
+// Plain clsx: the app's classes are semantic, so there are no conflicting
+// utilities for tailwind-merge to resolve — it was 8.6 KB on every page.
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return clsx(inputs);
 }
 
 /**
@@ -14,8 +15,13 @@ export function cn(...inputs: ClassValue[]) {
  * shown: neither provider supplies one, and a second clock per fixture was
  * noise — the reader only needs to know when to be ready.
  */
-export function formatDateTime(value: string, locale?: string) {
+export function formatDateTime(
+  value: string,
+  locale?: string,
+  timeZone?: string,
+) {
   return new Intl.DateTimeFormat(locale, {
+    timeZone,
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -27,8 +33,13 @@ export function formatDateTime(value: string, locale?: string) {
   }).format(new Date(value));
 }
 
-export function formatShortDate(value: string, locale?: string) {
+export function formatShortDate(
+  value: string,
+  locale?: string,
+  timeZone?: string,
+) {
   return new Intl.DateTimeFormat(locale, {
+    timeZone,
     month: "short",
     day: "numeric",
   }).format(new Date(value));

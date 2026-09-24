@@ -5,6 +5,7 @@ import { allGames, getSnapshot, getTeam } from "@/lib/seed";
 import { createDefaultState } from "@/lib/storage";
 import { useMatchdayStore } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
+import { buildMatchView } from "@/lib/game-view";
 import type { GameSnapshot } from "@/lib/contracts";
 
 vi.mock("next/navigation", () => ({
@@ -55,7 +56,7 @@ describe("GameDetail", () => {
 
   it("renders kickoff in the browser timezone, never as a raw timestamp", () => {
     const { container } = render(
-      <GameDetail data={{ snapshot }} team={team} />,
+      <GameDetail view={buildMatchView(snapshot, team)} />,
     );
 
     expect(container.textContent).toContain(formatDateTime(scheduledAt));
@@ -65,9 +66,8 @@ describe("GameDetail", () => {
   });
 
   const renderGame = (game: GameSnapshot["game"]) =>
-    render(
-      <GameDetail data={{ snapshot: { ...snapshot, game } }} team={team} />,
-    ).container;
+    render(<GameDetail view={buildMatchView({ ...snapshot, game }, team)} />)
+      .container;
 
   it("shows the final score only once a result is reported", () => {
     // No result: the matchup reads as an upcoming fixture.

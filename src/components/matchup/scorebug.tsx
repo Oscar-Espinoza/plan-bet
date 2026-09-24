@@ -1,7 +1,6 @@
 "use client";
 import { useTranslation } from "@/components/language-provider";
 import { Countdown, LocalDateTime } from "@/components/local-date-time";
-import { PitchArt } from "@/components/pitch-art";
 import { TeamLogo } from "@/components/team-logo";
 import type { MatchView } from "@/lib/game-view";
 
@@ -38,6 +37,7 @@ export function Scorebug({
       </span>
       <span className="mp-side-team">
         <TeamLogo
+          priority
           src={which === "home" ? identity.homeTeamLogo : identity.awayTeamLogo}
         />
         <span className="mp-side-name">{name}</span>
@@ -49,7 +49,6 @@ export function Scorebug({
     <header className="mp-bug">
       {/* The playing surface behind the scorebug, under a scrim. Decorative:
           every figure over it keeps its own contrast. */}
-      <PitchArt sport={identity.sport} />
       <span className="mp-bug-scrim" aria-hidden="true" />
       <span className="mp-status-pill">
         {status === "finished"
