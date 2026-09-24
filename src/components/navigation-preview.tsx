@@ -14,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MatchChrome } from "@/components/matchup/match-chrome";
 import { BetSlipSkeleton } from "@/components/matchup/bet-slip-skeleton";
 import { StatusRibbon } from "@/components/matchup/status-ribbon";
-import { clubAccentStyle } from "@/lib/club-accent";
 import type { MatchView } from "@/lib/game-view";
 
 export type PreviewMetadata = {
@@ -91,13 +90,6 @@ export function DestinationPreview({
         className="mp"
         role="status"
         aria-label={t("Loading game")}
-        style={
-          metadata?.match
-            ? clubAccentStyle({
-                colors: { primary: metadata.match.identity.clubColor },
-              })
-            : undefined
-        }
       >
         <MatchChrome view={metadata?.match} />
         <div className="mp-tab-panel">

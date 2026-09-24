@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "@/components/language-provider";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { BarChart3, Info, Trophy } from "lucide-react";
 import { ContextBlocks } from "@/components/matchup/context-blocks";
 import { MatchChrome, type MatchTab } from "@/components/matchup/match-chrome";
@@ -14,12 +14,10 @@ import type { MatchView } from "@/lib/game-view";
  */
 export function GameDetail({
   view,
-  accent,
   wageringPanel,
   socialPanel,
 }: {
   view: MatchView;
-  accent?: CSSProperties;
   wageringPanel?: React.ReactNode;
   socialPanel?: React.ReactNode;
 }) {
@@ -47,7 +45,7 @@ export function GameDetail({
     : undefined;
 
   return (
-    <div className="mp" style={accent}>
+    <div className="mp">
       <h1 className="sr-only">
         {game.result
           ? t("{p0} {p1} – {p2} {p3}, final", {

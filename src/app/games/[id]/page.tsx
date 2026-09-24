@@ -27,7 +27,6 @@ import {
   readGameForWager,
 } from "@/data/wagers-repository";
 import { requireAccount } from "@/lib/auth";
-import { clubAccentStyle } from "@/lib/club-accent";
 import { buildMatchView } from "@/lib/game-view";
 import { marketsFor } from "@/lib/markets";
 import { StadiumPreload } from "@/components/stadium-preload";
@@ -125,7 +124,6 @@ export default async function GamePage({ params }: Props) {
       <StadiumPreload />
       <GameDetail
         view={buildMatchView(detail.snapshot, team)}
-        accent={clubAccentStyle(team)}
         wageringPanel={
           <Suspense
             fallback={

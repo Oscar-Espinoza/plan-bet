@@ -8,7 +8,6 @@ import { intlLocale, type Locale } from "@/lib/locale";
 import { NavigationLink as Link } from "@/components/fast-link";
 import { CalendarDays, ChevronRight, Radio } from "lucide-react";
 import { TeamLogo } from "@/components/team-logo";
-import { clubAccentStyle } from "@/lib/club-accent";
 import { gameTeamLogo } from "@/lib/team-logos";
 import { Button } from "@/components/ui/button";
 import { DemoStamp } from "@/components/demo-stamp";
@@ -156,15 +155,9 @@ export function Slate({
   }
 
   const nextUp = scheduledGames[0] ?? liveGames[0];
-  // The page accent follows the tracked team of the nearest fixture, and is
-  // set on the server so the club colour paints on first byte. A board with
-  // nothing on it falls back to the neutral defaults in globals.css.
-  const accent = clubAccentStyle(
-    nextUp ? data[nextUp.teamSlug]?.team : undefined,
-  );
 
   return (
-    <div className="board" style={accent}>
+    <div className="board">
       {nextUp ? (
         <>
           {/* The route's own name — stable across both branches, unlike the

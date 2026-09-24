@@ -3,45 +3,35 @@
    --font-archivo / --font-plex / --font-dm-mono variables on <html>. */
 
 :root {
-  /* Palette — Matchcentre. A club site compressed onto a phone: near-black
-     ground, slat panels, hairline rules, and the *club colour of the fixture
-     you are looking at* as the page accent.
-
-     The accent is per-page, not global: --club / --club-on / --club-lit are
-     written as inline custom properties by the server (src/lib/club-accent.ts)
-     on .board and .mp, and default here to neutral chalk so a page with no
-     fixture — /you, /groups, /rules, /system — simply has no accent.
-
-     What the accent does: crest rings, the tracked-side stripe, the
-     highlighted fixture row, the countdown, block titles, the armed
-     selection. What it never does: money. Balances, stakes, prices and
-     returns stay chalk, with field/clay only on a settled outcome. */
-  --ink: #08090b;
-  --slat: #101318;
-  --slat-raised: #171b21;
-  --slat-muted: #08090b;
-  --rule: #23282f;
-  --rule-strong: #333a44;
-  --chalk: #f4f6f8;
-  --muted: #98a1ae;
-  --faint: #7f8896;
-  /* Neutral accent defaults. Every page that knows its fixture overrides
-     these three; nothing else may set them. */
-  --club: var(--chalk);
-  --club-on: var(--ink);
-  --club-lit: var(--chalk);
+  /* Palette — see DESIGN.md. Night-match navy surfaces, cool hairline
+     borders, and one acid-lime signal (--club) for the primary action,
+     active navigation and filters, the selected price and live emphasis.
+     Money is never the accent: balances, stakes, prices and returns stay
+     chalk, with field/clay only on a settled outcome. */
+  --ink: #07111a;
+  --slat: #101b26;
+  --slat-raised: #14212d;
+  --slat-muted: #09131d;
+  --rule: #2a3948;
+  --rule-strong: #3a4b5d;
+  --chalk: #f4f7fb;
+  --muted: #aeb9ca;
+  /* 4.5:1 on --slat-raised as well as --slat (#78879a failed on raised). */
+  --faint: #8595a8;
+  --club: #d7ff34;
+  --club-on: #07111a;
+  --club-lit: #e4ff75;
+  --field: #39e39b;
+  --clay: #ff6075;
 
   /* Bottom bands, measured at runtime by useBandHeight (action-bar.tsx).
      The values here are first-paint estimates only — never lay out against
      them as though they were fixed. --action-h is 0 off a game page, where
      the bar does not exist at all. */
-  --nav-h: 4rem;
+  --nav-h: 4.75rem;
   --action-h: 0px;
   --tour-h: 0px;
-
-  --field: #3ddc84;
   --field-dark: #16281f;
-  --clay: #ff5a5f;
   --clay-dark: #2e1917;
 
   /* Semantic tone tokens — one source for the six-way status/banner hex
@@ -72,6 +62,13 @@
   --weight-semibold: 600;
   --weight-bold: 700;
 
+  /* The page's side inset: topbar, content and every full-bleed block cancel
+     exactly this, so their edges line up at every width. Tightened on small
+     phones, widened on desktop (see the media blocks below). */
+  --gutter: 14px;
+  /* Minimum touch target. */
+  --tap: 44px;
+
   /* Spacing — 6 steps. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -80,9 +77,9 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
 
-  /* Radii — 3 steps. */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.7rem;
+  /* Radii. */
+  --radius-sm: 8px;
+  --radius-md: 11px;
 
   /* Type faces. */
   --font-body: var(--font-plex);
@@ -112,10 +109,8 @@ body {
   min-width: 320px;
   margin: 0;
   overflow-x: hidden;
-  background: var(--ink);
   color: var(--chalk);
   font-family: var(--font-body);
-  font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -139,6 +134,13 @@ summary {
 :focus-visible {
   outline: 2px solid var(--chalk);
   outline-offset: 3px;
+}
+
+/* These cards clip their overflow (rounded corners over a gradient), which
+   would cut an outset ring off a full-width child — draw it inside. */
+:is(.game-row, .wager-panel, .group-match-card):focus-visible,
+:is(.wager-panel, .group-match-card) :focus-visible {
+  outline-offset: -2px;
 }
 
 ::selection {
@@ -215,7 +217,6 @@ a {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.6rem;
 }
 
 /* The crest block: a solid square at the top-left corner, the way a club
@@ -223,13 +224,6 @@ a {
    outside the per-page accent scope, and a mark that changed colour per
    fixture would read as a different site each time. */
 .brand-mark {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--chalk);
-  color: var(--ink);
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
@@ -239,13 +233,8 @@ a {
 
 .brand-name {
   display: block;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
   font-variation-settings: "wdth" 112;
-  letter-spacing: 0.04em;
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .nav-link {
@@ -267,7 +256,6 @@ a {
 
 .nav-link-active {
   border-bottom-color: var(--chalk);
-  color: var(--chalk);
 }
 
 .workspace {
@@ -294,23 +282,17 @@ a {
 
 .topbar {
   position: sticky;
-  z-index: 20;
   top: 0;
-  border-bottom: 1px solid var(--rule);
   /* Must track --ink. Can't just be var(--ink) — this needs an alpha
      channel for the sticky blur-free translucency. */
-  background: rgba(8, 9, 11, 0.96);
 }
 
 .topbar-inner {
   display: flex;
-  min-height: 4.25rem;
   max-width: 100rem;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
   margin: 0 auto;
-  padding: 0.65rem 1rem;
 }
 
 .topbar-controls {
@@ -334,10 +316,8 @@ a {
 }
 
 .main-content {
-  width: 100%;
   max-width: 100rem;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
 }
 
 .tour-bar {
@@ -379,35 +359,18 @@ a {
 
 .mobile-nav {
   position: static;
-  z-index: 30;
   width: 100%;
-  display: grid;
   /* Three nav items (Games / You / Groups) — a fourth dead column left the
      nav sitting left-of-centre on every phone. */
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--rule);
-  background: var(--ink);
   padding: 0.35rem max(0.35rem, env(safe-area-inset-right))
     max(0.35rem, env(safe-area-inset-bottom))
     max(0.35rem, env(safe-area-inset-left));
 }
 
 .mobile-nav-link {
-  display: grid;
-  min-height: 3.3rem;
   place-items: center;
   align-content: center;
-  gap: 0.15rem;
   border-radius: var(--radius-sm);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-}
-
-.mobile-nav-link-active {
-  background: var(--slat-raised);
-  color: var(--chalk);
-  box-shadow: inset 0 3px 0 var(--chalk);
 }
 
 .app-footer {
@@ -442,7 +405,6 @@ a {
 /* Neutral by default — one accent doing thirteen jobs meant nothing could be
    emphasised. */
 .eyebrow {
-  color: var(--faint);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
@@ -452,12 +414,8 @@ a {
 .display-title {
   margin: 0.2rem 0 0;
   font-family: var(--font-display);
-  font-size: var(--text-display);
   font-weight: var(--weight-semibold);
-  font-variation-settings: "wdth" 118;
   letter-spacing: -0.025em;
-  line-height: 0.95;
-  text-transform: uppercase;
 }
 
 .page-description {
@@ -504,15 +462,10 @@ a {
 
 .standing-figure {
   font-family: var(--font-mono);
-  font-size: var(--text-display);
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
   line-height: 1;
   color: var(--chalk);
-}
-
-.standing-figure-minor {
-  font-size: var(--text-xl);
 }
 
 .standing-figure small {
@@ -537,7 +490,6 @@ a {
   min-width: 0;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
-  background: var(--slat);
 }
 
 .loading-panel {
@@ -601,11 +553,7 @@ a {
 .panel-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
   font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
 }
 
 .panel-body {
@@ -623,7 +571,6 @@ a {
 
 .button {
   display: inline-flex;
-  min-height: 2.55rem;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
@@ -634,7 +581,6 @@ a {
   padding: 0.55rem 0.9rem;
   font-size: var(--text-sm);
   font-weight: var(--weight-bold);
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -687,16 +633,9 @@ a {
   display: inline-flex;
   width: fit-content;
   align-items: center;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--muted);
   padding: 0.18rem 0.48rem;
-  font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.05em;
   line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .status-positive,
@@ -731,10 +670,8 @@ a {
 }
 
 /* Every tone class is emitted by <Banner> in response to an action (an
-   error, a confirmation) — unlike the base .banner skin, which intro-banner
-   also reuses for a persistent, present-on-load panel. The entry lives on
-   the tone classes so it reaches every genuine Banner call site without
-   also animating intro-banner in on every page load. */
+   error, a confirmation), so the entry animation lives on the tone classes,
+   not the base .banner skin. */
 .banner-neutral,
 .banner-positive,
 .banner-warning,
@@ -752,24 +689,6 @@ a {
     opacity: 0;
     transform: translateY(-4px);
   }
-}
-
-.intro-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.intro-banner p {
-  margin: 0;
-}
-
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
 }
 
 .field-label {
@@ -820,16 +739,6 @@ a {
 }
 
 /* The same block inside a panel, without the full-page reserve height. */
-.empty-state-compact {
-  min-height: 0;
-  padding: 1.25rem 1rem 1.5rem;
-}
-
-.empty-state-compact .empty-icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  margin-bottom: 0.5rem;
-}
 
 .empty-icon {
   display: grid;
@@ -839,7 +748,6 @@ a {
   margin: 0 auto 0.75rem;
   border: 1px solid var(--rule);
   border-radius: 50%;
-  color: var(--muted);
 }
 
 .empty-title {
@@ -885,10 +793,6 @@ a {
   display: grid;
   justify-items: center;
   margin-bottom: 1.25rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  background: var(--slat);
-  padding: 0;
 }
 
 /* "NEXT MATCH" — light word, bold word, centred over a hairline, exactly the
@@ -901,14 +805,7 @@ a {
   width: 100%;
   white-space: nowrap;
   min-height: 2.4rem;
-  margin: 0;
-  color: var(--chalk);
-  font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
   font-variation-settings: "wdth" 112;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
 }
 
 .next-up-eyebrow span {
@@ -923,20 +820,10 @@ a {
    crest columns, or a provider that never sent one) — the row is reserved so
    its name still lands on the same baseline as the tracked side's. */
 .next-up-teams {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-rows: 3.4rem auto;
-  align-items: center;
   justify-items: center;
-  gap: 0.5rem 0.75rem;
-  margin: 0;
   padding: 1.1rem 0.75rem 0.75rem;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-}
-
-.next-up-team {
-  display: contents;
 }
 
 .next-up-team > span:last-child {
@@ -957,13 +844,7 @@ a {
 .next-up-team .team-logo {
   grid-row: 1;
   display: grid;
-  width: 3.4rem;
-  height: 3.4rem;
   place-items: center;
-  border: 2px solid var(--rule-strong);
-  border-radius: 50%;
-  background: var(--slat-muted);
-  padding: 0.5rem;
 }
 
 /* The tracked side is the one the page is about, and the one the accent
@@ -980,71 +861,12 @@ a {
 .next-up-versus {
   grid-column: 2;
   grid-row: 1;
-  color: var(--faint);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
   font-weight: var(--weight-bold);
   letter-spacing: 0.18em;
 }
 
-.next-up-meta {
-  display: grid;
-  justify-items: center;
-  gap: 0.35rem;
-  width: 100%;
-  padding: 0 1rem 1rem;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-.next-up-meta time {
-  color: var(--chalk);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.next-up-meta-clock {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  font-size: var(--text-md);
-}
-
-.next-up-meta-clock small {
-  color: var(--faint);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 /* The loudest figure on the board. Club colour, because on this design the
    accent is what says "this fixture, right now". */
-.next-up-meta-count {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.next-up-label {
-  color: var(--faint);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.next-up-countdown {
-  color: var(--club-lit);
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-medium);
-  line-height: 1;
-  /* Reserved so the tick never reflows the card, and the pre-hydration
-     render leaves a hole the right shape. */
-  min-height: 1em;
-}
 
 /* One full-width row that opens the fixture — the reference's
    "Match Centre & Tickets ›" line, doing this app's one job. */
@@ -1063,17 +885,12 @@ a {
 }
 
 .slate-filters {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
   margin-bottom: 1.25rem;
 }
 
 .slate-tz {
   margin-left: auto;
-  color: var(--faint);
-  font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1085,22 +902,9 @@ a {
 }
 
 .slate-chip {
-  display: inline-flex;
-  min-height: 2.2rem;
   align-items: center;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  color: var(--muted);
   padding: 0 0.85rem;
   font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-}
-
-.slate-chip-active {
-  border-color: var(--rule-strong);
-  background: var(--slat-raised);
-  color: var(--chalk);
 }
 
 .slate-groups {
@@ -1108,20 +912,10 @@ a {
   gap: 1rem;
 }
 
-.game-list {
-  display: grid;
-}
-
 .game-row {
-  display: grid;
   min-width: 0;
   /* The reference's table: the game reads first and the kickoff is a
      right-aligned mono column, so a column of times still lines up. */
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.65rem;
-  border-bottom: 1px solid var(--rule);
-  padding: 0.85rem 0.8rem;
 }
 
 /* The nearest fixture is painted in its own club colour, the way the
@@ -1158,9 +952,6 @@ a {
 }
 
 .game-time {
-  color: var(--chalk);
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -1183,11 +974,7 @@ a {
 }
 
 .game-team {
-  display: flex;
   flex: 1 1 0;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
 }
 
 .game-team > span:last-child {
@@ -1195,25 +982,8 @@ a {
   text-overflow: ellipsis;
 }
 
-.game-team .team-logo {
-  display: inline-grid;
-  flex: 0 0 auto;
-  width: 1.35rem;
-  height: 1.35rem;
-  place-items: center;
-}
-
 /* Only ever rendered for a game that finished inside the upcoming window. */
 .game-final {
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
-}
-
-.game-versus {
-  flex: 0 0 auto;
-  color: var(--faint);
-  font-size: var(--text-xs);
   font-weight: var(--weight-regular);
 }
 
@@ -1223,10 +993,6 @@ a {
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-.game-chevron {
-  color: var(--faint);
 }
 
 .stat-stack,
@@ -1545,10 +1311,7 @@ a {
 }
 
 .filter-bar {
-  display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.6rem;
   border-bottom: 1px solid var(--rule);
   background: var(--slat-muted);
   padding: 0.75rem 1rem;
@@ -1604,18 +1367,6 @@ a {
 
   .source-list time {
     grid-column: auto;
-  }
-}
-
-@media (min-width: 640px) {
-  .game-row {
-    padding: 1rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .game-row {
-    padding: 0.8rem 1rem;
   }
 }
 
@@ -1796,16 +1547,6 @@ a {
   }
 }
 
-@media (min-width: 640px) {
-  .main-content {
-    padding: 2rem 1.5rem;
-  }
-
-  .topbar-inner {
-    padding-inline: 1.5rem;
-  }
-}
-
 @media (min-width: 1024px) {
   .app-shell {
     display: block;
@@ -1822,22 +1563,6 @@ a {
     overflow: visible;
   }
 
-  .topbar-nav {
-    display: flex;
-  }
-
-  .mobile-nav {
-    display: none;
-  }
-
-  .main-content {
-    padding: 2.25rem 2rem 3rem;
-  }
-
-  .topbar-inner {
-    padding-inline: 2rem;
-  }
-
   .app-footer {
     padding: 1rem 2rem;
   }
@@ -1848,31 +1573,9 @@ a {
 /* Line work behind a hero: a pitch or a diamond, drawn by pitch-art.tsx.
    Decorative and always under a scrim, so nothing's contrast depends on it —
    but it is still line work on a near-black ground, so it stays quiet. */
-.pitch-art {
-  position: absolute;
-  inset: 0;
-  display: block;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.pitch-art svg {
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: var(--rule-strong);
-  stroke-width: 1.5;
-}
-
-.pitch-art .pitch-art-spot {
-  fill: var(--club-lit);
-  stroke: none;
-  opacity: 0.5;
-}
 
 /* A flat block, not a gradient: the palette has no gradients, and a hard
    edge under the type is what keeps the contrast arithmetic simple. */
-.board-hero-scrim,
 .mp-bug-scrim {
   position: absolute;
   inset: 0;
@@ -1888,77 +1591,8 @@ a {
    and bled off the corner, behind the fixture it is about. Every word over it
    is a fact already on the board — day, competition, the two names, the
    venue. No photography, and nothing written for effect. */
-.board-hero {
-  position: relative;
-  display: grid;
-  gap: 0.35rem;
-  overflow: hidden;
-  margin-bottom: 1.25rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  background: var(--slat-raised);
-  padding: 4.5rem 1.25rem 1.25rem;
-}
 
 /* The type sits above the surface *and* its scrim, which is z-index 2. */
-.board-hero > :not(.pitch-art, .board-hero-scrim, .team-logo) {
-  position: relative;
-  z-index: 3;
-}
-
-.board-hero .team-logo {
-  position: absolute;
-  top: -2.5rem;
-  right: -2rem;
-  display: block;
-  z-index: 1;
-  width: 13rem;
-  height: 13rem;
-  /* Behind the type, not competing with it. The crest is atmosphere here;
-     the card below is where it is read. */
-  opacity: 0.3;
-}
-
-.board-hero-kicker {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.board-hero-kicker::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 6px solid var(--club-lit);
-}
-
-.board-hero-title {
-  position: relative;
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 5.6vw, 2.2rem);
-  font-weight: var(--weight-bold);
-  font-variation-settings: "wdth" 112;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  text-transform: uppercase;
-  text-wrap: balance;
-}
-
-.board-hero-sub {
-  position: relative;
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
-}
 
 /* ---------- the action bar ---------- */
 
@@ -2079,10 +1713,8 @@ a {
 /* Replaces the brand lockup on a game page: one way back, in the corner the
    badge would otherwise hold. */
 .shell-back {
-  display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
@@ -2106,23 +1738,6 @@ a {
    bar, so the panel no longer needs to reserve room for a button. */
 .wager-panel {
   margin-bottom: 1rem;
-}
-
-/* ---------- full bleed ---------- */
-
-/* Below 640px every surface runs edge to edge, the way the reference frames
-   do: 32px of a 390px screen spent on a gutter is 8% of the width given to
-   nothing. The page keeps its padding so loose text — headings, filter chips,
-   the freshness line, fine print — stays inset; the panels cancel it with a
-   negative inline margin, so the net width is unchanged and nothing
-   overflows the document. */
-@media (max-width: 639px) {
-  .board-hero,
-  .next-up,
-  .legacy-full-bleed {
-    margin-inline: -1rem;
-    border-inline: 0;
-  }
 }
 
 /* ---------- motion ---------- */
@@ -2227,8 +1842,7 @@ details[open]::details-content {
     transition: none;
   }
 
-  .loading-panel,
-  .mp-skeleton {
+  .loading-panel {
     animation: none;
   }
 
@@ -2240,26 +1854,6 @@ details[open]::details-content {
 /* --------------------------------------------------------------------------
    2026 mobile reference migration
    -------------------------------------------------------------------------- */
-
-:root {
-  --ink: #07111a;
-  --slat: #101b26;
-  --slat-raised: #14212d;
-  --slat-muted: #09131d;
-  --rule: #2a3948;
-  --rule-strong: #3a4b5d;
-  --chalk: #f4f7fb;
-  --muted: #aeb9ca;
-  --faint: #78879a;
-  --club: #d7ff34;
-  --club-on: #07111a;
-  --club-lit: #e4ff75;
-  --field: #39e39b;
-  --clay: #ff6075;
-  --radius-sm: 8px;
-  --radius-md: 11px;
-  --nav-h: 4.75rem;
-}
 
 body {
   background:
@@ -2281,7 +1875,7 @@ body {
 
 .topbar-inner {
   min-height: 72px;
-  padding: 10px 16px;
+  padding: 10px var(--gutter);
   gap: 12px;
 }
 
@@ -2360,7 +1954,7 @@ body {
 
 .main-content {
   width: min(100%, 1100px);
-  padding: 14px;
+  padding: 14px var(--gutter);
 }
 
 .mobile-nav {
@@ -2655,35 +2249,10 @@ body {
   text-transform: none;
 }
 
-.live-empty,
 .game-row {
   border: 1px solid var(--rule);
   border-radius: 9px;
   background: linear-gradient(135deg, rgb(20 33 45 / 92%), rgb(12 23 33 / 92%));
-}
-
-.live-empty {
-  display: flex;
-  min-height: 82px;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 14px;
-  color: var(--muted);
-}
-
-.live-empty > svg {
-  width: 34px;
-  height: 34px;
-}
-
-.live-empty p {
-  margin: 0;
-}
-
-.live-empty p span {
-  display: block;
-  font-size: 0.78rem;
 }
 
 .game-list {
@@ -2778,16 +2347,12 @@ body {
 }
 
 @media (max-width: 430px) {
-  .topbar-inner {
-    padding-inline: 14px;
+  :root {
+    --gutter: 12px;
   }
 
   .main-content {
-    padding: 12px;
-  }
-
-  .brand-name {
-    max-width: 150px;
+    padding-block: 12px;
   }
 
   .slate-tz span {
@@ -2796,8 +2361,12 @@ body {
 }
 
 @media (min-width: 1024px) {
+  :root {
+    --gutter: 24px;
+  }
+
   .main-content {
-    padding: 28px 24px 48px;
+    padding-block: 28px 48px;
   }
 
   .mobile-nav {
@@ -2812,15 +2381,6 @@ body {
   .topbar-nav {
     display: flex;
   }
-}
-
-/* The reference uses one product accent throughout the experience. Fixture
-   identity still comes from the crests; it must not repaint controls navy or
-   red via the legacy per-club inline variables. */
-.board {
-  --club: #d7ff34 !important;
-  --club-on: #07111a !important;
-  --club-lit: #e4ff75 !important;
 }
 
 .next-up-header > :last-child {
@@ -3001,7 +2561,7 @@ body {
 [id] {
   scroll-margin-block-start: 1rem;
 }
-@media (max-width: 40rem) {
+@media (max-width: 639px) {
   .panel,
   .metric-card {
     margin-inline: 0;
@@ -3017,9 +2577,6 @@ body {
   .source-list > div {
     flex-wrap: wrap;
     overflow-wrap: anywhere;
-  }
-  .intro-banner {
-    flex-wrap: wrap;
   }
 }
 
@@ -3037,7 +2594,7 @@ body {
 .topbar .brand {
   flex-shrink: 1;
 }
-@media (max-width: 27rem) {
+@media (max-width: 430px) {
   .topbar .brand-name {
     font-size: clamp(0.65rem, 2.8vw, 0.96rem);
   }
@@ -3054,7 +2611,7 @@ body {
   flex-direction: column;
   text-align: center;
 }
-@media (max-width: 27rem) {
+@media (max-width: 430px) {
   .topbar-controls .button {
     font-family: var(--font-body);
     font-size: 0.75rem;
@@ -3159,56 +2716,6 @@ body {
 }
 .group-overview {
   display: grid;
-  gap: 1rem;
-}
-.group-comments-help {
-  padding: 0 1rem;
-}
-.group-activity-list {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0 1rem 1rem;
-}
-.group-wager {
-  display: grid;
-  gap: 0.75rem;
-  min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background: var(--slat-muted);
-  overflow-wrap: anywhere;
-}
-.group-wager:first-child {
-  border-inline-start: 0.2rem solid var(--club);
-}
-.group-wager-meta,
-.group-wager-pick {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-}
-.group-wager-meta {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-.group-wager-meta a {
-  color: var(--club);
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-}
-.group-wager-match {
-  color: var(--chalk);
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-.group-wager-match:hover {
-  color: var(--club);
 }
 
 /* Match-based group feed: one surface per match, compact aligned picks. */
@@ -3221,6 +2728,7 @@ body {
 }
 .group-section-title {
   display: flex;
+  font-family: var(--font-display);
   align-items: center;
   gap: 0.5rem;
   margin: 0;
@@ -3440,13 +2948,13 @@ body {
 .group-standing-net[data-positive="true"] {
   color: var(--field);
 }
-@media (min-width: 64rem) {
+@media (min-width: 1024px) {
   .group-overview {
     grid-template-columns: minmax(0, 1.5fr) minmax(19rem, 1fr);
   }
 }
 
-@media (max-width: 27rem) {
+@media (max-width: 430px) {
   .shell-back {
     width: 1.5rem;
     flex-basis: 1.5rem;

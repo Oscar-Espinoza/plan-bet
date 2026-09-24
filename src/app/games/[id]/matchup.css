@@ -25,16 +25,7 @@
 
 /* ---------- scorebug ---------- */
 
-.mp-bug {
-  position: relative;
-  overflow: hidden;
-  background: var(--slat);
-  border: 1px solid var(--rule);
-  padding: 14px 16px 18px;
-}
-
 .mp-comp {
-  display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: baseline;
@@ -53,15 +44,12 @@
 }
 
 .mp-sides {
-  display: flex;
   flex-direction: column;
   padding: 16px 0 4px;
 }
 
 .mp-side {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
   column-gap: 12px;
   padding-left: 12px;
   border-left: 4px solid transparent;
@@ -78,10 +66,6 @@
    larger — this page is about the fixture, not the badge. */
 .mp-side-team {
   grid-column: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
 }
 
 .mp-side-team .team-logo {
@@ -103,12 +87,8 @@
 
 .mp-side-name {
   grid-column: 1;
-  font-size: clamp(1.75rem, 9.5vw, 3.5rem);
   font-variation-settings: "wdth" 118;
-  font-weight: 800;
-  line-height: 0.92;
   letter-spacing: -0.015em;
-  text-transform: uppercase;
   text-wrap: balance;
 }
 
@@ -127,34 +107,6 @@
    starts *after* the letter rather than running under it: the old knockout
    painted a --slat chip over the line, which reads as a solid box now that
    there is artwork behind the panel. */
-.mp-versus {
-  display: block;
-  height: 1em;
-  margin: 14px 0 14px 15px;
-  position: relative;
-  font-size: var(--text-xs);
-}
-
-.mp-versus::before {
-  content: "V";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: var(--faint);
-}
-
-.mp-versus::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 1.8rem;
-  height: 1px;
-  background: var(--rule);
-}
 
 .mp-aftermath {
   padding-left: 15px;
@@ -164,44 +116,21 @@
   color: var(--muted);
 }
 
-.mp-clock {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 18px;
-  padding: 14px 0 0 15px;
-  border-top: 1px solid var(--rule);
-}
-
 .mp-clock-label {
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
   font-weight: 700;
-  color: var(--faint);
 }
 
 .mp-clock-figure {
-  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: clamp(2.25rem, 13vw, 3.5rem);
   line-height: 1;
-  color: var(--club-lit);
   font-variant-numeric: tabular-nums;
   /* The clock reserves its own height so a 1s tick never reflows the page,
      and so the pre-hydration render leaves a hole the right shape. */
-  min-height: 1em;
 }
 
 .mp-when {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 12px;
   padding-left: 15px;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--muted);
 }
 
 .mp-venue {
@@ -214,10 +143,6 @@
 
 /* Everything in the scorebug sits above the playing surface and its scrim;
    .mp-bug-scrim is z-index 2 in globals.css, so this is 3. */
-.mp-bug > :not(.pitch-art, .mp-bug-scrim) {
-  position: relative;
-  z-index: 3;
-}
 
 /* ---------- ribbon ---------- */
 
@@ -246,13 +171,6 @@
 
 /* ---------- layout ---------- */
 
-.mp-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.mp-read,
 .mp-action {
   min-width: 0;
 }
@@ -264,9 +182,7 @@
      is a long trip for the eye; the block keeps a readable measure whatever
      the window does. */
   max-width: 46rem;
-  display: flex;
   flex-direction: column;
-  gap: 22px;
 }
 
 .mp-block {
@@ -275,11 +191,6 @@
 }
 
 .mp-block-title {
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-weight: 800;
-  color: var(--club-lit);
   padding-bottom: 8px;
   border-bottom: 1px solid var(--rule-strong);
 }
@@ -289,7 +200,6 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   column-gap: 12px;
-  padding: 9px 0;
   border-bottom: 1px solid var(--rule);
   font-size: var(--text-sm);
 }
@@ -361,18 +271,6 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: 500;
-  background: var(--slat-raised);
-  color: var(--muted);
-}
-
-.mp-form b[data-result="W"] {
-  background: var(--field);
-  color: var(--ink);
-}
-
-.mp-form b[data-result="L"] {
-  background: var(--clay);
-  color: var(--ink);
 }
 
 .mp-deeper {
@@ -521,28 +419,10 @@
 /* ---------- desktop ---------- */
 
 @media (min-width: 1100px) {
-  /* Guarded on the aside actually being there: with sign-in unconfigured the
-     page is one column, and an unconditional second track would reserve
-     22rem of nothing. */
-  .mp-layout:has(.mp-action) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 22rem;
-    align-items: start;
-    gap: 28px;
-  }
-
   .mp-action {
     order: 2;
     position: sticky;
     top: 20px;
-  }
-
-  .mp-read {
-    order: 1;
-  }
-
-  .mp-bug {
-    padding: 20px 24px 24px;
   }
 
   .mp-sides {
@@ -551,30 +431,6 @@
 }
 
 /* ---------- loading, empty and error ---------- */
-
-.mp-skeleton {
-  background: var(--slat);
-  border: 1px solid var(--rule);
-  animation: mp-pulse 1.4s ease-in-out infinite;
-}
-
-.mp-skeleton-bug {
-  height: 17rem;
-}
-
-.mp-skeleton-read {
-  height: 20rem;
-}
-
-.mp-skeleton-action {
-  height: 24rem;
-}
-
-@keyframes mp-pulse {
-  50% {
-    opacity: 0.55;
-  }
-}
 
 .mp-empty {
   display: flex;
@@ -635,18 +491,6 @@
   padding-top: 12px;
 }
 
-/* ---------- full bleed ---------- */
-
-/* Same rule as globals.css: below 640px the scorebug and the score entry run
-   edge to edge and cancel the page gutter. */
-@media (max-width: 639px) {
-  .mp-bug,
-  .mp-score {
-    margin-inline: -1rem;
-    border-inline: 0;
-  }
-}
-
 /* Mobile reference migration ------------------------------------------------ */
 
 .mp {
@@ -687,7 +531,6 @@
   }
 }
 
-.mp-bug .pitch-art,
 .mp-bug-scrim {
   display: none;
 }
@@ -798,14 +641,11 @@
 }
 
 .mp-clock-label {
-  color: var(--muted);
   font-size: 0.72rem;
 }
 
 .mp-clock-figure {
-  color: var(--club);
   font-family: var(--font-mono);
-  font-size: 0.9rem;
 }
 
 .mp-when {
@@ -830,12 +670,9 @@
 .mp-tabs button {
   position: relative;
   min-width: 0;
-  min-height: 48px;
-  padding: 0 4px;
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 0.77rem;
   cursor: pointer;
 }
 
@@ -926,7 +763,6 @@
 
 .wager-panel > .panel-header {
   order: 0;
-  padding: 15px 16px 8px;
   border: 0;
 }
 
@@ -934,7 +770,6 @@
   color: var(--club);
   font-family: var(--font-display);
   font-size: 1rem;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -1245,8 +1080,8 @@
 
 @media (max-width: 639px) {
   .mp {
-    margin-inline: -12px;
-    width: calc(100% + 24px);
+    margin-inline: calc(-1 * var(--gutter));
+    width: calc(100% + 2 * var(--gutter));
   }
 
   .mp-breadcrumb,
@@ -1283,12 +1118,6 @@
     grid-column: 2;
     grid-row: 1 / span 3;
   }
-}
-
-.mp {
-  --club: #d7ff34 !important;
-  --club-on: #07111a !important;
-  --club-lit: #e4ff75 !important;
 }
 
 .mp-clock {
@@ -1331,6 +1160,7 @@
 }
 .group-discussion > h2 {
   margin: 0.5rem 0 1rem;
+  font-family: var(--font-display);
   font-size: 1.15rem;
   color: var(--chalk);
 }
@@ -1352,6 +1182,7 @@
 }
 .discussion-group-heading h3 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 1rem;
   overflow-wrap: anywhere;
 }
@@ -1598,7 +1429,7 @@
   order: 6;
   margin: 0 1rem 1rem;
 }
-@media (max-width: 40rem) {
+@media (max-width: 639px) {
   .mp-overview {
     gap: 1rem;
   }
