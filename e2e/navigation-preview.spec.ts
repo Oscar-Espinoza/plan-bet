@@ -167,18 +167,18 @@ test("local filters and keyboard navigation keep their normal behavior", async (
   await expect(preview(page)).toHaveCount(0);
   const release = await holdDestination(page, "/you");
   try {
-    const bets = page
+    const you = page
       .getByRole("navigation", { name: "Mobile navigation" })
-      .getByRole("link", { name: "My Bets" });
-    await bets.focus();
+      .getByRole("link", { name: "You" });
+    await you.focus();
     await page.keyboard.press("Enter");
     await expect(
-      preview(page).getByRole("heading", { name: "My Bets" }),
+      preview(page).getByRole("heading", { name: "Where you stand" }),
     ).toBeVisible();
   } finally {
     release();
   }
-  await expect(page).toHaveURL(/\/you\?section=bets#you-history-heading$/);
+  await expect(page).toHaveURL(/\/you$/);
   await expect(preview(page)).toHaveCount(0);
 });
 

@@ -86,11 +86,7 @@ export function DestinationPreview({
   const pathname = href.split(/[?#]/)[0];
   if (pathname.startsWith("/games/")) {
     return (
-      <div
-        className="mp"
-        role="status"
-        aria-label={t("Loading game")}
-      >
+      <div className="mp" role="status" aria-label={t("Loading game")}>
         <MatchChrome view={metadata?.match} />
         <div className="mp-tab-panel">
           <div className="mp-overview">
@@ -146,9 +142,7 @@ export function DestinationPreview({
             ? "Loading groups"
             : "Loading…";
   const heading = isYou
-    ? new URL(href, "http://local").searchParams.get("section") === "bets"
-      ? "My Bets"
-      : "Profile"
+    ? "Where you stand"
     : pathname === "/groups"
       ? "Groups"
       : pathname === "/"

@@ -8,7 +8,9 @@ function Form({ value }: { value: string }) {
   return (
     <span className="mp-form">
       {value.split("").map((letter, index) => (
-        <b key={`${t(letter)}-${index}`} data-result={t(letter)}>
+        // The tone keys on the provider's W/D/L, not the translated letter
+        // (Spanish G/E/P), or Spanish readers lose the colours.
+        <b key={`${letter}-${index}`} data-result={letter}>
           {t(letter)}
         </b>
       ))}

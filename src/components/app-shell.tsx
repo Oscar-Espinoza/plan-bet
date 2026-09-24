@@ -10,52 +10,25 @@ import {
   useNavigationPreview,
 } from "@/components/navigation-preview";
 import { LocalLink } from "@/components/fast-link";
-import { usePathname, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  UsersRound,
-  CircleDot,
-  Trophy,
-  UserRound,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, UsersRound, CircleDot, UserRound } from "lucide-react";
+import { useBandHeight } from "@/components/band-height";
 import { Buddy } from "@/components/buddy-launcher";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
 import { cn } from "@/lib/utils";
 
-// Both layouts share destinations and active states.
+// Both layouts share destinations and active states. One tab per real
+// destination: bets, record and settings all live on /you.
 const navItems = [
-  { href: "/", label: "Games", icon: CircleDot, section: undefined },
-  {
-    href: "/you?section=bets#you-history-heading",
-    label: "My Bets",
-    icon: Trophy,
-    section: "bets",
-  },
-  {
-    href: "/groups",
-    label: "Groups",
-    icon: UsersRound,
-    section: undefined,
-  },
-  {
-    href: "/you?section=profile#you-settings-heading",
-    label: "Profile",
-    icon: UserRound,
-    section: "profile",
-  },
+  { href: "/", label: "Games", icon: CircleDot },
+  { href: "/you", label: "You", icon: UserRound },
+  { href: "/groups", label: "Groups", icon: UsersRound },
 ];
 
-function isCurrent(
-  pathname: string,
-  href: string,
-  section?: string,
-  activeSection?: string,
-) {
+function isCurrent(pathname: string, href: string) {
   if (href === "/") return pathname === "/" || pathname.startsWith("/games/");
-  if (href === "/groups")
-    return pathname === "/groups" || pathname.startsWith("/groups/");
-  return pathname === "/you" && section === activeSection;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AppShell({
@@ -84,7 +57,7 @@ function ShellContent({
   const navigation = useNavigationPreview();
   const pending = navigation?.pending;
   const pathname = pending?.pathname ?? committedPathname;
-  const searchParams = useSearchParams();
+  const navRef = useBandHeight("--nav-h");
   const scroller = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (!pending || !scroller.current) return;
@@ -96,15 +69,12 @@ function ShellContent({
       element.scrollTop = previousTop;
     };
   }, [pending]);
-  // The bar exists on a game page and nowhere else: it is the wager action,
-  // not shell furniture. The board deliberately ends at the nav.
   const onGame = pathname.startsWith("/games/");
-  const activeSection =
-    (pending
-      ? new URL(pending.href, "http://local").searchParams
-      : searchParams
-    ).get("section") ?? "profile";
-  const showUtilityChrome = !pending && pathname !== "/" && !onGame;
+  // The tour describes the board and the bet slip, so it shows there and only
+  // there. Buddy keeps to the other pages: on the board and a game page it
+  // would sit on the rows and the bet bar.
+  const showTour = !pending && (pathname === "/" || onGame);
+  const showBuddy = !pending && pathname !== "/" && !onGame;
 
   return (
     <div className="app-shell">
@@ -132,12 +102,7 @@ function ShellContent({
             </Link>
             <nav className="topbar-nav" aria-label={t("Primary navigation")}>
               {navItems.map((item) => {
-                const active = isCurrent(
-                  pathname,
-                  item.href,
-                  item.section,
-                  activeSection,
-                );
+                const active = isCurrent(pathname, item.href);
                 return (
                   <LocalLink
                     className={cn("nav-link", active && "nav-link-active")}
@@ -220,14 +185,13 @@ function ShellContent({
           </footer>
         </div>
       </div>
-      <nav className="mobile-nav" aria-label={t("Mobile navigation")}>
+      <nav
+        ref={navRef}
+        className="mobile-nav"
+        aria-label={t("Mobile navigation")}
+      >
         {navItems.map((item) => {
-          const active = isCurrent(
-            pathname,
-            item.href,
-            item.section,
-            activeSection,
-          );
+          const active = isCurrent(pathname, item.href);
           return (
             <LocalLink
               className={cn(
@@ -244,8 +208,8 @@ function ShellContent({
           );
         })}
       </nav>
-      {showUtilityChrome && <TourBar />}
-      {showUtilityChrome && <Buddy />}
+      {showTour && <TourBar />}
+      {showBuddy && <Buddy />}
     </div>
   );
 }

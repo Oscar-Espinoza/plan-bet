@@ -69,7 +69,7 @@ export function MatchChrome({
       ) : (
         <header className="mp-bug match-header-skeleton" aria-hidden="true">
           <span className="mp-status-pill match-placeholder">
-            <span>{t("Next match")}</span>
+            <span>{t("Upcoming")}</span>
           </span>
           <div className="mp-sides">
             {["Home", "Away"].map((side, index) => (

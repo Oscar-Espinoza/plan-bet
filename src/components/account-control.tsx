@@ -39,7 +39,7 @@ export async function AccountControl() {
   return (
     <Link
       className="account-standing"
-      href="/you?section=profile#you-settings-heading"
+      href="/you"
       aria-label={t("Balance {p0} credits, record {p1} won {p2} lost{p3}", {
         p0: balance,
         p1: summary.won,

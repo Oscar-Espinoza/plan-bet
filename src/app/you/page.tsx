@@ -3,9 +3,10 @@ import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { NavigationLink as Link } from "@/components/fast-link";
 import { redirect } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { BetsHistory } from "@/components/bets-history";
+import { LanguageSwitch } from "@/components/language-provider";
 import { ResetBankroll } from "@/components/reset-bankroll";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -189,7 +190,15 @@ export default async function Page({ searchParams }: Props) {
             {account.name ?? account.email ?? t("Free-to-play record")}
           </p>
           <h1 className="display-title">{t("Where you stand")}</h1>
-          <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <Suspense
+            fallback={
+              <div
+                className="standing-lead standing-lead-loading"
+                role="status"
+                aria-label={t("Loading…")}
+              />
+            }
+          >
             <Resolved promise={summaryPromise}>
               {(summary) => (
                 <>
@@ -223,7 +232,7 @@ export default async function Page({ searchParams }: Props) {
       </header>
 
       <div className="section-grid">
-        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
           <Resolved promise={openPromise}>
             {([openCount, openWagers]) => (
               <Card
@@ -247,7 +256,7 @@ export default async function Page({ searchParams }: Props) {
           </Resolved>
         </Suspense>
 
-        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
           <Resolved promise={settledPromise}>
             {(justSettled) => (
               <Card title={t("Just settled")} titleId="just-settled-heading">
@@ -263,7 +272,7 @@ export default async function Page({ searchParams }: Props) {
           </Resolved>
         </Suspense>
 
-        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
           <Resolved promise={slicesPromise}>
             {(slices) => (
               <Card title={t("Slices")} titleId="slices-heading">
@@ -298,7 +307,7 @@ export default async function Page({ searchParams }: Props) {
           </Resolved>
         </Suspense>
 
-        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
           <Resolved promise={summaryPromise}>
             {(summary) => (
               <Card title={t("Detail")} titleId="detail-heading">
@@ -324,7 +333,7 @@ export default async function Page({ searchParams }: Props) {
         </Suspense>
       </div>
 
-      <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+      <Suspense fallback={<CardLoading label={t("Loading…")} />}>
         <Resolved promise={historyPromise}>
           {(history) => (
             <section className="panel" aria-labelledby="you-history-heading">
@@ -437,36 +446,55 @@ export default async function Page({ searchParams }: Props) {
         </Resolved>
       </Suspense>
 
+      {/* Everything that isn't a game or a group lives here, one full-height
+          row each — on a phone these were otherwise 12px footer links. */}
       <section className="panel" aria-labelledby="you-settings-heading">
         <div className="panel-header">
           <h2 className="panel-title" id="you-settings-heading">
-            {t("Settings")}{" "}
+            {t("Settings")}
           </h2>
         </div>
-        <div className="panel-body flex flex-wrap items-center gap-3">
-          <span className="fine-print">
-            {t("Reset your bankroll back to the starting balance.")}{" "}
-          </span>
-          <ResetBankroll />
+        <div className="settings-list">
+          <Link className="settings-row" href="/rules">
+            <span>{t("Rules")}</span>
+            <ChevronRight aria-hidden="true" size={18} />
+          </Link>
+          <Link className="settings-row" href="/system">
+            <span>{t("System")}</span>
+            <ChevronRight aria-hidden="true" size={18} />
+          </Link>
+          <div className="settings-row">
+            <span>{t("Language")}</span>
+            <LanguageSwitch />
+          </div>
+          <div className="settings-row">
+            <span>
+              {t("Reset your bankroll back to the starting balance.")}
+            </span>
+            <ResetBankroll />
+          </div>
           <form
+            className="settings-row"
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/" });
             }}
           >
+            <span>{account.email ?? t("Signed in")}</span>
             <Button type="submit" variant="secondary" size="sm">
-              {t("Sign out")}{" "}
+              {t("Sign out")}
             </Button>
           </form>
         </div>
-        <div className="form-block">
-          <span>
-            {t("Read the")} <Link href="/rules">{t("simulator rules")}</Link>{" "}
-            {t("before you place a wager.")}{" "}
-          </span>
-        </div>
       </section>
     </>
+  );
+}
+
+/** Holds a card's place while it streams, so the grid doesn't collapse. */
+function CardLoading({ label }: { label: string }) {
+  return (
+    <div className="panel loading-panel" role="status" aria-label={label} />
   );
 }
 

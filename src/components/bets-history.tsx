@@ -82,17 +82,21 @@ export function BetsHistory({
               : undefined;
             return (
               <tr key={wager.id}>
-                <td>
+                {/* data-label names each cell when a phone stacks the row
+                    into a card and the header row is hidden. */}
+                <td className="wager-cell-matchup">
                   <Link href={`/games/${wager.routeId}`}>{wager.matchup}</Link>
                 </td>
-                <td>{t(wager.competition)}</td>
-                <td>
+                <td className="wager-cell-sub" data-label={t("Competition")}>
+                  {t(wager.competition)}
+                </td>
+                <td className="wager-cell-wide" data-label={t("Selection")}>
                   {t(wagerSelectionLabel(wager))}
                   <span className="fine-print"> · {t(wager.marketLabel)}</span>
                 </td>
-                <td>{formatNumber(wager.price, 2)}</td>
-                <td>{wager.stake}</td>
-                <td>
+                <td data-label={t("Price")}>{formatNumber(wager.price, 2)}</td>
+                <td data-label={t("Stake")}>{wager.stake}</td>
+                <td data-label={t("Outcome")}>
                   {settlement ? (
                     <StatusTag tone={outcomeTone(settlement.outcome)}>
                       {t(settlementLabel(settlement.outcome))}
@@ -101,10 +105,16 @@ export function BetsHistory({
                     <StatusTag tone="neutral">{t("open")}</StatusTag>
                   )}
                 </td>
-                <td>{t(decidingResult(settlement))}</td>
-                <td>{settlement ? settlement.returned : t("Pending")}</td>
-                <td>{net !== undefined ? net : t("Pending")}</td>
-                <td>
+                <td data-label={t("Result")}>
+                  {t(decidingResult(settlement))}
+                </td>
+                <td data-label={t("Returned")}>
+                  {settlement ? settlement.returned : t("Pending")}
+                </td>
+                <td data-label={t("Net")}>
+                  {net !== undefined ? net : t("Pending")}
+                </td>
+                <td data-label={t("Placed")}>
                   <LocalDateTime value={wager.placedAt} short />
                 </td>
               </tr>

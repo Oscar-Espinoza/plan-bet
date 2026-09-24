@@ -15,7 +15,7 @@ export function ResetBankroll() {
   return (
     <>
       <Button
-        variant="secondary"
+        variant="danger"
         size="sm"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}

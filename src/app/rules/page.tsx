@@ -76,7 +76,7 @@ export default async function Page() {
             </h2>
           </div>
           <div className="panel-body">
-            <ul className="muted">
+            <ul className="muted rules-list">
               <li>
                 {t(
                   "Football offers match result, double chance, draw no bet, goal totals, both teams to score, team goals, clean sheets, handicaps, and exact scores from 0-0 through 3-3. Scores outside that grid lose every exact-score selection.",

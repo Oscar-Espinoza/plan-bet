@@ -89,8 +89,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#08090b",
+  // Must track --ink.
+  themeColor: "#07111a",
   colorScheme: "dark",
+  // Lets env(safe-area-inset-*) resolve on phones with a notch or home
+  // indicator; the nav pads itself by it and useBandHeight measures the result.
+  viewportFit: "cover",
 };
 
 /** The request's own time — what the first paint's relative labels count from. */

@@ -175,10 +175,14 @@ export function GroupActivity({
       ) : (
         <div className="empty-state">
           <div>
-            <Receipt aria-hidden="true" />
-            <h3>{t("No wagers yet")}</h3>
-            <p>{t("Place a wager with this group from a game page.")}</p>
-            <Link href="/" className="button button-primary">
+            <span className="empty-icon">
+              <Receipt aria-hidden="true" />
+            </span>
+            <h3 className="empty-title">{t("No wagers yet")}</h3>
+            <p className="empty-copy">
+              {t("Place a wager with this group from a game page.")}
+            </p>
+            <Link href="/" className="button button-secondary button-sm mt-4">
               {t("Games")}
             </Link>
           </div>

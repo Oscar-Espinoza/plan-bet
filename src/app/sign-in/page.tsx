@@ -1,7 +1,7 @@
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { StatusTag } from "@/components/ui/status-tag";
 import { configuredProviderNames, requireAccount, signIn } from "@/lib/auth";
 import { safeCallbackUrl } from "@/lib/api-request";
@@ -78,7 +78,7 @@ export default async function Page({ searchParams }: Props) {
         </div>
         {providers.length ? (
           <div className="panel-body flex flex-col gap-3">
-            {providers.map((provider) => (
+            {providers.map((provider, index) => (
               <form
                 key={provider}
                 action={async () => {
@@ -86,9 +86,14 @@ export default async function Page({ searchParams }: Props) {
                   await signIn(provider, { redirectTo: callbackUrl });
                 }}
               >
-                <Button type="submit" className="w-full">
+                {/* One primary action; any further provider is secondary. */}
+                <SubmitButton
+                  className="w-full"
+                  variant={index === 0 ? "primary" : "secondary"}
+                  pendingLabel={t("Redirecting…")}
+                >
                   {t(PROVIDER_LABEL[provider] ?? `Continue with ${provider}`)}
-                </Button>
+                </SubmitButton>
               </form>
             ))}
           </div>

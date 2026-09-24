@@ -95,12 +95,14 @@ function dayLabel(
   const key = dayKey(value, tz);
   if (key === todayKey) return "Today";
   if (key === tomorrowKey) return "Tomorrow";
-  return new Intl.DateTimeFormat(intlLocale(locale), {
+  const label = new Intl.DateTimeFormat(intlLocale(locale), {
     timeZone: tz,
     weekday: "long",
     month: "short",
     day: "numeric",
   }).format(new Date(value));
+  // Spanish weekdays come back lowercase ("sábado, 26 sept").
+  return label.charAt(0).toLocaleUpperCase(intlLocale(locale)) + label.slice(1);
 }
 
 export function Slate({
@@ -155,6 +157,17 @@ export function Slate({
   }
 
   const nextUp = scheduledGames[0] ?? liveGames[0];
+  // One stamp per sport on the board — under a sport filter, showing both
+  // would claim freshness for data that isn't on the page — and one stamp
+  // total when both sports are in the same state.
+  const stamps = [
+    sport !== "baseball" && data["real-madrid"].freshness,
+    sport !== "soccer" && data["new-york-yankees"].freshness,
+  ].filter((stamp) => stamp !== false);
+  const freshness = stamps.filter(
+    (stamp, index) =>
+      stamps.findIndex((other) => other.mode === stamp.mode) === index,
+  );
 
   return (
     <div className="board">
@@ -166,11 +179,11 @@ export function Slate({
               would, and printing "Upcoming games" above it a second time
               would just be noise on a good day. */}
           <h1 className="sr-only">{t("Upcoming games")}</h1>
-          <div className="next-up" aria-labelledby="next-match-heading">
+          <section className="next-up" aria-labelledby="next-match-heading">
             <div className="next-up-header">
-              <p className="next-up-eyebrow" id="next-match-heading">
+              <h2 className="next-up-eyebrow" id="next-match-heading">
                 {t("Next match")}{" "}
-              </p>
+              </h2>
               <RelativeKickoff value={nextUp.scheduledAt} />
             </div>
             <h3 className="next-up-teams">
@@ -201,20 +214,11 @@ export function Slate({
                 <ChevronRight aria-hidden="true" size={20} />
               </MatchLink>
             </Button>
-          </div>
+          </section>
           <div className="slate-freshness slate-freshness-standalone">
-            {/* One stamp per sport actually on the board — under a sport
-                filter, showing both would claim freshness for data that
-                isn't on the page. */}
-            {sport !== "baseball" && (
-              <DemoStamp compact freshness={data["real-madrid"].freshness} />
-            )}
-            {sport !== "soccer" && (
-              <DemoStamp
-                compact
-                freshness={data["new-york-yankees"].freshness}
-              />
-            )}
+            {freshness.map((stamp) => (
+              <DemoStamp compact freshness={stamp} key={stamp.mode} />
+            ))}
           </div>
         </>
       ) : (
@@ -229,15 +233,9 @@ export function Slate({
             </p>
           </div>
           <div className="slate-freshness">
-            {sport !== "baseball" && (
-              <DemoStamp compact freshness={data["real-madrid"].freshness} />
-            )}
-            {sport !== "soccer" && (
-              <DemoStamp
-                compact
-                freshness={data["new-york-yankees"].freshness}
-              />
-            )}
+            {freshness.map((stamp) => (
+              <DemoStamp compact freshness={stamp} key={stamp.mode} />
+            ))}
           </div>
         </header>
       )}
@@ -279,18 +277,22 @@ export function Slate({
                 preview={matchPreview(game, data)}
                 key={game.id}
               >
-                <span className="game-time">{t("LIVE")}</span>
-                <span className="game-matchup-stacked">
+                <div className="game-time">{t("LIVE")}</div>
+                <div className="game-opponent game-matchup-stacked">
                   <span className="game-team">
                     <TeamLogo src={gameTeamLogo(game, "home")} />
-                    {game.homeTeam}
+                    <span>{game.homeTeam}</span>
                   </span>
                   <span className="game-team">
                     <TeamLogo src={gameTeamLogo(game, "away")} />
-                    {game.awayTeam}
+                    <span>{game.awayTeam}</span>
                   </span>
-                </span>
-                <ChevronRight aria-hidden="true" className="game-chevron" />
+                </div>
+                <ChevronRight
+                  className="game-chevron"
+                  aria-hidden="true"
+                  size={18}
+                />
               </MatchLink>
             ))}
           </div>
@@ -325,10 +327,6 @@ export function Slate({
                     href={`/games/${game.id}`}
                     preview={matchPreview(game, data)}
                     key={game.id}
-                    aria-label={t("Open {p0} versus {p1}", {
-                      p0: game.homeTeam,
-                      p1: game.awayTeam,
-                    })}
                   >
                     <div className="game-time">
                       <KickoffTime value={game.scheduledAt} />

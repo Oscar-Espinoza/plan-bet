@@ -24,12 +24,10 @@
   --field: #39e39b;
   --clay: #ff6075;
 
-  /* Bottom bands, measured at runtime by useBandHeight (action-bar.tsx).
+  /* Bottom bands, measured at runtime by useBandHeight (band-height.ts).
      The values here are first-paint estimates only — never lay out against
-     them as though they were fixed. --action-h is 0 off a game page, where
-     the bar does not exist at all. */
+     them as though they were fixed. */
   --nav-h: 4.75rem;
-  --action-h: 0px;
   --tour-h: 0px;
   --field-dark: #16281f;
   --clay-dark: #2e1917;
@@ -265,10 +263,13 @@ a {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+/* The tour bar is fixed over the bottom of the scroller; the padding lets the
+   last row scroll clear of it. */
 .workspace-scroll {
   display: flex;
   min-height: 0;
   flex-direction: column;
+  padding-bottom: var(--tour-h);
   overflow-y: auto;
   overscroll-behavior-y: contain;
 }
@@ -324,12 +325,12 @@ a {
   position: fixed;
   z-index: 35;
   right: 0;
-  /* Clears whatever bands are actually below it: the nav always, the action
-     bar only on a game page. Both are measured by useBandHeight. */
-  bottom: calc(var(--nav-h) + var(--action-h));
+  /* Sits on the nav, whose height useBandHeight measures (safe area
+     included). */
+  bottom: var(--nav-h);
   left: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -338,7 +339,12 @@ a {
   padding: 0.65rem 1rem;
 }
 
+.tour-bar .button {
+  flex: none;
+}
+
 .tour-bar-copy {
+  min-width: 0;
   margin: 0;
   color: var(--chalk);
   font-size: var(--text-base);
@@ -353,7 +359,7 @@ a {
 
 @media (min-width: 1024px) {
   .tour-bar {
-    bottom: var(--action-h);
+    bottom: 0;
   }
 }
 
@@ -376,6 +382,11 @@ a {
 .app-footer {
   border-top: 1px solid var(--rule);
   padding: 1rem;
+}
+
+/* Room for the floating Buddy button, so it never sits on the fine print. */
+.app-shell:has(.buddy-launcher) .app-footer {
+  padding-bottom: 5.5rem;
 }
 
 .app-footer p {
@@ -781,8 +792,11 @@ a {
   gap: 0.5rem;
 }
 
+/* Live, stale or demo — PRODUCT.md requires the board to say which. */
 .slate-freshness-standalone {
-  margin-bottom: 1.25rem;
+  margin: -0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 /* The "NEXT MATCH" card, straight out of the reference: crest, V, crest,
@@ -868,22 +882,6 @@ a {
 /* The loudest figure on the board. Club colour, because on this design the
    accent is what says "this fixture, right now". */
 
-/* One full-width row that opens the fixture — the reference's
-   "Match Centre & Tickets ›" line, doing this app's one job. */
-.next-up .button {
-  width: 100%;
-  min-height: 2.9rem;
-  border: 0;
-  border-top: 1px solid var(--rule);
-  border-radius: 0;
-  background: transparent;
-  color: var(--chalk);
-}
-
-.next-up .button:hover:not(:disabled) {
-  background: var(--slat-raised);
-}
-
 .slate-filters {
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
@@ -941,10 +939,6 @@ a {
 .game-row.game-row-next,
 .game-row.game-row-next * {
   color: var(--club-on);
-}
-
-.game-row:last-child {
-  border-bottom: 0;
 }
 
 .game-row:hover {
@@ -1162,6 +1156,81 @@ a {
   border-bottom: 0;
 }
 
+/* A phone gets one card per wager instead of a 42rem table scrolled sideways:
+   the matchup as the card's title, then labelled figures in three columns. */
+@media (max-width: 639px) {
+  .table-wrap:has(.wager-table) {
+    padding: 0;
+  }
+
+  .wager-table {
+    min-width: 0;
+  }
+
+  .wager-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .wager-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding: 14px var(--space-4);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .wager-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .wager-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .wager-table td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--faint);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    content: attr(data-label);
+  }
+
+  .wager-table .wager-cell-matchup,
+  .wager-table .wager-cell-wide {
+    grid-column: 1 / -1;
+    font-family: var(--font-body);
+  }
+
+  .wager-table .wager-cell-matchup {
+    font-size: 1rem;
+  }
+
+  /* The competition reads as the matchup's subtitle, not a labelled field. */
+  .wager-table .wager-cell-sub {
+    grid-column: 1 / -1;
+    margin-top: -8px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+  }
+
+  .wager-table .wager-cell-sub::before {
+    content: none;
+  }
+}
+
 /* A table link, not the money in the row — chalk with an underline rather
    than an accent colour. */
 .wager-table a {
@@ -1289,19 +1358,19 @@ a {
 }
 
 .stake-chips {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .stake-chips button {
-  flex: 1;
-  min-height: 40px;
+  min-height: var(--tap);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--muted);
+  background: var(--slat);
+  color: var(--chalk);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
@@ -1321,7 +1390,7 @@ a {
    hardcoded in system/page.tsx — it can never hold more than three. */
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.65rem;
   margin-bottom: 1rem;
 }
@@ -1412,13 +1481,14 @@ a {
 
 .alert-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.6rem;
   margin-top: 1.25rem;
 }
 
 /* The same Dialog.Trigger button, floated instead of docked in the topbar.
-   z-40 sits above .mobile-nav (30) and below .alert-overlay/.buddy-overlay
+   z-40 sits above the page and below .alert-overlay/.buddy-overlay
    (80) and the skip link (100). Its offset is the sum of whatever bands are
    actually below it — nav, action bar, tour bar — each measured, so there is
    no "raised" variant to keep in step with the tour any more. */
@@ -1426,7 +1496,7 @@ a {
   position: absolute;
   z-index: 40;
   right: max(1rem, env(safe-area-inset-right));
-  bottom: calc(var(--nav-h) + var(--action-h) + var(--tour-h) + 0.75rem);
+  bottom: calc(var(--nav-h) + var(--tour-h) + 0.75rem);
   /* Floats above the page, same as .alert-content/.buddy-panel — a
      hairline alone doesn't read as "above" on a near-black ground. */
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
@@ -1434,7 +1504,7 @@ a {
 
 @media (min-width: 1024px) {
   .buddy-launcher {
-    bottom: calc(var(--action-h) + var(--tour-h) + 1rem);
+    bottom: calc(var(--tour-h) + 1rem);
   }
 }
 
@@ -1594,73 +1664,6 @@ a {
 
 /* The type sits above the surface *and* its scrim, which is z-index 2. */
 
-/* ---------- the action bar ---------- */
-
-/* Present on a game page and nowhere else: this is the wager action, not
-   shell furniture, and the board deliberately ends at the nav. Flat, square,
-   hairline-topped — the reference's sticky bar, with no geometry of its own. */
-.action-bar:not(:has(.action-bar-action > *)) {
-  display: none;
-}
-
-.action-bar {
-  position: static;
-  z-index: 30;
-  width: 100%;
-  border-top: 1px solid var(--rule-strong);
-  background: var(--slat);
-  padding: 0.6rem max(0.8rem, env(safe-area-inset-right)) 0.6rem
-    max(0.8rem, env(safe-area-inset-left));
-}
-
-/* The shell stops being a grid above 1024px, so the bar pins itself instead
-   of riding a row. It is the bottommost band there, so it owns the safe area.
-   This has to sit beside the base rule, not in the shell's own 1024 block
-   near the top of the file — that block is declared earlier and would lose. */
-@media (min-width: 1024px) {
-  .action-bar {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
-    padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
-  }
-}
-
-.action-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-/* Sits beside the button, not beside the whole stack: when a stake row is
-   above it, the return and the action it belongs to stay on one line. */
-.action-bar-returns {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-self: flex-end;
-  gap: 0.1rem;
-  padding-bottom: 0.7rem;
-}
-
-.action-bar-action {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.action-bar-label {
-  color: var(--faint);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 /* Money, so chalk and mono — never the accent, on any design this app has
    worn. */
 .return-figure {
@@ -1670,37 +1673,6 @@ a {
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
   line-height: 1;
-}
-
-/* The stake rides beside the button it feeds. It stays owned by the form in
-   the panel (`form=` by id), so native validation and Enter are unchanged. */
-/* A labelled field, not a counter: the stake is typed as often as it is
-   nudged, and wide enough for a five-figure balance. */
-.action-bar-stake {
-  display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.15rem 0.4rem;
-}
-
-.action-bar-stake .action-bar-label {
-  grid-column: 1 / -1;
-}
-
-.action-bar-stake .field {
-  width: 100%;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.action-bar-stake .stake-chips {
-  flex: 1;
-}
-
-.action-bar-feedback:not(:empty) {
-  padding-bottom: 0.5rem;
 }
 
 .wager-feedback {
@@ -1911,12 +1883,15 @@ body {
   white-space: nowrap;
 }
 
+/* A full 44px target; the negative margin keeps the arrow where it was. */
 .shell-back {
   display: grid;
-  width: 32px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   place-items: center;
-  flex: 0 0 32px;
+  flex: 0 0 var(--tap);
+  margin-left: -10px;
+  margin-right: -6px;
   padding: 0;
   border: 0;
   color: var(--chalk);
@@ -1961,7 +1936,7 @@ body {
   z-index: 40;
   display: grid;
   min-height: var(--nav-h);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--rule);
   background: rgb(7 17 26 / 96%);
   padding-bottom: env(safe-area-inset-bottom);
@@ -1978,7 +1953,7 @@ body {
   padding: 9px 3px 7px;
   color: var(--muted);
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-decoration: none;
 }
@@ -2054,6 +2029,7 @@ body {
 
 .next-up-header > :last-child {
   color: var(--chalk);
+  font-family: var(--font-mono);
   font-size: 0.88rem;
 }
 
@@ -2079,6 +2055,8 @@ body {
 .next-up-team {
   display: flex;
   min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   align-items: center;
   gap: 7px;
   color: var(--chalk);
@@ -2151,13 +2129,9 @@ body {
   margin-left: auto;
 }
 
-.slate-freshness-standalone {
-  display: none;
-}
-
 .slate-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) max-content;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 8px;
   margin: 16px 0 12px;
@@ -2186,12 +2160,14 @@ body {
   box-shadow: 0 0 16px rgb(215 255 52 / 12%);
 }
 
+/* Its own row under the chips, so the chips get the full width at 320px and
+   the zone itself never has to be dropped. */
 .slate-tz {
+  grid-column: 1 / -1;
   min-width: 0;
-  justify-self: end;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: clamp(0.58rem, 2.2vw, 0.7rem);
-  white-space: nowrap;
+  font-size: 0.75rem;
 }
 
 .live-section,
@@ -2354,10 +2330,6 @@ body {
   .main-content {
     padding-block: 12px;
   }
-
-  .slate-tz span {
-    display: none;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -2423,10 +2395,6 @@ body {
 
   .shell-back + .brand {
     gap: 7px;
-  }
-
-  .shell-back + .brand .brand-name {
-    font-size: 0.79rem;
   }
 
   .topbar-controls .button {
@@ -2580,16 +2548,17 @@ body {
   }
 }
 
+/* 1rem so iOS doesn't zoom the page when the select takes focus. */
 .language-switch {
-  width: 3.2rem;
-  min-height: 2.75rem;
+  width: 3.75rem;
+  min-height: var(--tap);
   flex-shrink: 0;
   border: 1px solid var(--rule-strong);
   border-radius: 0.5rem;
   background: var(--slat);
-  color: var(--club);
-  font-size: 0.8rem;
-  padding-inline: 0.25rem;
+  color: var(--chalk);
+  font-size: 1rem;
+  padding-inline: 0.35rem;
 }
 .topbar .brand {
   flex-shrink: 1;
@@ -2617,9 +2586,6 @@ body {
     font-size: 0.75rem;
     padding-inline: 0.5rem;
     white-space: nowrap;
-  }
-  .mobile-nav-link {
-    font-size: clamp(0.6rem, 2.7vw, 0.72rem);
   }
 }
 
@@ -2954,12 +2920,66 @@ body {
   }
 }
 
+/* On a phone, once the topbar also carries the back arrow or the balance,
+   the MP mark alone is the brand (the link keeps its accessible name) rather
+   than a name cut to "MATCHDAY PL…". */
 @media (max-width: 430px) {
-  .shell-back {
-    width: 1.5rem;
-    flex-basis: 1.5rem;
+  .shell-back + .brand .brand-name,
+  .topbar-inner:has(.account-standing) .brand-name {
+    display: none;
   }
-  .shell-back + .brand .brand-name {
-    font-size: clamp(0.65rem, 2.7vw, 0.85rem);
-  }
+}
+
+/* ---------- /you settings ---------- */
+
+.settings-list {
+  display: grid;
+}
+
+.settings-row {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0.5rem var(--space-4);
+  border-top: 1px solid var(--rule);
+  color: var(--chalk);
+  text-decoration: none;
+}
+
+.settings-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-row > :not(span) {
+  flex: none;
+}
+
+a.settings-row:hover {
+  background: var(--slat-raised);
+}
+
+a.settings-row svg {
+  color: var(--muted);
+}
+
+.standing-lead-loading {
+  min-height: 7.5rem;
+}
+
+/* Preflight strips list bullets; the rules read as a list again. */
+.rules-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+/* A form nested in a padded .form-block row already has its own inset. */
+.form-block > .side-form {
+  width: 100%;
+  padding: 0;
 }

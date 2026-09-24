@@ -10,13 +10,12 @@ import { parseLocale } from "@/lib/locale";
 import { ResetBankroll } from "@/components/reset-bankroll";
 import { CreateGroupForm } from "@/components/create-group-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
-import { StrictMode, useEffect, useState, useSyncExternalStore } from "react";
+import { StrictMode, useSyncExternalStore } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { AppShell } from "@/components/app-shell";
 import { GameDetail } from "@/components/game-detail";
 import { BetSlip, type WagerPanelData } from "@/components/bet-slip";
-import { ActionBarContext } from "@/components/action-bar";
 import { Slate, type SportFilter } from "@/components/slate";
 import { BetsHistory } from "@/components/bets-history";
 import { getSnapshot, getTeam } from "@/lib/seed";
@@ -37,47 +36,11 @@ import "./fonts.css";
 import "@/app/globals.css";
 import "@/app/games/[id]/matchup.css";
 
-const open: WagerPanelData = {
-  signedIn: true,
-  routeId: "soc-rma-01",
-  state: {
-    kind: "open",
-    markets: marketsFor("soccer"),
-    balance: 1000,
-    groups: [{ id: "group-1", name: "Sunday League" }],
-    byMarket: [],
-  },
-  wagers: [],
-  groupPicks: [],
-  threads: [],
-};
-
-function DelayedTargets() {
-  const [ready, setReady] = useState(false);
-  const [target, setTarget] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 800);
-    return () => clearTimeout(timer);
-  }, []);
-  return (
-    <main>
-      <h1>Delayed action bar</h1>
-      <ActionBarContext
-        value={{ returns: null, feedback: null, action: target }}
-      >
-        <BetSlip data={open} />
-        {ready && <div className="action-bar-action" ref={setTarget} />}
-      </ActionBarContext>
-    </main>
-  );
-}
-
 function Fixture() {
   const { t } = useTranslation();
   const location = useLocation();
   const [pathname, query] = location.split("?");
   const params = new URLSearchParams(query);
-  if (pathname === "/delayed") return <DelayedTargets />;
   const routeId = pathname?.split("/")[2] ?? "soc-rma-01";
   const baseSnapshot = getSnapshot(routeId) ?? getSnapshot("soc-rma-01")!;
   const scenario = params.get("state");

@@ -309,7 +309,7 @@
   "Tomorrow": "Mañana",
   "Overview": "Resumen",
   "Lineups": "Alineaciones",
-  "H2H": "Enfrentamientos",
+  "H2H": "Historial",
   "Form": "Forma reciente",
   "Table": "Tabla de posiciones",
   "Standing": "Posiciones",
@@ -603,5 +603,16 @@
   "{p0} — Handicap +1.5": "{p0} — Hándicap +1,5",
   "{p0} — draw no bet": "{p0} — empate: anulada",
   "{p0} or draw": "{p0} o empate",
-  "Resetting…": "Restableciendo…"
+  "Resetting…": "Restableciendo…",
+  "Tap any price below to start a bet.": "Toca cualquier cuota para empezar una apuesta.",
+  "Bet slip": "Boleto de apuesta",
+  "Done": "Listo",
+  "Upcoming": "Próximo",
+  "Language": "Idioma",
+  "Signed in": "Sesión iniciada",
+  "Anyone holding this link will no longer be able to join.": "Quien tenga este enlace ya no podrá unirse.",
+  "Revoke link": "Revocar enlace",
+  "Creating…": "Creando…",
+  "Redirecting…": "Redirigiendo…",
+  "Place {p0} credit": "Apostar {p0} crédito"
 }

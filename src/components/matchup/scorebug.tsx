@@ -59,7 +59,7 @@ export function Scorebug({
               ? t("Postponed")
               : status === "cancelled"
                 ? t("Cancelled")
-                : t("Next match")}
+                : t("Upcoming")}
       </span>
       <p className="mp-comp">
         <span>{t(competition)}</span>

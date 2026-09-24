@@ -58,6 +58,7 @@ export function InviteMemberForm({ slug }: { slug: string }) {
         id="invite-email"
         className="field"
         type="email"
+        autoComplete="email"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         required

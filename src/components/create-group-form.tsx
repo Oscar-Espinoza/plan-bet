@@ -68,7 +68,7 @@ export function CreateGroupForm() {
         className="w-full"
         disabled={pending || !name.trim()}
       >
-        {t("Create group")}{" "}
+        {t(pending ? "Creating…" : "Create group")}
       </Button>
     </form>
   );

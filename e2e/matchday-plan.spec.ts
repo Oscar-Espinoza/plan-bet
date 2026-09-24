@@ -150,9 +150,6 @@ test("mobile shell scrolls content between the header and the nav", async ({
           clientWidth: document.documentElement.clientWidth,
           headerBottom: headerRect.bottom,
           linkWidths,
-          // None of these routes has an action bar: it exists on a game
-          // page only, so the nav is the one band under the scroller here.
-          hasActionBar: Boolean(document.querySelector(".action-bar")),
           scrollerBottom: scrollerRect.bottom,
           scrollerScrollTop: scroller.scrollTop,
           scrollerTop: scrollerRect.top,
@@ -166,9 +163,8 @@ test("mobile shell scrolls content between the header and the nav", async ({
       expect(dimensions.left).toBe(0);
       expect(dimensions.width).toBe(dimensions.clientWidth);
       expect(dimensions.scrollerTop).toBeCloseTo(dimensions.headerBottom, 0);
-      expect(dimensions.hasActionBar).toBe(false);
       expect(dimensions.scrollerBottom).toBeCloseTo(dimensions.top, 0);
-      expect(dimensions.linkWidths).toHaveLength(4);
+      expect(dimensions.linkWidths).toHaveLength(3);
       expect(
         Math.max(...dimensions.linkWidths) - Math.min(...dimensions.linkWidths),
       ).toBeLessThanOrEqual(1);

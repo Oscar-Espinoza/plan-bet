@@ -1,11 +1,10 @@
 "use client";
 import { useTranslation } from "@/components/language-provider";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { NavigationLink as Link } from "@/components/fast-link";
 import { Ticket } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ActionPortal } from "@/components/action-bar";
 import { type CommentThreadView } from "@/components/game-thread";
 import { LocalDateTime } from "@/components/local-date-time";
 import { Banner } from "@/components/ui/banner";
@@ -117,11 +116,11 @@ function ScoreEntry({
       <label className="mp-score-team">
         <span>{home}</span>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
-          max={3}
-          step={1}
+          pattern="[0-3]"
+          maxLength={1}
+          autoComplete="off"
           placeholder="0"
           aria-label={t("{p0} goals", { p0: home })}
           value={score.home}
@@ -134,11 +133,11 @@ function ScoreEntry({
       <label className="mp-score-team">
         <span>{away}</span>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
-          max={3}
-          step={1}
+          pattern="[0-3]"
+          maxLength={1}
+          autoComplete="off"
           placeholder="0"
           aria-label={t("{p0} goals", { p0: away })}
           value={score.away}
@@ -229,6 +228,12 @@ export function BetSlip({
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  // The bar turns into the confirmation; move focus there so a screen reader
+  // hears it and a keyboard user isn't left on a button that just vanished.
+  useEffect(() => {
+    if (confirmation) confirmationRef.current?.focus();
+  }, [confirmation]);
 
   const potentialReturn = selection ? Math.round(stake * selection.price) : 0;
   const balanceAfter = balance - stake;
@@ -323,13 +328,11 @@ export function BetSlip({
           </div>
         </div>
         <div className="side-form">
-          <ActionPortal area="action">
-            <Button asChild className="w-full">
-              <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
-                {t("Sign in")}{" "}
-              </Link>
-            </Button>
-          </ActionPortal>
+          <Button asChild className="w-full">
+            <Link href={`/sign-in?callbackUrl=/games/${data.routeId}`}>
+              {t("Sign in")}{" "}
+            </Link>
+          </Button>
           <p className="fine-print">
             {t(
               "Signing in only unlocks the credit ledger — the rest of the page works signed out.",
@@ -384,97 +387,6 @@ export function BetSlip({
         <p className="side-form">{t(CLOSED_COPY[state.reason])}</p>
       )}
 
-      <ActionPortal area="feedback">
-        <div className="wager-feedback" aria-live="polite" aria-atomic="true">
-          {confirmation && (
-            <div className="enter-pop">
-              <Banner tone="positive" role="status">
-                {t(confirmation)}
-              </Banner>
-            </div>
-          )}
-          {error && (
-            <Banner tone="negative" role="alert">
-              {t(error)}
-            </Banner>
-          )}
-          {state.kind === "open" && insufficientCredits && selection && (
-            <Banner tone="negative" role="alert">
-              {t("Stake exceeds your balance of")} {balance}.
-            </Banner>
-          )}
-        </div>
-      </ActionPortal>
-      {state.kind === "open" && (
-        <>
-          <ActionPortal area="returns">
-            <span className="action-bar-label">{t("Returns")}</span>
-            <span className="return-figure">
-              {selection ? potentialReturn : "—"}
-            </span>
-          </ActionPortal>
-          <ActionPortal area="action">
-            {/* The stake rides in the bar beside the button it feeds. It stays
-                associated with the form in the panel by id, so native
-                validation and Enter-to-submit are unchanged by the move. */}
-            {selection && (
-              <div className="action-bar-stake">
-                <label className="action-bar-label" htmlFor="wager-stake">
-                  {t("Stake")}{" "}
-                </label>
-                <input
-                  id="wager-stake"
-                  form={formId}
-                  className="field"
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_STAKE}
-                  // Native validity agrees with the app-level check rather
-                  // than with a published cap: the balance is the limit.
-                  max={balance}
-                  step={1}
-                  value={stakeText}
-                  onChange={(event) => setStakeText(event.target.value)}
-                  required
-                />
-                <div className="stake-chips">
-                  <button type="button" onClick={() => addStake(5)}>
-                    +5
-                  </button>
-                  <button type="button" onClick={() => addStake(25)}>
-                    +25
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setStakeText(String(clampStake(balance, balance)))
-                    }
-                  >
-                    {t("max")}{" "}
-                  </button>
-                </div>
-              </div>
-            )}
-            <Button
-              type="submit"
-              form={formId}
-              className="w-full"
-              disabled={
-                !selection || pending || insufficientCredits || !stakeEntered
-              }
-            >
-              {pending
-                ? t("Placing…")
-                : !selection
-                  ? t("Choose a selection")
-                  : stakeEntered
-                    ? t("Place {p0} credits", { p0: stake })
-                    : t("Enter a stake")}
-            </Button>
-          </ActionPortal>
-        </>
-      )}
-
       {state.kind === "open" && (
         <div className="selection-grid">
           <div
@@ -501,13 +413,10 @@ export function BetSlip({
               </button>
             ))}
           </div>
-          {market && selection && (
-            <div className="bet-selected-summary" role="status">
-              <span>{t("Your selection")}</span>
-              <strong>{marketHeading(market)}</strong>
-              <span>{t(namedSelection(market, selection, matchup))}</span>
-              <b>{formatNumber(selection.price, 2)}×</b>
-            </div>
+          {!selection && (
+            <p className="bet-hint">
+              {t("Tap any price below to start a bet.")}
+            </p>
           )}
           {openMarkets.map((m) => (
             <div
@@ -561,13 +470,6 @@ export function BetSlip({
               )}
             </div>
           ))}
-          {!selection && (
-            <p className="bet-hint">
-              {t(
-                "Nothing picked yet — tap any price above to set a stake.",
-              )}{" "}
-            </p>
-          )}
         </div>
       )}
 
@@ -580,22 +482,23 @@ export function BetSlip({
             </p>
           )}
 
-          <span className="field-label">{t("Place")}</span>
           {groups.length > 0 ? (
-            <select
-              id="wager-group"
-              aria-label={t("Place")}
-              className="field"
-              value={groupId}
-              onChange={(event) => setGroupId(event.target.value)}
-            >
-              <option value="">{t("Alone")}</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {t("With")} {group.name}
-                </option>
-              ))}
-            </select>
+            <label className="bet-group">
+              <span className="field-label">{t("Place")}</span>
+              <select
+                id="wager-group"
+                className="field"
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+              >
+                <option value="">{t("Alone")}</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {t("With")} {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : (
             <p className="fine-print">
               {t("Betting with friends?")}{" "}
@@ -604,16 +507,137 @@ export function BetSlip({
             </p>
           )}
 
-          <div className="data-pair">
-            <span>{t("Balance after")}</span>
-            <span>{balanceAfter}</span>
-          </div>
-
           <p className="fine-print">
             {t("Fictional credits, house prices. See the")}{" "}
             <Link href="/rules">{t("rules")}</Link>.
           </p>
         </form>
+      )}
+
+      {/* The slip's bar: pinned to the bottom of the screen while the panel is
+          in view (position: sticky, so it never leaves the panel it belongs
+          to), and only once there is something to act on or report. Sits
+          after the markets in the DOM as it does on screen, so focus order
+          follows what the reader sees. */}
+      {state.kind === "open" && (selection || confirmation || error) && (
+        <div className="bet-bar" role="region" aria-label={t("Bet slip")}>
+          <div className="wager-feedback" aria-live="polite" aria-atomic="true">
+            {confirmation && (
+              <div
+                className="bet-confirmation"
+                ref={confirmationRef}
+                tabIndex={-1}
+              >
+                <Banner tone="positive" role="status">
+                  {t(confirmation)}
+                </Banner>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmation("")}
+                >
+                  {t("Done")}
+                </Button>
+              </div>
+            )}
+            {error && (
+              <Banner tone="negative" role="alert">
+                {t(error)}
+              </Banner>
+            )}
+            {insufficientCredits && selection && (
+              <Banner tone="negative" role="alert">
+                {t("Stake exceeds your balance of")} {balance}.
+              </Banner>
+            )}
+          </div>
+          {market && selection && (
+            <>
+              <div className="bet-bar-pick">
+                <span>
+                  <strong>
+                    {t(namedSelection(market, selection, matchup))}
+                  </strong>
+                  <small>{marketHeading(market)}</small>
+                </span>
+                <b>{formatNumber(selection.price, 2)}</b>
+              </div>
+              <div className="bet-bar-stake">
+                {/* Visually the field is self-explanatory beside Returns;
+                    the label keeps its name for assistive tech. */}
+                <label className="sr-only" htmlFor="wager-stake">
+                  {t("Stake")}
+                </label>
+                {/* Associated with the form by id, so native validation and
+                    Enter-to-submit work from here. Text + numeric keypad
+                    rather than type=number: no spinners eating the width, no
+                    "e" or "-", no value changing under a scroll wheel. */}
+                <input
+                  id="wager-stake"
+                  form={formId}
+                  className="field"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  enterKeyHint="done"
+                  placeholder={t("Stake")}
+                  value={stakeText}
+                  onChange={(event) =>
+                    setStakeText(event.target.value.replace(/[^0-9]/g, ""))
+                  }
+                  required
+                />
+                <div className="bet-bar-returns">
+                  <span className="field-label">{t("Returns")}</span>
+                  <span className="return-figure">
+                    {formatNumber(potentialReturn)}
+                  </span>
+                  <small>
+                    {t("Balance after")}{" "}
+                    {formatNumber(Math.max(balanceAfter, 0))}
+                  </small>
+                </div>
+              </div>
+              <div className="stake-chips">
+                <button type="button" onClick={() => addStake(5)}>
+                  +5
+                </button>
+                <button type="button" onClick={() => addStake(25)}>
+                  +25
+                </button>
+                <button type="button" onClick={() => addStake(100)}>
+                  +100
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStakeText(String(clampStake(balance, balance)))
+                  }
+                >
+                  {t("max")}
+                </button>
+              </div>
+              <Button
+                type="submit"
+                form={formId}
+                className="bet-bar-place w-full"
+                disabled={pending || insufficientCredits || !stakeEntered}
+              >
+                {pending
+                  ? t("Placing…")
+                  : stakeEntered
+                    ? t(
+                        stake === 1
+                          ? "Place {p0} credit"
+                          : "Place {p0} credits",
+                        { p0: stake },
+                      )
+                    : t("Enter a stake")}
+              </Button>
+            </>
+          )}
+        </div>
       )}
 
       {wagers.length > 0 && (

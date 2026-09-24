@@ -43,7 +43,7 @@ describe("Spanish interface", () => {
       screen.getByRole("button", { name: "Apostar 125 créditos" }),
     ).toBeInTheDocument();
     rerender(<LanguageProvider locale="en">{slip}</LanguageProvider>);
-    expect(screen.getByLabelText("Stake")).toHaveValue(125);
+    expect(screen.getByLabelText("Stake")).toHaveValue("125");
     expect(
       screen.getByRole("button", { name: "Place 125 credits" }),
     ).toBeInTheDocument();

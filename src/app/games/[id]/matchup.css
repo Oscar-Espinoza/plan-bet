@@ -137,10 +137,6 @@
   color: var(--faint);
 }
 
-.mp-venue::before {
-  content: "· ";
-}
-
 /* Everything in the scorebug sits above the playing surface and its scrim;
    .mp-bug-scrim is z-index 2 in globals.css, so this is 3. */
 
@@ -198,9 +194,8 @@
 .mp-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-items: center;
   column-gap: 12px;
-  border-bottom: 1px solid var(--rule);
   font-size: var(--text-sm);
 }
 
@@ -432,6 +427,8 @@
 
 /* ---------- loading, empty and error ---------- */
 
+/* The game's 404 and error states sit in the full-bleed .mp on a phone, so
+   they carry the page gutter themselves. */
 .mp-empty {
   display: flex;
   flex-direction: column;
@@ -440,6 +437,7 @@
   min-height: 60vh;
   justify-content: center;
   max-width: 34rem;
+  padding-inline: var(--gutter);
 }
 
 .mp-empty-eyebrow {
@@ -451,6 +449,7 @@
 }
 
 .mp-empty-title {
+  font-family: var(--font-display);
   font-size: clamp(2rem, 9vw, 3.25rem);
   font-variation-settings: "wdth" 118;
   font-weight: 800;
@@ -505,7 +504,7 @@
   align-items: center;
   gap: 9px;
   margin: 0;
-  padding: 2px 4px 12px;
+  padding: 2px 0 12px;
   color: var(--muted);
   font-size: 0.8rem;
 }
@@ -603,6 +602,8 @@
 
 .mp-side-name {
   max-width: 132px;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   color: var(--chalk);
   font-family: var(--font-display);
   font-size: clamp(0.86rem, 4vw, 1rem);
@@ -660,15 +661,19 @@
   text-align: center;
 }
 
+/* Equal tabs while they fit; a Spanish or zoomed tablist scrolls sideways
+   instead of breaking a label mid-word. */
 .mp-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  overflow-x: auto;
   border-bottom: 1px solid var(--rule);
   background: var(--slat-muted);
+  scrollbar-width: none;
 }
 
 .mp-tabs button {
   position: relative;
+  flex: 1 0 auto;
   min-width: 0;
   border: 0;
   background: transparent;
@@ -751,10 +756,12 @@
   font-size: 0.78rem;
 }
 
+/* `clip`, not `hidden`: it rounds the corners without making the panel a
+   scroll container, which would stop the sticky .bet-bar from sticking. */
 .wager-panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip;
   margin-inline: 0;
   border: 1px solid var(--rule);
   border-radius: 10px;
@@ -762,7 +769,6 @@
 }
 
 .wager-panel > .panel-header {
-  order: 0;
   border: 0;
 }
 
@@ -780,52 +786,9 @@
 }
 
 .wager-panel > .selection-grid {
-  order: 1;
   display: grid;
   gap: 12px;
   padding: 0 16px 12px;
-}
-
-.wager-panel > .action-bar-stake {
-  order: 2;
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) auto;
-  gap: 8px;
-  padding: 0 16px 10px;
-}
-
-.wager-panel > .button {
-  order: 3;
-  width: calc(100% - 32px);
-  min-height: 48px;
-  margin: 0 16px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--club);
-  color: var(--club-on);
-  font-weight: 700;
-}
-
-.wager-panel > .action-bar-label {
-  order: 4;
-  margin: 0 16px;
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.wager-panel > .return-figure {
-  order: 4;
-  margin: -20px 16px 12px auto;
-  color: var(--chalk);
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-}
-
-.wager-panel > .side-form,
-.wager-panel > .wager-feedback,
-.wager-panel > .data-pair,
-.wager-panel > .fine-print {
-  order: 5;
 }
 
 /* Markets sit directly on the slip; only the choices are raised surfaces. */
@@ -881,12 +844,14 @@
   overflow-wrap: anywhere;
 }
 
+/* A price is money: chalk until it is the armed selection (DESIGN.md keeps
+   lime for the selected price only). */
 .wager-panel .selection-button span:last-child {
   font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.1;
-  color: var(--club);
+  color: var(--chalk);
 }
 
 @media (hover: hover) {
@@ -910,7 +875,7 @@
   box-shadow: 0 0.2rem 0.75rem rgb(215 255 52 / 12%);
 }
 
-.wager-panel .selection-button-active span:last-child {
+.wager-panel .selection-button-active span {
   color: var(--club-on);
 }
 
@@ -997,24 +962,110 @@
   font-size: 0.75rem;
 }
 
-.action-bar-stake .field {
-  min-height: 46px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 8px;
+/* ---------- the bet bar ---------- */
+
+/* Pinned to the bottom of the scroll area while the slip is on screen.
+   Opaque, with a shadow up, so the markets scrolling under it stay readable.
+   No offset on a phone: .workspace-scroll's bottom padding already clears
+   the tour bar, and sticky insets count from inside that padding. */
+.bet-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--rule-strong);
   background: var(--slat-muted);
-  font-family: var(--font-mono);
+  box-shadow: 0 -12px 24px rgb(0 0 0 / 35%);
 }
 
-.stake-chips {
+/* Above 1024px the document scrolls and the tour bar is fixed to it. */
+@media (min-width: 1024px) {
+  .bet-bar {
+    bottom: var(--tour-h);
+  }
+}
+
+.bet-bar .wager-feedback:empty {
+  display: none;
+}
+
+.bet-bar-pick {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.stake-chips button {
-  border: 1px solid var(--rule);
-  border-radius: 7px;
-  background: var(--slat);
+.bet-bar-pick > span {
+  display: grid;
+  min-width: 0;
+}
+
+.bet-bar-pick strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.bet-bar-pick small {
   color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.bet-bar-pick b {
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-bar-stake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 16px;
+}
+
+.bet-bar-stake > .field {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 48px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-bar-returns {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  justify-items: end;
+  align-content: end;
+}
+
+.bet-bar-returns .field-label {
+  margin-bottom: 2px;
+}
+
+.bet-bar-place {
+  min-height: 52px;
+}
+
+.bet-bar-returns small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.bet-confirmation {
+  display: grid;
+  gap: 8px;
+  outline-offset: -2px;
 }
 
 .mp-blocks {
@@ -1024,7 +1075,7 @@
 }
 
 .mp-block {
-  padding: 14px 4px 8px;
+  padding: 14px 0 8px;
   border: 0;
   border-bottom: 1px solid var(--rule);
   background: transparent;
@@ -1052,16 +1103,18 @@
 
 .mp-row {
   min-height: 42px;
-  padding: 8px 6px;
+  padding: 8px 0;
   border-top: 1px solid rgb(42 57 72 / 60%);
 }
 
+/* A draw: a raised chip with muted text (chalk on --faint was 3.4:1). */
 .mp-form b {
   min-width: 27px;
   min-height: 27px;
   border-radius: 4px;
-  background: var(--faint);
-  color: var(--chalk);
+  background: var(--slat-raised);
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .mp-form b[data-result="W"] {
@@ -1084,9 +1137,12 @@
     width: calc(100% + 2 * var(--gutter));
   }
 
-  .mp-breadcrumb,
+  /* `.mp .mp-breadcrumb`: `.mp :is(p)` zeroes margins at higher
+     specificity. Breadcrumb, block titles and rows all start at the gutter,
+     the same line as the brand in the topbar. */
+  .mp .mp-breadcrumb,
   .mp-tab-panel {
-    margin-inline: 12px;
+    margin-inline: var(--gutter);
   }
 
   .mp-bug {
@@ -1420,9 +1476,8 @@
 .mp-tabs button {
   padding: 0.8rem 0.3rem;
   font-family: var(--font-body);
-  font-size: clamp(0.65rem, 2.7vw, 0.85rem);
-  white-space: normal;
-  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  white-space: nowrap;
   min-height: 3rem;
 }
 .wager-panel > .mp-aside {
@@ -1467,32 +1522,6 @@
 .market-filters button:focus-visible {
   outline: 0.15rem solid var(--club);
   outline-offset: 0.15rem;
-}
-.bet-selected-summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.35rem 0.65rem;
-  padding: 0.8rem;
-  border-left: 0.2rem solid var(--club);
-  border-radius: 0.4rem;
-  background: var(--slat-muted);
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
-}
-.bet-selected-summary > span:first-child {
-  color: var(--muted);
-  font-size: 0.7rem;
-}
-.bet-selected-summary > strong,
-.bet-selected-summary > span {
-  grid-column: 1;
-}
-.bet-selected-summary > b {
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  align-self: center;
-  color: var(--club);
-  font-family: var(--font-mono);
 }
 .wager-panel .selection-market[hidden] {
   display: none;

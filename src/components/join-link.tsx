@@ -28,6 +28,7 @@ export function JoinLink({
   const [inviteId, setInviteId] = useState(initialInviteId ?? "");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const [pending, setPending] = useState(false);
 
   const createLink = async () => {
@@ -104,16 +105,49 @@ export function JoinLink({
             >
               {copied ? t("Copied") : t("Copy")}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={revoke}
-              disabled={pending}
-            >
-              {t("Revoke")}{" "}
-            </Button>
+            {!confirmingRevoke && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setConfirmingRevoke(true)}
+                disabled={pending}
+              >
+                {t("Revoke")}
+              </Button>
+            )}
           </div>
+          {/* Revoking can't be undone and breaks every copy already shared,
+              so it takes a second, clearly destructive tap. */}
+          {confirmingRevoke && (
+            <div className="revoke-confirm" role="group">
+              <p className="fine-print">
+                {t("Anyone holding this link will no longer be able to join.")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    setConfirmingRevoke(false);
+                    void revoke();
+                  }}
+                  disabled={pending}
+                >
+                  {t("Revoke link")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setConfirmingRevoke(false)}
+                >
+                  {t("Cancel")}
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <Button type="button" size="sm" onClick={createLink} disabled={pending}>

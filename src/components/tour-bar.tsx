@@ -3,7 +3,7 @@ import { useTranslation } from "@/components/language-provider";
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useBandHeight } from "@/components/action-bar";
+import { useBandHeight } from "@/components/band-height";
 import { Button } from "@/components/ui/button";
 import { useMatchdayStore } from "@/lib/store";
 

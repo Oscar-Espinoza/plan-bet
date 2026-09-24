@@ -158,6 +158,57 @@ describe("BetSlip - open", () => {
     );
   });
 
+  it("shows the bet bar only once a price is picked, after the markets", () => {
+    render(<BetSlip data={openData()} />);
+    expect(
+      screen.queryByRole("region", { name: "Bet slip" }),
+    ).not.toBeInTheDocument();
+
+    const home = screen.getByRole("button", { name: "Home2.40" });
+    fireEvent.click(home);
+    const bar = screen.getByRole("region", { name: "Bet slip" });
+    // Focus order follows the screen: every market precedes the bar.
+    expect(
+      home.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(bar).toContainElement(screen.getByLabelText("Stake"));
+    expect(bar).toContainElement(
+      screen.getByRole("button", { name: "Place 1 credit" }),
+    );
+  });
+
+  it("strips non-digits from the stake instead of accepting them", () => {
+    render(<BetSlip data={openData()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    fireEvent.change(screen.getByLabelText("Stake"), {
+      target: { value: "1e3-" },
+    });
+    expect(screen.getByLabelText("Stake")).toHaveValue("13");
+  });
+
+  it("turns the bar into a focused confirmation after placing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data: placement }), { status: 201 }),
+        ),
+    );
+    render(<BetSlip data={openData()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Home2.40" }));
+    fireEvent.submit(
+      (screen.getByLabelText("Stake") as HTMLInputElement).form!,
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toHaveTextContent(/New balance: 975/),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(
+      screen.queryByRole("region", { name: "Bet slip" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders every market's selections as priced buttons, with no selection armed yet", () => {
     render(<BetSlip data={openData()} />);
 
@@ -185,10 +236,10 @@ describe("BetSlip - open", () => {
       target: { value: "25" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Popular" }));
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("region", { name: "Bet slip" })).toHaveTextContent(
       "Real Madrid — 2+ goals",
     );
-    expect(screen.getByLabelText("Stake")).toHaveValue(25);
+    expect(screen.getByLabelText("Stake")).toHaveValue("25");
     fireEvent.click(screen.getByRole("button", { name: "Teams" }));
     expect(
       screen.getAllByRole("button", { name: "2+ goals2.50" })[0],
@@ -210,7 +261,7 @@ describe("BetSlip - open", () => {
       "2",
     ); // round(1 * 2.4)
     expect(
-      screen.getByRole("button", { name: "Place 1 credits" }),
+      screen.getByRole("button", { name: "Place 1 credit" }),
     ).toBeInTheDocument();
   });
 
@@ -244,7 +295,7 @@ describe("BetSlip - open", () => {
     fireEvent.change(away, { target: { value: "1" } });
     expect(screen.getByText("Pays 8.50")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Place 1 credits" }),
+      screen.getByRole("button", { name: "Place 1 credit" }),
     ).toBeInTheDocument();
 
     // 4-1 is outside the published grid, so it resolves to no selection and
