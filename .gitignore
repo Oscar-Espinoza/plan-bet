@@ -41,3 +41,6 @@ next-env.d.ts
 # local agent tooling scratch
 .diagram-design
 AGENTS.md
+
+# per-machine MCP config (holds API tokens)
+.codex/config.toml
