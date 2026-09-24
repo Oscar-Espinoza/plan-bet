@@ -9,6 +9,7 @@ import { apiFailure, apiSuccess, createRouteContext } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/api-response";
 import { MAX_QUESTION_CHARS } from "@/lib/buddy-prompt";
 import { MAX_REPLY_CHARS } from "@/lib/buddy-validation";
+import { viewerZone } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ const bodySchema = z.object({
   route: z.string().trim().min(1).max(160),
   question: z.string().trim().min(1).max(MAX_QUESTION_CHARS),
   history: z.array(turnSchema).max(6).default([]),
+  // Display only — how a kickoff is written in the reply, never a fact.
+  timeZone: z.string().max(64).optional(),
 });
 
 function invalid(context: RouteContext) {
@@ -93,6 +96,9 @@ export async function POST(request: NextRequest) {
 
   const preflight = await prepareBuddyTurn({
     locale: parseLocale(request.cookies.get("locale")?.value),
+    timeZone: viewerZone(
+      body.data.timeZone ?? request.headers.get("x-vercel-ip-timezone"),
+    ),
     conversation: body.data.conversation,
     route: body.data.route,
     question: body.data.question,

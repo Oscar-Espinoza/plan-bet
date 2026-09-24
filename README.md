@@ -55,7 +55,7 @@ All are server-only except `NEXT_PUBLIC_SITE_URL`.
 | `DATABASE_URL`            | for live data      | PostgreSQL connection string (single Neon branch)                                                              |
 | `FOOTBALL_DATA_API_TOKEN` | for live soccer    | football-data.org token                                                                                        |
 | `OPENAI_API_KEY`          | for the AI buddy   | absent means the buddy serves a deterministic per-fact reply                                                   |
-| `OPENAI_MODEL`            | no                 | defaults to `gpt-5.6-luna`                                                                                     |
+| `OPENAI_MODEL`            | no                 | defaults to `gpt-6-luna`                                                                                       |
 | `RATE_LIMIT_HASH_SECRET`  | in production      | salt for the anonymous IP quota hash; without it the salt is per-process and IP quotas reset on every redeploy |
 | `CRON_SECRET`             | in production      | bearer secret for `/api/cron/refresh` and `/api/cron/settle`; absent means the endpoint refuses to run         |
 | `MATCHDAY_DATA_MODE`      | no                 | set to `demo` for deterministic local and E2E runs                                                             |

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Slate, type BoardData } from "@/components/slate";
 import { StadiumPreload } from "@/components/stadium-preload";
 import { getCachedDashboardData } from "@/data/sports-data";
+import { viewerZone } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const unstable_dynamicStaleTime = 30;
@@ -27,7 +28,7 @@ export default async function Home({ searchParams }: Props) {
   ) as BoardData;
   // Vercel supplies the viewer's timezone; anywhere else (local dev) falls
   // back to UTC.
-  const tz = (await headers()).get("x-vercel-ip-timezone") ?? "UTC";
+  const tz = viewerZone((await headers()).get("x-vercel-ip-timezone"));
   return (
     <>
       <StadiumPreload />

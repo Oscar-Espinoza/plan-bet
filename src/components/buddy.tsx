@@ -24,6 +24,20 @@ const RETRACTED_MESSAGE =
   "That reply didn't hold up under the grounding check, so it's been pulled. Try asking again.";
 const MAX_HISTORY_TURNS = 6;
 
+/**
+ * The stream as the reader should see it: every `[...]` marker is proof or
+ * payload, never prose, so complete ones are cut and an unclosed one at the
+ * tail is held back until it closes. The `done` frame's parsed prose replaces
+ * this outright.
+ */
+function visibleStream(text: string) {
+  return text
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\[[^\]]*$/, "")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s{2,}/g, " ");
+}
+
 function updateLast(turns: Turn[], patch: Partial<Turn>): Turn[] {
   if (turns.length === 0) return turns;
   const next = [...turns];
@@ -60,10 +74,15 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
     setPending(true);
     setQuestion("");
 
-    const history = turns.slice(-MAX_HISTORY_TURNS).map((turn) => ({
-      role: turn.role,
-      text: turn.text,
-    }));
+    // A retracted or failed reply is an app message, not something the buddy
+    // said — sending it back would have the model read its own error text.
+    const history = turns
+      .filter((turn) => turn.ok !== false)
+      .slice(-MAX_HISTORY_TURNS)
+      .map((turn) => ({
+        role: turn.role,
+        text: turn.text,
+      }));
     setTurns((current) => [
       ...current,
       { role: "user", text },
@@ -80,6 +99,7 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
           route: pathname,
           question: text,
           history,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 
@@ -129,7 +149,8 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
           }
           if (payload.type === "delta" && payload.text) {
             accumulated += payload.text;
-            setTurns((current) => updateLast(current, { text: accumulated }));
+            const shown = visibleStream(accumulated);
+            setTurns((current) => updateLast(current, { text: shown }));
           } else if (payload.type === "done") {
             setTurns((current) =>
               updateLast(

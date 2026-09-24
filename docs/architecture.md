@@ -66,7 +66,7 @@ Reads use the Neon HTTP driver. Multi-table writes use `withDatabaseTransaction`
 
 ## Deterministic facts versus AI prose
 
-Every assertable claim is a stored `EvidenceFact` with a stable ID, a source reference, and an observation time. The model never sees a raw timestamp: a `datetime` fact reaches it with the value withheld, and it writes a `{time}` token that the server resolves for browser-timezone rendering.
+Every assertable claim is a stored `EvidenceFact` with a stable ID, a source reference, and an observation time. A `datetime` fact reaches the model already formatted in the reader's time zone, never as a raw ISO timestamp.
 
 The page itself asserts nothing the snapshot does not hold — evidence facts are rendered as stored, and missing data reads "Not provided". The only prose written by a model is the buddy's, which streams from the OpenAI Responses API with `tools: []` and `store: false`, is validated on `response.completed` against the facts it was handed, and is **retracted** — the terminal SSE frame carries `{ ok: false }` — if any `[fact-id]` marker fails to resolve. Nothing ungrounded is left standing because it already appeared on screen.
 

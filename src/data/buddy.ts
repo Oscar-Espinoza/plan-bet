@@ -308,6 +308,7 @@ export type BuddyStreamEvent =
 
 type TurnInput = {
   locale?: Locale;
+  timeZone?: string;
   conversation: string;
   route: string;
   question: string;
@@ -335,18 +336,20 @@ export async function prepareBuddyTurn(
   input: TurnInput,
 ): Promise<BuddyPreflight> {
   const now = input.now ?? new Date();
-  const { context, routeLabel } = await resolveContext(input.route, {
-    userId: input.userId,
-  });
   const dbConfigured = isDatabaseConfigured();
   const sessionHash = hashSessionId(input.sessionId);
-  const notes = dbConfigured
-    ? await listBuddyNotes(sessionHash).catch(() => [] as string[])
-    : [];
+  // Independent reads, so neither waits on the other's round trip.
+  const [{ context, routeLabel }, notes] = await Promise.all([
+    resolveContext(input.route, { userId: input.userId }),
+    dbConfigured
+      ? listBuddyNotes(sessionHash).catch(() => [] as string[])
+      : ([] as string[]),
+  ]);
   const prompt = buildBuddyInput({
     context,
     history: input.history,
     locale: input.locale,
+    timeZone: input.timeZone,
     question: input.question,
     notes,
   });
@@ -505,7 +508,8 @@ async function* streamLive(
   const startedAt = Date.now();
   const client = new OpenAiClient({ fetch: input.fetch });
   let accumulated = "";
-  let usage: { inputTokens?: number; outputTokens?: number } = {};
+  let usage: { model?: string; inputTokens?: number; outputTokens?: number } =
+    {};
 
   try {
     for await (const event of client.createStreaming({
@@ -519,6 +523,7 @@ async function* streamLive(
         yield { type: "delta", text: event.text };
       } else {
         usage = {
+          model: event.model,
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
         };
@@ -546,6 +551,7 @@ async function* streamLive(
   const parsed = parseBuddyReply(accumulated, {
     allowedFactIds: prompt.allowedFactIds,
     allowedPickIds: prompt.allowedPickIds,
+    factAliases: prompt.factAliases,
   });
 
   await persistReply(
@@ -576,10 +582,10 @@ async function* streamLive(
     latencyMs: Date.now() - startedAt,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
-    estimatedCostMicros: estimateCostMicros(
-      usage.inputTokens,
-      usage.outputTokens,
-    ),
+    model: usage.model,
+    estimatedCostMicros: usage.model
+      ? estimateCostMicros(usage.model, usage.inputTokens, usage.outputTokens)
+      : undefined,
   });
 
   yield parsed.ok

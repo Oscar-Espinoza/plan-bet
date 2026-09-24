@@ -4,7 +4,7 @@ import { ProviderError } from "@/providers/provider-error";
 
 const BASE_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_TIMEOUT_MS = 20_000;
-const DEFAULT_MODEL = "gpt-5.6-luna";
+const DEFAULT_MODEL = "gpt-6-luna";
 const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
 export const OPENAI_MAX_RESPONSE_BYTES = 200_000;
 
@@ -20,6 +20,15 @@ export type StreamingRequest = {
   instructions: string;
   input: string;
   maxOutputTokens?: number;
+  /**
+   * Luna's default ("medium") spends seconds and most of `max_output_tokens`
+   * on a two-sentence reply. "low" is the floor for GPT-6 Luna here: at
+   * "none" it degenerates on the trailing markers (repeats the reply inside
+   * `[draft: ...]`, leaks template tags) — 6 of 6 draft requests in the
+   * 2026-09-24 comparison, against 0 of 14 at "low".
+   */
+  reasoningEffort?: "none" | "low" | "medium" | "high";
+  verbosity?: "low" | "medium" | "high";
 };
 
 export type StreamEvent =
@@ -91,6 +100,8 @@ export class OpenAiClient {
           stream: true,
           max_output_tokens:
             request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+          reasoning: { effort: request.reasoningEffort ?? "low" },
+          text: { verbosity: request.verbosity ?? "low" },
         }),
       });
     } catch (error) {
@@ -173,6 +184,7 @@ export class OpenAiClient {
             delta?: string;
             response?: {
               model?: string;
+              incomplete_details?: { reason?: string };
               usage?: { input_tokens?: number; output_tokens?: number };
             };
           };
@@ -200,9 +212,12 @@ export class OpenAiClient {
             payload.type === "response.failed" ||
             payload.type === "response.incomplete"
           ) {
+            const reason = payload.response?.incomplete_details?.reason;
             throw new ProviderError(
               "invalid_payload",
-              "Provider response was incomplete",
+              reason
+                ? `Provider response was incomplete: ${reason}`
+                : "Provider response was incomplete",
               operation,
             );
           }

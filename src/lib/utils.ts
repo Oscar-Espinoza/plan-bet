@@ -15,6 +15,17 @@ export function cn(...inputs: ClassValue[]) {
  * shown: neither provider supplies one, and a second clock per fixture was
  * noise — the reader only needs to know when to be ready.
  */
+/** `value` if it is a time zone Intl accepts; UTC otherwise. */
+export function viewerZone(value: string | null | undefined) {
+  if (!value) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return value;
+  } catch {
+    return "UTC";
+  }
+}
+
 export function formatDateTime(
   value: string,
   locale?: string,

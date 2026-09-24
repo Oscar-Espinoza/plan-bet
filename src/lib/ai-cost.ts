@@ -1,12 +1,20 @@
-// ponytail: prices as constants rather than configuration. Move them to env
-// only if the model is switched often enough for the drift to matter.
-const INPUT_PRICE_PER_MTOK_MICROS = 1_250_000;
-const OUTPUT_PRICE_PER_MTOK_MICROS = 10_000_000;
+// ponytail: prices as constants rather than configuration. Add a row when the
+// model changes; an unknown model logs no estimate rather than a wrong one.
+// Micros of a dollar per million tokens, standard short-context rates.
+const PRICES: Record<string, { input: number; output: number }> = {
+  "gpt-6-luna": { input: 100_000, output: 500_000 },
+  "gpt-5.6-luna": { input: 200_000, output: 1_200_000 },
+};
 
-export function estimateCostMicros(inputTokens = 0, outputTokens = 0) {
+export function estimateCostMicros(
+  model: string,
+  inputTokens = 0,
+  outputTokens = 0,
+) {
+  // The response echoes a dated snapshot id ("gpt-6-luna-2026-09-22").
+  const price = Object.entries(PRICES).find(([id]) => model.startsWith(id));
+  if (!price) return undefined;
   return Math.round(
-    (inputTokens * INPUT_PRICE_PER_MTOK_MICROS +
-      outputTokens * OUTPUT_PRICE_PER_MTOK_MICROS) /
-      1_000_000,
+    (inputTokens * price[1].input + outputTokens * price[1].output) / 1_000_000,
   );
 }

@@ -8,6 +8,7 @@ import { AccountControl } from "@/components/account-control";
 import { RefreshVisiblePage } from "@/components/refresh-visible-page";
 import { AppShell } from "@/components/app-shell";
 import { RequestClockProvider } from "@/components/local-date-time";
+import { viewerZone } from "@/lib/utils";
 import { archivo, dmMono, plexSans } from "./fonts";
 import "./globals.css";
 import "./games/[id]/matchup.css";
@@ -99,17 +100,6 @@ export const viewport: Viewport = {
 
 /** The request's own time — what the first paint's relative labels count from. */
 const requestTime = () => Date.now();
-
-/** Vercel's geolocated zone, if it is one Intl accepts; UTC otherwise. */
-function viewerZone(value: string | null) {
-  if (!value) return "UTC";
-  try {
-    new Intl.DateTimeFormat("en", { timeZone: value });
-    return value;
-  } catch {
-    return "UTC";
-  }
-}
 
 export default async function RootLayout({
   children,
