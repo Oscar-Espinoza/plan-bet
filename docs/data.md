@@ -21,7 +21,7 @@ Layering is strict and one-directional: **provider adapter → service → route
 ## Non-negotiable data rules
 
 - Provider payloads are Zod-validated and normalized before rendering or persistence — never rendered raw.
-- Fallback chain, in order: fresh live DB snapshot → expired last-known-good (labelled `stale`) → seeded demo (labelled `demo`). A failed refresh must never overwrite last-known-good JSON.
+- Fallback chain, in order: fresh live DB snapshot → expired last-known-good (labelled `stale`) → seeded demo (labelled `demo`). A failed refresh must never overwrite last-known-good JSON. Fixture-context enrichment applies this per source: a source whose pull failed keeps its stored facts with their original `observedAt` (`mergeFacts` in `src/data/fixture-context.ts`), a source that succeeded — even with nothing — replaces its own, and `undefined` (failed) is never collapsed into `[]` (empty).
 - Missing data renders "Not provided". Never infer, fabricate, or pad partial schedules with fictional games.
 - Freshness `mode` is derived at read time from the stored expiry (`src/data/cache-policy.ts`), not stored. TTLs: team metadata 7 days, schedules/standings 6 hours, game snapshots 1 hour.
 - Each provider gets its own ingestion lease (provider/operation/scope), enforced by a partial unique index on `status = 'running'`, so one provider's outage cannot block the other sport.

@@ -6,4 +6,6 @@ Work is planned as numbered sessions in `docs/implementation/` (gitignored) cove
 
 ## Scope
 
-Out of scope, revised: **suggestions are permitted when they run on fictional credits, are grounded in cited evidence, and are never framed as advice about real-money wagering** — this is what a future buddy feature is allowed to be. Still out, no exception: real-money betting, notifications, live play-by-play, social feeds/reactions, RAG/vector search, cross-device sync of browser-local state.
+Out of scope, revised: **suggestions are permitted when they run on fictional credits, are grounded in cited evidence, and are never framed as advice about real-money wagering** — this is what a future buddy feature is allowed to be. Still out, no exception: real-money betting, push or marketing notifications, live play-by-play, public social feeds, RAG/vector search, cross-device sync of browser-local state.
+
+Revised 2026-09-25: two shipped features are deliberately in scope — **group activity emails** (invite, wager placed, settlement; sent only when Resend is configured, opt-out via `group_members.notify_on_activity`, never on the wager response path) and **comment shame/slander votes** on fixture threads. Both stay within a group or fixture; nothing becomes a public feed.

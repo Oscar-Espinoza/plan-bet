@@ -15,7 +15,7 @@ Side project — move fast: no tests. Validate with `pnpm lint`, `pnpm typecheck
 - The buddy only receives facts the server derived from the route; every `[fact-id]` must resolve or the reply is retracted. It names a selection, never places one.
 - `DESIGN.md` is the design authority: one lime accent, money never takes it. Edit the existing CSS rule for a selector instead of appending an override.
 - Keep it fast: no zod in client components, server-render and pass only rendered fields, size and lazy-load images, fonts via `next/font/local`.
-- Fictional credits only: no real money, bookmakers, notifications, live play-by-play or social feeds ([full scope](docs/history.md#scope)).
+- Fictional credits only: no real money, bookmakers, push/marketing notifications, live play-by-play or public social feeds. Group activity emails (opt-out per membership) and comment shame/slander votes are in scope ([full scope](docs/history.md#scope)).
 
 ## Index
 

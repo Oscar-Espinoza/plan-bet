@@ -121,7 +121,7 @@ Placement (`src/data/wagers.ts`) re-reads the game and the house price server-si
 1. Apply migrations to production (`pnpm db:migrate`). **Before** deploying, never after.
 2. Deploy a preview.
 3. Smoke the preview by hand: the board, a game page, placing a bet, `/you`.
-4. Confirm `/api/health` reports `database.schema: "current"`.
+4. Confirm `/api/health` reports `database.schema: "current"` — meaning every expected table exists **and** `drizzle.__drizzle_migrations` has applied the latest migration in the build's `drizzle/meta/_journal.json` (`pendingMigrations: 0`). `unknown` means the database or the migration table couldn't be read.
 5. Promote, then tag.
 
 `CRON_SECRET` and `RATE_LIMIT_HASH_SECRET` must be set in the hosting environment before the first cron fires. Without `RATE_LIMIT_HASH_SECRET` the IP hash falls back to a per-process salt, so IP quotas reset on every redeploy.
