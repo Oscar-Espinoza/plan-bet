@@ -9,6 +9,7 @@ import type {
 import { FootballDataClient } from "@/providers/football-data/client";
 import {
   FOOTBALL_DATA_PROVIDER,
+  normalizeFootballGameUpdate,
   normalizeSoccerTeamData,
   SOCCER_PROVIDER_IDS,
 } from "@/providers/football-data/normalize";
@@ -96,5 +97,15 @@ export class FootballDataProvider implements SportsProvider {
     }
 
     return { bundles, failures };
+  }
+
+  async fetchGameUpdates(input: { providerGameIds: string[]; now: Date }) {
+    if (!input.providerGameIds.length) return [];
+    const response = await new FootballDataClient().getMatchesById(
+      input.providerGameIds.map(Number),
+    );
+    return response.matches.map((match) =>
+      normalizeFootballGameUpdate(match, input.now),
+    );
   }
 }

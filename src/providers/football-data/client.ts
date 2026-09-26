@@ -170,6 +170,18 @@ export class FootballDataClient {
     );
   }
 
+  // One request for any number of known matches, whatever their date.
+  getMatchesById(matchIds: number[]) {
+    return this.request(
+      "fixture_updates",
+      "/matches",
+      footballDataMatchesSchema,
+      {
+        ids: matchIds.join(","),
+      },
+    );
+  }
+
   getLaLigaStandings() {
     return this.request(
       "standings",

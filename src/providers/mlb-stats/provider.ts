@@ -14,6 +14,7 @@ import {
   MLB_PROVIDER_IDS,
   MLB_STATS_PROVIDER,
   normalizeBaseballTeamData,
+  normalizeMlbGameUpdate,
   normalizeMlbStatus,
 } from "@/providers/mlb-stats/normalize";
 import type {
@@ -202,5 +203,22 @@ export class MlbSportsProvider implements SportsProvider {
       failures,
       diagnostics: [statcast.diagnostic],
     };
+  }
+
+  async fetchGameUpdates(input: { providerGameIds: string[]; now: Date }) {
+    if (!input.providerGameIds.length) return [];
+    const response = await this.mlb.getGamesByPk(
+      input.providerGameIds.map(Number),
+    );
+    // A rescheduled game can be listed on both dates under one gamePk; the
+    // later listing is the current one, as in the schedule projection.
+    const latest = new Map(
+      flattenGames(response)
+        .sort((a, b) => a.gameDate.localeCompare(b.gameDate))
+        .map((game) => [game.gamePk, game]),
+    );
+    return [...latest.values()].map((game) =>
+      normalizeMlbGameUpdate(game, input.now),
+    );
   }
 }

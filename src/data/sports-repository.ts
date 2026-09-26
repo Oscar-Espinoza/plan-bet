@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { applyScheduleMode, applySnapshotMode } from "@/data/cache-policy";
 import { stableHash } from "@/data/stable-hash";
 import { getDatabase, withDatabaseTransaction } from "@/db/client";
@@ -15,9 +15,13 @@ import {
 import {
   gameScheduleSchema,
   gameSnapshotSchema,
+  gameSummarySchema,
   type TeamSlug,
 } from "@/lib/contracts";
-import type { CanonicalTeamBundle } from "@/providers/contracts";
+import type {
+  CanonicalTeamBundle,
+  ProviderGameUpdate,
+} from "@/providers/contracts";
 
 const LEASE_TIMEOUT_MS = 2 * 60 * 1000;
 const METADATA_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -252,6 +256,58 @@ export async function persistSportsTeamData(input: {
         });
     }
   });
+}
+
+/**
+ * Applies by-id status updates to games already stored, outside the team
+ * schedule projection. Only `games.summary` (what settlement reads) changes:
+ * status, kickoff and result are replaced together, so a result the provider
+ * no longer reports as final is dropped rather than kept. A game this
+ * provider never stored is ignored, never created. Returns the rows updated.
+ */
+export async function applyGameUpdates(input: {
+  provider: string;
+  updates: ProviderGameUpdate[];
+  fetchedAt: Date;
+}) {
+  if (!input.updates.length) return 0;
+  const database = getDatabase();
+  const rows = await database
+    .select({ canonicalId: games.canonicalId, summary: games.summary })
+    .from(games)
+    .where(
+      and(
+        eq(games.provider, input.provider),
+        inArray(
+          games.canonicalId,
+          input.updates.map((update) => update.canonicalGameId),
+        ),
+      ),
+    );
+  const stored = new Map(rows.map((row) => [row.canonicalId, row.summary]));
+  let updated = 0;
+  for (const update of input.updates) {
+    const current = stored.get(update.canonicalGameId);
+    if (!current) continue;
+    const summary = gameSummarySchema.parse({
+      ...current,
+      status: update.status,
+      scheduledAt: update.scheduledAt,
+      result: update.result,
+    });
+    await database
+      .update(games)
+      .set({
+        summary,
+        scheduledAt: new Date(summary.scheduledAt),
+        fetchedAt: input.fetchedAt,
+        payloadHash: stableHash(summary),
+        updatedAt: input.fetchedAt,
+      })
+      .where(eq(games.canonicalId, update.canonicalGameId));
+    updated += 1;
+  }
+  return updated;
 }
 
 /**

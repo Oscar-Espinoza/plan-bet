@@ -15,6 +15,8 @@ import { getTeam } from "@/lib/seed";
 import {
   MIN_GAMES_FOR_STANDING,
   RESULT_RETENTION_DAYS,
+  TERMINAL_STATUSES,
+  type ProviderGameUpdate,
   type ProviderSnapshot,
 } from "@/providers/contracts";
 import type {
@@ -104,6 +106,9 @@ function toGameResult(
   game: MlbScheduleGame,
   fetchedAt: Date,
 ): GameResult | undefined {
+  // The schedule carries the running score while a game is in progress; only
+  // an official final is a result, since settlement pays once.
+  if (normalizeMlbStatus(game.status) !== "finished") return undefined;
   const { home, away } = game.teams;
   if (home.score == null || away.score == null) return undefined;
   return {
@@ -111,6 +116,22 @@ function toGameResult(
     awayScore: away.score,
     source: MLB_STATS_PROVIDER,
     observedAt: fetchedAt.toISOString(),
+  };
+}
+
+/**
+ * A known game's latest status for settlement reconciliation — fetched by
+ * gamePk, so it reaches games outside the browse and retention windows.
+ */
+export function normalizeMlbGameUpdate(
+  game: MlbScheduleGame,
+  fetchedAt: Date,
+): ProviderGameUpdate {
+  return {
+    canonicalGameId: `mlb-${game.gamePk}`,
+    status: normalizeMlbStatus(game.status),
+    scheduledAt: game.gameDate,
+    result: toGameResult(game, fetchedAt),
   };
 }
 
@@ -264,22 +285,26 @@ export function normalizeBaseballTeamData(input: {
   });
   const games = rawGames.map(toGameSummary);
 
-  // Finished games are re-snapshotted so a game that starts keeps its route
-  // readable with its final score instead of freezing at the pre-game snapshot
-  // it had when it left the upcoming window. They are deliberately NOT added to
-  // `schedule.games`, which stays the five upcoming games.
+  // Finished, cancelled, and postponed games are re-snapshotted so a game
+  // that starts (or is called off) keeps its route readable with its final
+  // status instead of freezing at the pre-game snapshot it had when it left
+  // the upcoming window — and so settlement sees the terminal status. They
+  // are deliberately NOT added to `schedule.games`, which stays the five
+  // upcoming games.
   const retainedFrom = new Date(
     input.fetchedAt.getTime() - RESULT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
   );
   const upcomingIds = new Set(games.map((game) => game.id));
   const rawFinished = [
-    ...new Map(input.recent.map((game) => [game.gamePk, game])).values(),
+    ...new Map(
+      [...input.upcoming, ...input.recent].map((game) => [game.gamePk, game]),
+    ).values(),
   ]
     .filter(
       (game) =>
         (game.teams.home.team.id === teamId ||
           game.teams.away.team.id === teamId) &&
-        normalizeMlbStatus(game.status) === "finished" &&
+        TERMINAL_STATUSES.includes(normalizeMlbStatus(game.status)) &&
         new Date(game.gameDate) >= retainedFrom,
     )
     .sort((a, b) => b.gameDate.localeCompare(a.gameDate));

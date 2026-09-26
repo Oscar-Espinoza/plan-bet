@@ -160,6 +160,20 @@ export class MlbStatsClient {
     );
   }
 
+  // Known games by gamePk, whatever their date or season.
+  getGamesByPk(gamePks: number[]) {
+    return this.request(
+      "fixture_updates",
+      "/schedule",
+      mlbScheduleResponseSchema,
+      {
+        sportId: "1",
+        gamePks: gamePks.join(","),
+        hydrate: "team,venue",
+      },
+    );
+  }
+
   getStandings(season: number) {
     return this.request("standings", "/standings", mlbStandingsResponseSchema, {
       leagueId: "103,104",

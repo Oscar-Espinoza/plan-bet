@@ -18,6 +18,8 @@ import type {
 import {
   MIN_GAMES_FOR_STANDING,
   RESULT_RETENTION_DAYS,
+  TERMINAL_STATUSES,
+  type ProviderGameUpdate,
   type ProviderSnapshot,
 } from "@/providers/contracts";
 
@@ -90,10 +92,14 @@ const SOCCER_COMPLETION: Record<string, GameResult["completion"]> = {
   PENALTY_SHOOTOUT: "shootout",
 };
 
+// Only a provider-confirmed final carries a result. football-data fills
+// `fullTime` with the running score while a match is live, and settlement
+// pays once, so an in-play 1–0 must never look like a final score.
 function toGameResult(
   match: FootballDataMatch,
   fetchedAt: Date,
 ): GameResult | undefined {
+  if (normalizeFootballStatus(match.status) !== "finished") return undefined;
   const score = match.score?.fullTime;
   if (score?.home == null || score.away == null) return undefined;
   return {
@@ -104,6 +110,22 @@ function toGameResult(
       : undefined,
     source: FOOTBALL_DATA_PROVIDER,
     observedAt: match.lastUpdated ?? fetchedAt.toISOString(),
+  };
+}
+
+/**
+ * A known match's latest status for settlement reconciliation — fetched by
+ * id, so it reaches fixtures outside the browse and retention windows.
+ */
+export function normalizeFootballGameUpdate(
+  match: FootballDataMatch,
+  fetchedAt: Date,
+): ProviderGameUpdate {
+  return {
+    canonicalGameId: providerGameId(match.id),
+    status: normalizeFootballStatus(match.status),
+    scheduledAt: match.utcDate,
+    result: toGameResult(match, fetchedAt),
   };
 }
 
@@ -188,18 +210,24 @@ export function normalizeSoccerTeamData(input: {
     .slice(0, 5)
     .map(toGameSummary);
 
-  // Finished matches are re-snapshotted so a fixture that kicks off keeps its
-  // route readable with its final score instead of freezing at the pre-match
-  // snapshot it had when it left the upcoming window. They are deliberately
-  // NOT added to `schedule.games`, which stays the five upcoming fixtures.
+  // Finished, cancelled, and postponed matches are re-snapshotted so a fixture
+  // that kicks off (or is called off) keeps its route readable with its final
+  // status instead of freezing at the pre-match snapshot it had when it left
+  // the upcoming window — and so settlement sees the terminal status. They
+  // are deliberately NOT added to `schedule.games`, which stays the five
+  // upcoming fixtures.
   const retainedFrom = new Date(
     fetchedAt.getTime() - RESULT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
   );
   const upcomingIds = new Set(games.map((game) => game.id));
-  const finishedGames = [...input.recent]
+  const finishedGames = [
+    ...new Map(
+      [...input.upcoming, ...input.recent].map((match) => [match.id, match]),
+    ).values(),
+  ]
     .filter(
       (match) =>
-        normalizeFootballStatus(match.status) === "finished" &&
+        TERMINAL_STATUSES.includes(normalizeFootballStatus(match.status)) &&
         new Date(match.utcDate) >= retainedFrom,
     )
     .sort((a, b) => b.utcDate.localeCompare(a.utcDate))

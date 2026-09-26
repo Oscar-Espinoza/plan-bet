@@ -333,6 +333,13 @@ export function gradeSelection(
     return "void";
   }
 
+  // Only a provider-confirmed final grades. A scheduled, live, or unknown
+  // game can carry a running score, and settlement pays once, so grading it
+  // would lock in a score the game may not end on.
+  if (game.status !== "finished") {
+    throw new Error(`Game "${game.id}" is ${game.status}, not final`);
+  }
+
   const { result } = game;
   if (!result) return "void";
 

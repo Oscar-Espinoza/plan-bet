@@ -1,8 +1,10 @@
 import "server-only";
 
 import type {
+  GameResult,
   GameSchedule,
   GameSnapshot,
+  GameStatus,
   Sport,
   Team,
   TeamSlug,
@@ -35,6 +37,17 @@ export type CanonicalTeamBundle = {
   snapshots: ProviderSnapshot[];
 };
 
+/**
+ * A known game's latest provider status, keyed on the canonical game ID.
+ * `result` is present only for a provider-confirmed final.
+ */
+export type ProviderGameUpdate = {
+  canonicalGameId: string;
+  status: GameStatus;
+  scheduledAt: string;
+  result?: GameResult;
+};
+
 export type ProviderRefreshFailure = {
   teamSlug?: TeamSlug;
   code: ProviderErrorCode | "persistence_error";
@@ -65,7 +78,27 @@ export type SportsProvider = {
     now: Date;
     cachedTeams: Partial<Record<TeamSlug, CachedTeamMetadata>>;
   }): Promise<ProviderRefreshResult>;
+  /**
+   * Re-reads specific games by provider game ID, independent of the team
+   * schedule windows — how an open wager's fixture keeps being reconciled
+   * until it reaches a terminal status.
+   */
+  fetchGameUpdates(input: {
+    providerGameIds: string[];
+    now: Date;
+  }): Promise<ProviderGameUpdate[]>;
 };
+
+/**
+ * The statuses settlement grades on: a provider-confirmed final, or a
+ * called-off game that voids. Anything else (scheduled, live, unknown) stays
+ * open, whatever score it carries.
+ */
+export const TERMINAL_STATUSES: readonly GameStatus[] = [
+  "finished",
+  "cancelled",
+  "postponed",
+];
 
 /**
  * How far back a finished game is retained and re-snapshotted on every refresh.
