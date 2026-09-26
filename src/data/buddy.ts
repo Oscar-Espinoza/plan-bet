@@ -263,13 +263,21 @@ export async function resolveContext(
   return { context: { kind: "recall", facts }, routeLabel: "recall" };
 }
 
+type FallbackReason = "ai_unconfigured" | "metering_unavailable";
+
 /** No model call: labelled plainly, one line per fact, and never leans. */
-function deterministicReply(context: BuddyContext, locale: Locale = "en") {
+function deterministicReply(
+  context: BuddyContext,
+  reason: FallbackReason,
+  locale: Locale = "en",
+) {
   const t = (message: string) => translate(locale, message);
   if (context.kind === "none" || context.facts.length === 0) {
     return {
       prose: t(
-        "AI isn't configured on this deployment, so I can't put together a take here. Check the board for the schedule instead.",
+        reason === "ai_unconfigured"
+          ? "AI isn't configured on this deployment, so I can't put together a take here. Check the board for the schedule instead."
+          : "The buddy can't take questions right now. Try again in a bit, or check the board for the schedule.",
       ),
       factIds: [] as string[],
     };
@@ -280,7 +288,9 @@ function deterministicReply(context: BuddyContext, locale: Locale = "en") {
   );
   return {
     prose: t(
-      `AI isn't configured on this deployment, so here's the evidence plainly, with no lean — ${lines.join(" ")}`,
+      reason === "ai_unconfigured"
+        ? `AI isn't configured on this deployment, so here's the evidence plainly, with no lean — ${lines.join(" ")}`
+        : `The buddy can't give a take right now, so here's the evidence plainly, with no lean — ${lines.join(" ")}`,
     ),
     factIds: context.facts.map((item) => item.id),
   };
@@ -396,29 +406,20 @@ export async function prepareBuddyTurn(
     );
   };
 
-  if (!isOpenAiConfigured()) {
-    return {
-      status: "ready",
-      run: () => streamFallback(context, routeLabel, input, persistReply),
-    };
-  }
+  const fallback = (reason: FallbackReason): BuddyPreflight => ({
+    status: "ready",
+    run: () => streamFallback(context, routeLabel, input, persistReply, reason),
+  });
 
-  if (!dbConfigured) {
-    return {
-      status: "ready",
-      run: () =>
-        streamLive(
-          prompt,
-          routeLabel,
-          input,
-          persistReply,
-          undefined,
-          saveNote,
-        ),
-    };
-  }
+  if (!isOpenAiConfigured()) return fallback("ai_unconfigured");
 
-  let claim: Awaited<ReturnType<typeof claimBuddyTurn>> | undefined;
+  // A paid model call only ever runs behind a successful quota reservation.
+  // The endpoint takes anonymous callers, so the quota is the only spending
+  // cap: no database, or a claim that throws, means nothing is metering the
+  // turn — fail closed to the deterministic reply instead of going unmetered.
+  if (!dbConfigured) return fallback("metering_unavailable");
+
+  let claim: Awaited<ReturnType<typeof claimBuddyTurn>>;
   try {
     claim = await claimBuddyTurn({
       conversation: input.conversation,
@@ -438,10 +439,10 @@ export async function prepareBuddyTurn(
           ? String((error as { code: unknown }).code)
           : "persistence_error",
     });
-    claim = undefined;
+    return fallback("metering_unavailable");
   }
 
-  if (claim && !claim.allowed) {
+  if (!claim.allowed) {
     logEvent("info", "buddy_turn", {
       requestId: input.requestId,
       route: routeLabel,
@@ -467,19 +468,20 @@ async function* streamFallback(
     status: "ok" | "rejected" | "failed";
     reason?: string;
   }) => Promise<void>,
+  reason: FallbackReason,
 ): AsyncGenerator<BuddyStreamEvent> {
-  const fallback = deterministicReply(context, input.locale);
+  const fallback = deterministicReply(context, reason, input.locale);
   await persistReply({
     text: fallback.prose,
     factIds: fallback.factIds,
     status: "ok",
-    reason: "ai_unconfigured",
+    reason,
   });
   logEvent("info", "buddy_turn", {
     requestId: input.requestId,
     route: routeLabel,
     status: "fallback",
-    reason: "ai_unconfigured",
+    reason,
   });
   yield { type: "delta", text: fallback.prose };
   yield {
@@ -487,7 +489,7 @@ async function* streamFallback(
     ok: true,
     prose: fallback.prose,
     factIds: fallback.factIds,
-    reason: "ai_unconfigured",
+    reason,
   };
 }
 
@@ -502,7 +504,7 @@ async function* streamLive(
     status: "ok" | "rejected" | "failed";
     reason?: string;
   }) => Promise<void>,
-  claim: Awaited<ReturnType<typeof claimBuddyTurn>> | undefined,
+  claim: Awaited<ReturnType<typeof claimBuddyTurn>>,
   saveNote: (note: string) => Promise<void>,
 ): AsyncGenerator<BuddyStreamEvent> {
   const startedAt = Date.now();
@@ -599,7 +601,7 @@ async function* streamLive(
           parsed.draft && prompt.draftGroupId
             ? { groupId: prompt.draftGroupId, text: parsed.draft }
             : undefined,
-        quota: claim?.allowed
+        quota: claim.allowed
           ? {
               remaining: claim.remaining,
               resetAt: claim.resetAt.toISOString(),

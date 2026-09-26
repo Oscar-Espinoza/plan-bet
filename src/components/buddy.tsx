@@ -18,10 +18,13 @@ type Turn = {
   factIds?: string[];
   pickId?: string;
   draft?: { groupId: string; text: string };
+  /** The deterministic no-model reply: an app message, not the buddy's voice. */
+  fallback?: boolean;
 };
 
 const RETRACTED_MESSAGE =
   "That reply didn't hold up under the grounding check, so it's been pulled. Try asking again.";
+const CONNECTION_DROPPED_MESSAGE = "The connection dropped. Try asking again.";
 const MAX_HISTORY_TURNS = 6;
 
 /**
@@ -74,10 +77,14 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
     setPending(true);
     setQuestion("");
 
-    // A retracted or failed reply is an app message, not something the buddy
-    // said — sending it back would have the model read its own error text.
+    // Only a buddy turn the server finalized as grounded goes back as history.
+    // A retracted, failed, unfinished or fallback reply is an app message, not
+    // something the buddy said — sending it back would have the model read its
+    // own error text (and a fallback's fact dump can overrun the turn cap).
     const history = turns
-      .filter((turn) => turn.ok !== false)
+      .filter(
+        (turn) => turn.role === "user" || (turn.ok === true && !turn.fallback),
+      )
       .slice(-MAX_HISTORY_TURNS)
       .map((turn) => ({
         role: turn.role,
@@ -123,6 +130,7 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
       const decoder = new TextDecoder();
       let buffer = "";
       let accumulated = "";
+      let finalized = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -141,6 +149,7 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
             factIds?: string[];
             pickId?: string;
             draft?: { groupId: string; text: string };
+            reason?: string;
           };
           try {
             payload = JSON.parse(line.slice(5).trim());
@@ -152,17 +161,20 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
             const shown = visibleStream(accumulated);
             setTurns((current) => updateLast(current, { text: shown }));
           } else if (payload.type === "done") {
+            finalized = true;
+            const prose = payload.prose;
             setTurns((current) =>
               updateLast(
                 current,
-                payload.ok
+                payload.ok === true && typeof prose === "string" && prose
                   ? {
-                      text: payload.prose,
+                      text: prose,
                       streaming: false,
                       ok: true,
                       factIds: payload.factIds,
                       pickId: payload.pickId,
                       draft: payload.draft,
+                      fallback: Boolean(payload.reason),
                     }
                   : { text: RETRACTED_MESSAGE, streaming: false, ok: false },
               ),
@@ -170,10 +182,21 @@ export function Buddy({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
           }
         }
       }
+      // The stream closed without a grounding verdict: whatever streamed is
+      // unvalidated, so it's pulled rather than left standing.
+      if (!finalized) {
+        setTurns((current) =>
+          updateLast(current, {
+            text: CONNECTION_DROPPED_MESSAGE,
+            streaming: false,
+            ok: false,
+          }),
+        );
+      }
     } catch {
       setTurns((current) =>
         updateLast(current, {
-          text: "The connection dropped. Try asking again.",
+          text: CONNECTION_DROPPED_MESSAGE,
           streaming: false,
           ok: false,
         }),

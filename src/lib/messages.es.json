@@ -360,7 +360,6 @@
   "Nothing settled yet": "Aún no hay liquidaciones",
   "Settled wagers land here once a game finishes.": "Las apuestas liquidadas aparecen aquí cuando termina un partido.",
   "That invite could not be accepted. Try again.": "No se pudo aceptar la invitación. Inténtalo de nuevo.",
-  "The bet did not go through. Try again.": "No se pudo realizar la apuesta. Inténtalo de nuevo.",
   "That reply didn't hold up under the grounding check, so it's been pulled. Try asking again.": "La respuesta no superó la verificación de los datos y fue retirada. Vuelve a preguntar.",
   "The buddy didn't respond. Try again.": "El asistente no respondió. Inténtalo de nuevo.",
   "The connection dropped. Try asking again.": "Se perdió la conexión. Vuelve a preguntar.",
@@ -614,5 +613,8 @@
   "Revoke link": "Revocar enlace",
   "Creating…": "Creando…",
   "Redirecting…": "Redirigiendo…",
-  "Place {p0} credit": "Apostar {p0} crédito"
+  "Place {p0} credit": "Apostar {p0} crédito",
+  "The buddy can't take questions right now. Try again in a bit, or check the board for the schedule.": "El asistente no puede responder ahora. Inténtalo en un rato o consulta el calendario.",
+  "The buddy can't give a take right now, so here's the evidence plainly, with no lean — {p0}": "El asistente no está disponible ahora. Estos son los datos disponibles, sin pronósticos: {p0}",
+  "We couldn't confirm the bet. Try again — it won't be placed twice.": "No pudimos confirmar la apuesta. Inténtalo de nuevo; no se duplicará."
 }

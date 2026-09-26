@@ -144,12 +144,15 @@ export function parseBuddyReply(
   const factIds = [...body.matchAll(FACT_MARKER)].map(
     (m) => aliases[m[1]!] ?? m[1]!,
   );
-  if (options.allowedFactIds.length > 0) {
-    if (factIds.length === 0) return { ok: false, reason: "no_citation" };
-    const allowed = new Set(options.allowedFactIds);
-    if (factIds.some((id) => !allowed.has(id))) {
-      return { ok: false, reason: "unknown_fact" };
-    }
+  // Only the "cite something" rule depends on evidence existing; a marker
+  // that doesn't resolve is rejected even when nothing was supplied — that's
+  // exactly when every citation is invented.
+  if (options.allowedFactIds.length > 0 && factIds.length === 0) {
+    return { ok: false, reason: "no_citation" };
+  }
+  const allowed = new Set(options.allowedFactIds);
+  if (factIds.some((id) => !allowed.has(id))) {
+    return { ok: false, reason: "unknown_fact" };
   }
 
   // A draft is destined for a public thread, so a slur in it retracts the
