@@ -236,7 +236,9 @@ export type RevokeInviteResult =
  * Membership re-checked, same as every other group mutation here. Scoping
  * the update to `status = 'pending'` makes this idempotent by construction —
  * revoking twice, or revoking an already-accepted invite, is a no-op rather
- * than an error.
+ * than an error. It also makes revoke and accept a race on one row: each is
+ * a conditional `pending →` update, so whichever commits first wins and the
+ * other matches nothing.
  */
 export async function revokeInvite(input: {
   inviteId: string;
@@ -279,7 +281,12 @@ export type AcceptGroupInviteResult =
 
 /**
  * classid 5, keyed on the invite token, so a double-click or a retried
- * request cannot accept the same invite twice concurrently.
+ * request cannot accept the same invite twice concurrently. The lock does not
+ * cover revokeInvite, so the invite is claimed with a conditional
+ * `pending → accepted` update and membership is only created when that claim
+ * returns the row — a revoke that commits first leaves nothing to claim.
+ * A link invite is claimed the same way: one use, then createJoinLink mints
+ * the next one.
  */
 export async function acceptGroupInvite(input: {
   token: string;
@@ -306,7 +313,12 @@ export async function acceptGroupInvite(input: {
       await transaction
         .update(groupInvites)
         .set({ status: "expired" })
-        .where(eq(groupInvites.id, invite.id));
+        .where(
+          and(
+            eq(groupInvites.id, invite.id),
+            eq(groupInvites.status, "pending"),
+          ),
+        );
       return { ok: false, reason: "expired" } as const;
     }
     // A link invite (null email) has no email to mismatch.
@@ -317,15 +329,24 @@ export async function acceptGroupInvite(input: {
       return { ok: false, reason: "email_mismatch" } as const;
     }
 
+    const [claimed] = await transaction
+      .update(groupInvites)
+      .set({ status: "accepted" })
+      .where(
+        and(
+          eq(groupInvites.id, invite.id),
+          eq(groupInvites.status, "pending"),
+          gt(groupInvites.expiresAt, now),
+        ),
+      )
+      .returning({ id: groupInvites.id });
+    // Revoked (or otherwise used) between the read above and this claim.
+    if (!claimed) return { ok: false, reason: "not_found" } as const;
+
     await transaction
       .insert(groupMembers)
       .values({ groupId: invite.groupId, userId: input.userId, role: "member" })
       .onConflictDoNothing();
-
-    await transaction
-      .update(groupInvites)
-      .set({ status: "accepted" })
-      .where(eq(groupInvites.id, invite.id));
 
     const [groupRow] = await transaction
       .select({ slug: groups.slug })

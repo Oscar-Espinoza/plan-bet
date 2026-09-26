@@ -13,7 +13,12 @@ import {
   acquireRefreshLease,
   completeRefreshLease,
 } from "@/data/sports-repository";
-import { gameSummarySchema, type GameSummary } from "@/lib/contracts";
+import {
+  evidenceFactSchema,
+  gameSummarySchema,
+  type EvidenceFact,
+  type GameSummary,
+} from "@/lib/contracts";
 import { logEvent } from "@/lib/logger";
 import {
   ApiSportsClient,
@@ -119,10 +124,54 @@ async function attempt<T>(
   }
 }
 
+/**
+ * The refreshes a stored fact can come from, keyed by the slug `buildFacts`
+ * gives its id (`<game>-ctx-<slug>`), in the order `buildFacts` emits them.
+ * Form and head-to-head come from the one head-to-head call.
+ */
+const SOURCE_SLUGS = [
+  ["injuries", "injuries-"],
+  ["headToHead", "form-"],
+  ["headToHead", "head-to-head"],
+  ["prediction", "model-lean"],
+  ["standings", "table-"],
+  ["standings", "record-"],
+] as const;
+
+type ContextSource = (typeof SOURCE_SLUGS)[number][0];
+
+function slugRank(canonicalGameId: string, fact: EvidenceFact) {
+  const prefix = `${canonicalGameId}-ctx-`.replace(/[^a-zA-Z0-9_-]/g, "-");
+  const slug = fact.id.startsWith(prefix) ? fact.id.slice(prefix.length) : "";
+  return SOURCE_SLUGS.findIndex(([, start]) => slug.startsWith(start));
+}
+
+/**
+ * Last-known-good per source. A source that refreshed this run — even to
+ * nothing — replaces what was stored for it; one that failed or was not
+ * reached keeps its stored facts with their original `observedAt`, so they
+ * read as old rather than vanishing. A stored fact whose slug this build no
+ * longer emits is dropped.
+ */
+export function mergeFacts(input: {
+  canonicalGameId: string;
+  stored: EvidenceFact[];
+  fresh: EvidenceFact[];
+  refreshed: Record<ContextSource, boolean>;
+}): EvidenceFact[] {
+  const rank = (fact: EvidenceFact) => slugRank(input.canonicalGameId, fact);
+  const kept = input.stored.filter((fact) => {
+    const source = SOURCE_SLUGS[rank(fact)]?.[0];
+    return source !== undefined && !input.refreshed[source];
+  });
+  return [...input.fresh, ...kept].sort((a, b) => rank(a) - rank(b));
+}
+
+/** Undefined means that pull failed, which is not the same as an empty one. */
 type SoccerSources = {
-  matches: ApiFootballMatch[];
-  predictions: ApiFootballPrediction[];
-  standings: ApiFootballStandingRow[];
+  matches?: ApiFootballMatch[];
+  predictions?: ApiFootballPrediction[];
+  standings?: ApiFootballStandingRow[];
 };
 
 /** The three league-wide soccer pulls, fetched once per run and shared. */
@@ -158,11 +207,7 @@ async function loadSoccerSources(
     ),
   ]);
 
-  return {
-    matches: matches ?? [],
-    predictions: predictions ?? [],
-    standings: standings ?? [],
-  };
+  return { matches, predictions, standings };
 }
 
 /**
@@ -212,8 +257,9 @@ export type EnrichResult =
  * (`ingestion_runs`, provider "fixture-context") exactly as settlement does, so
  * two runs cannot spend the same requests twice.
  *
- * A fixture that produces no facts is left alone rather than written empty: a
- * source outage must never overwrite last-known-good context.
+ * A source outage must never overwrite last-known-good context: each rebuild
+ * goes through `mergeFacts`, and a fixture where nothing refreshed, or that
+ * would end up with no facts, is left alone rather than rewritten.
  */
 export async function enrichDueFixtures(input: {
   requestId: string;
@@ -277,6 +323,19 @@ export async function enrichDueFixtures(input: {
       try {
         const summary = gameSummarySchema.parse(game.summary);
         const observedAt = now.toISOString();
+        const stored = evidenceFactSchema.array().safeParse(game.facts ?? []);
+        const merge = (
+          fresh: EvidenceFact[],
+          refreshed: Record<ContextSource, boolean>,
+        ) =>
+          Object.values(refreshed).some(Boolean)
+            ? mergeFacts({
+                canonicalGameId: game.canonicalId,
+                stored: stored.success ? stored.data : [],
+                fresh,
+                refreshed,
+              })
+            : [];
 
         if (summary.sport === "baseball") {
           // ponytail: standings only. BigBalls reports `injuries: none` and
@@ -284,14 +343,22 @@ export async function enrichDueFixtures(input: {
           // `get_matches` cannot filter by team — form and head-to-head would
           // cost a call per day per team for signal the standings row already
           // carries in its streak, record and run differential.
-          const facts = buildFacts({
-            canonicalGameId: game.canonicalId,
-            sport: "baseball",
-            homeTeam: summary.homeTeam,
-            awayTeam: summary.awayTeam,
-            observedAt,
-            baseballTable: baseball as BigBallsStandingRow[] | undefined,
-          });
+          const facts = merge(
+            buildFacts({
+              canonicalGameId: game.canonicalId,
+              sport: "baseball",
+              homeTeam: summary.homeTeam,
+              awayTeam: summary.awayTeam,
+              observedAt,
+              baseballTable: baseball as BigBallsStandingRow[] | undefined,
+            }),
+            {
+              injuries: false,
+              headToHead: false,
+              prediction: false,
+              standings: baseball !== undefined,
+            },
+          );
           if (facts.length === 0) {
             counts.skipped += 1;
             continue;
@@ -324,7 +391,7 @@ export async function enrichDueFixtures(input: {
         const matched = teamId
           ? matchFixture(
               summary,
-              soccer.matches.filter(
+              (soccer.matches ?? []).filter(
                 (match) =>
                   match.homeTeamId === teamId || match.awayTeamId === teamId,
               ),
@@ -369,7 +436,7 @@ export async function enrichDueFixtures(input: {
           observedAt,
           injuries,
           prediction: matched
-            ? soccer.predictions.find(
+            ? soccer.predictions?.find(
                 (prediction) => prediction.matchId === matched.id,
               )
             : undefined,
@@ -379,7 +446,14 @@ export async function enrichDueFixtures(input: {
           soccerTable: soccer.standings,
         };
 
-        const facts = buildFacts(bundle);
+        // Only a source that answered counts as refreshed: an unmatched
+        // fixture says nothing about its prediction or head-to-head.
+        const facts = merge(buildFacts(bundle), {
+          injuries: injuries !== undefined,
+          headToHead: headToHead !== undefined,
+          prediction: matched !== undefined && soccer.predictions !== undefined,
+          standings: soccer.standings !== undefined,
+        });
         if (facts.length === 0) {
           counts.skipped += 1;
           continue;

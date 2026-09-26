@@ -77,12 +77,18 @@ export async function GET() {
     }
   }
 
+  // "current" means the latest migration this build ships has been applied;
+  // table presence alone cannot see a missing column or index. Missing tables
+  // still mark it outdated even when the ledger can't be read.
   const schema: "current" | "outdated" | "unknown" =
     database.status !== "healthy"
       ? "unknown"
-      : database.missingTables.length > 0
+      : database.missingTables.length > 0 ||
+          (database.pendingMigrations ?? 0) > 0
         ? "outdated"
-        : "current";
+        : database.pendingMigrations === null
+          ? "unknown"
+          : "current";
 
   const providerDegraded = Object.values(providerChecks).some(
     (check) => check.status !== "configured",
@@ -90,7 +96,7 @@ export async function GET() {
   const status =
     database.status !== "healthy"
       ? "unavailable"
-      : schema === "outdated" || providerDegraded
+      : schema !== "current" || providerDegraded
         ? "degraded"
         : "healthy";
 
@@ -104,6 +110,9 @@ export async function GET() {
           status: database.status,
           durationMs: database.durationMs,
           schema,
+          // Counts, not names: health is public and needn't map the schema.
+          missingTables: database.missingTables.length,
+          pendingMigrations: database.pendingMigrations,
         },
         ...providerChecks,
       },

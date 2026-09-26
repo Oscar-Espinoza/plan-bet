@@ -3,6 +3,7 @@ import { Table, getTableName, is, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
 import * as schema from "@/db/schema";
+import journal from "../../drizzle/meta/_journal.json";
 
 export class DatabaseConfigurationError extends Error {
   constructor() {
@@ -51,6 +52,27 @@ const EXPECTED_TABLES = (Object.values(schema) as unknown[])
   .filter((value): value is Table => is(value, Table))
   .map(getTableName);
 
+/**
+ * Every table can exist while a migration that only adds a column or an index
+ * is missing (0013 added `game_comments.parent_comment_id`), so currency is
+ * read from drizzle's own ledger instead. `drizzle-kit migrate` applies every
+ * journal entry whose `when` is newer than the latest `created_at` it has
+ * recorded, so that is exactly the pending set. The journal is bundled into
+ * this build, so "pending" is measured against the migrations it ships with.
+ */
+async function countPendingMigrations(): Promise<number | null> {
+  try {
+    const result = await getDatabase().execute<{ latest: string | null }>(sql`
+      select max(created_at)::text as latest from drizzle.__drizzle_migrations
+    `);
+    const latest = Number(result.rows[0]?.latest ?? 0);
+    return journal.entries.filter((entry) => entry.when > latest).length;
+  } catch {
+    // No ledger, or no permission to read it: currency can't be established.
+    return null;
+  }
+}
+
 export async function checkDatabaseConnection() {
   const startedAt = Date.now();
   if (!isDatabaseConfigured()) {
@@ -58,6 +80,7 @@ export async function checkDatabaseConnection() {
       status: "unconfigured" as const,
       durationMs: 0,
       missingTables: [] as string[],
+      pendingMigrations: null,
     };
   }
   try {
@@ -71,16 +94,19 @@ export async function checkDatabaseConnection() {
     `);
     const found = new Set(result.rows.map((row) => row.table_name));
     const missingTables = EXPECTED_TABLES.filter((name) => !found.has(name));
+    const pendingMigrations = await countPendingMigrations();
     return {
       status: "healthy" as const,
       durationMs: Date.now() - startedAt,
       missingTables,
+      pendingMigrations,
     };
   } catch {
     return {
       status: "unavailable" as const,
       durationMs: Date.now() - startedAt,
       missingTables: [] as string[],
+      pendingMigrations: null,
     };
   }
 }
