@@ -254,6 +254,10 @@ export const wagerPlacementSchema = z.object({
   // Absent = solo wager. Re-checked against real membership server-side,
   // same as price — a client-supplied groupId is never trusted alone.
   groupId: z.uuid().optional(),
+  // One per placement intent, minted client-side and resent unchanged on a
+  // retry; a repeat returns the original wager instead of debiting again.
+  // Optional only so a slip bundle from before it existed still places.
+  idempotencyKey: z.uuid().optional(),
 });
 export type WagerPlacementInput = z.infer<typeof wagerPlacementSchema>;
 

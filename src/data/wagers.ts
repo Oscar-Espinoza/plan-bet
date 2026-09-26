@@ -1,10 +1,16 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { after } from "next/server";
 import { notifyGroupWagerPlaced } from "@/data/group-notifications";
 import { isGroupMember } from "@/data/groups-repository";
 import { readGameForWager, rowToWager } from "@/data/wagers-repository";
-import { SUMMARY_PROJECTION, toSummary } from "@/data/credits";
+import {
+  SUMMARY_PROJECTION,
+  lockAccountBalance,
+  readLockedBalance,
+  toSummary,
+} from "@/data/credits";
 import { withDatabaseTransaction } from "@/db/client";
 import { creditEntries, wagers } from "@/db/schema";
 import type { CreditSummary, GameSummary, Wager } from "@/lib/contracts";
@@ -41,7 +47,7 @@ export function evaluateWagerAvailability(
 }
 
 export type PlaceWagerResult =
-  | { ok: true; wager: Wager; summary: CreditSummary }
+  | { ok: true; wager: Wager; summary: CreditSummary; replayed: boolean }
   | { ok: false; reason: "invalid_selection" }
   | { ok: false; reason: "unavailable" }
   | { ok: false; reason: "closed"; status: WagerClosedReason }
@@ -51,10 +57,12 @@ export type PlaceWagerResult =
 
 /**
  * Never throws for an expected outcome — every rejection is a discriminated
- * result. The DB round trip inside `withDatabaseTransaction` is the only
- * place anything is written: balance check, wager insert, and stake ledger
- * entry happen atomically under a per-account advisory lock (classid 4 — 1
- * and 2 are free — they were the briefing quotas — 3 is the bankroll reset).
+ * result. Everything runs after the per-account balance lock (classid 4,
+ * shared with the bankroll reset — see lockAccountBalance): the idempotency
+ * lookup, the game read and availability check, the balance check, and the
+ * wager + stake ledger inserts. Checking availability only after the lock is
+ * the point — a request that queued behind another placement across kickoff
+ * sees the game as it is now, not as it was when the request arrived.
  */
 export async function placeWager(input: {
   userId: string;
@@ -65,118 +73,147 @@ export async function placeWager(input: {
   stake: number;
   groupId?: string;
   actorName?: string | null;
+  idempotencyKey?: string;
 }): Promise<PlaceWagerResult> {
-  // A client-supplied groupId is never trusted alone — same boundary as
-  // price. Checked before the game/market lookups purely because it is the
-  // cheaper check.
-  if (input.groupId && !(await isGroupMember(input.groupId, input.userId))) {
-    return { ok: false, reason: "not_a_group_member" };
-  }
+  const result = await withDatabaseTransaction(
+    async (transaction): Promise<PlaceWagerResult> => {
+      await lockAccountBalance(transaction, input.userId);
 
-  const game = await readGameForWager(input.routeId);
-  if (!game) return { ok: false, reason: "unavailable" };
+      const readSummary = async () => {
+        const [summaryRow] = await transaction
+          .select(SUMMARY_PROJECTION)
+          .from(creditEntries)
+          .where(eq(creditEntries.userId, input.userId));
+        return toSummary(summaryRow);
+      };
 
-  // The catalogue is keyed by sport, and sport is only known once the game
-  // is read — so this runs after the game lookup rather than before it, even
-  // though it is the conceptually prior check.
-  const resolved = resolveSelection(
-    game.sport,
-    input.marketId,
-    input.selectionId,
-  );
-  if (!resolved) return { ok: false, reason: "invalid_selection" };
-  const { market, selection } = resolved;
+      // First, before any check that could have changed since: a retry of a
+      // placement that already committed returns that wager, even if the
+      // game has since kicked off or the balance no longer covers it. The
+      // unique index backs this up; the lock is what makes the lookup exact.
+      if (input.idempotencyKey) {
+        const [existing] = await transaction
+          .select()
+          .from(wagers)
+          .where(
+            and(
+              eq(wagers.userId, input.userId),
+              eq(wagers.idempotencyKey, input.idempotencyKey),
+            ),
+          )
+          .limit(1);
+        if (existing) {
+          return {
+            ok: true,
+            wager: rowToWager(existing),
+            summary: await readSummary(),
+            replayed: true,
+          };
+        }
+      }
 
-  const availability = evaluateWagerAvailability(game.summary);
-  if (!availability.open) {
-    return { ok: false, reason: "closed", status: availability.reason };
-  }
+      // A client-supplied groupId is never trusted alone — same boundary as
+      // price.
+      if (
+        input.groupId &&
+        !(await isGroupMember(input.groupId, input.userId))
+      ) {
+        return { ok: false, reason: "not_a_group_member" };
+      }
 
-  // The client's number is only ever compared, never stored.
-  if (input.price !== selection.price) {
-    return { ok: false, reason: "price_moved", price: selection.price };
-  }
+      const game = await readGameForWager(input.routeId);
+      if (!game) return { ok: false, reason: "unavailable" };
 
-  const potentialReturn = Math.round(input.stake * selection.price);
+      // The catalogue is keyed by sport, and sport is only known once the
+      // game is read — so this runs after the game lookup rather than before
+      // it, even though it is the conceptually prior check.
+      const resolved = resolveSelection(
+        game.sport,
+        input.marketId,
+        input.selectionId,
+      );
+      if (!resolved) return { ok: false, reason: "invalid_selection" };
+      const { market, selection } = resolved;
 
-  const result = await withDatabaseTransaction(async (transaction) => {
-    await transaction.execute(
-      sql`select pg_advisory_xact_lock(4, hashtext(${input.userId}))`,
-    );
+      const availability = evaluateWagerAvailability(game.summary);
+      if (!availability.open) {
+        return { ok: false, reason: "closed", status: availability.reason };
+      }
 
-    const [balanceRow] = await transaction
-      .select({
-        balance: sql<number>`coalesce(sum(${creditEntries.amount}), 0)::int`,
-      })
-      .from(creditEntries)
-      .where(eq(creditEntries.userId, input.userId));
-    const balance = balanceRow?.balance ?? 0;
+      // The client's number is only ever compared, never stored.
+      if (input.price !== selection.price) {
+        return { ok: false, reason: "price_moved", price: selection.price };
+      }
 
-    if (input.stake > balance) {
-      return { ok: false, reason: "insufficient_balance" } as const;
-    }
+      const balance = await readLockedBalance(transaction, input.userId);
+      if (input.stake > balance) {
+        return { ok: false, reason: "insufficient_balance" };
+      }
 
-    const [wagerRow] = await transaction
-      .insert(wagers)
-      .values({
+      const [wagerRow] = await transaction
+        .insert(wagers)
+        .values({
+          userId: input.userId,
+          groupId: input.groupId ?? null,
+          canonicalGameId: game.canonicalId,
+          routeId: input.routeId,
+          sport: game.sport,
+          marketId: market.id,
+          selectionId: selection.id,
+          marketLabel: market.label,
+          selectionLabel: namedSelection(market, selection, {
+            home: game.summary.homeTeam,
+            away: game.summary.awayTeam,
+          }),
+          line: market.line ?? null,
+          price: selection.price,
+          stake: input.stake,
+          potentialReturn: Math.round(input.stake * selection.price),
+          matchup: `${game.summary.awayTeam} at ${game.summary.homeTeam}`,
+          competition: game.summary.competition,
+          scheduledAt: new Date(game.summary.scheduledAt),
+          pricesVersion: HOUSE_PRICES_VERSION,
+          rulesVersion: RULES_VERSION,
+          idempotencyKey: input.idempotencyKey ?? null,
+        })
+        .returning();
+
+      await transaction.insert(creditEntries).values({
         userId: input.userId,
-        groupId: input.groupId ?? null,
-        canonicalGameId: game.canonicalId,
-        routeId: input.routeId,
-        sport: game.sport,
-        marketId: market.id,
-        selectionId: selection.id,
-        marketLabel: market.label,
-        selectionLabel: namedSelection(market, selection, {
-          home: game.summary.homeTeam,
-          away: game.summary.awayTeam,
-        }),
-        line: market.line ?? null,
-        price: selection.price,
-        stake: input.stake,
-        potentialReturn,
-        matchup: `${game.summary.awayTeam} at ${game.summary.homeTeam}`,
-        competition: game.summary.competition,
-        scheduledAt: new Date(game.summary.scheduledAt),
-        pricesVersion: HOUSE_PRICES_VERSION,
-        rulesVersion: RULES_VERSION,
-      })
-      .returning();
+        kind: "stake",
+        amount: -input.stake,
+        reason: "wager placed",
+        wagerId: wagerRow!.id,
+      });
 
-    await transaction.insert(creditEntries).values({
-      userId: input.userId,
-      kind: "stake",
-      amount: -input.stake,
-      reason: "wager placed",
-      wagerId: wagerRow!.id,
-    });
+      return {
+        ok: true,
+        // Freshly inserted: no return row can exist yet, so settled is always
+        // false here.
+        wager: rowToWager(wagerRow!),
+        summary: await readSummary(),
+        replayed: false,
+      };
+    },
+  );
 
-    const [summaryRow] = await transaction
-      .select(SUMMARY_PROJECTION)
-      .from(creditEntries)
-      .where(eq(creditEntries.userId, input.userId));
-
-    return {
-      ok: true,
-      // Freshly inserted: no return row can exist yet, so settled is always
-      // false here.
-      wager: rowToWager(wagerRow!),
-      summary: toSummary(summaryRow),
-    } as const;
-  });
-
-  // After the commit, never inside it: a mail provider must not hold a
-  // transaction open, and a notification that fails must not roll a placed
-  // wager back. notifyGroupWagerPlaced swallows its own failures.
-  if (result.ok && input.groupId) {
-    await notifyGroupWagerPlaced({
-      groupId: input.groupId,
-      actorUserId: input.userId,
-      actorName: input.actorName ?? null,
-      matchup: result.wager.matchup,
-      selectionLabel: result.wager.selectionLabel,
-      stake: result.wager.stake,
-    });
+  // After the commit and off the response path: a mail provider must not
+  // hold the transaction open or delay the confirmation, and a notification
+  // that fails must not roll a placed wager back. A replay already notified
+  // the first time. notifyGroupWagerPlaced swallows its own failures.
+  if (result.ok && !result.replayed && input.groupId) {
+    const { groupId } = input;
+    const { wager } = result;
+    after(() =>
+      notifyGroupWagerPlaced({
+        groupId,
+        actorUserId: input.userId,
+        actorName: input.actorName ?? null,
+        matchup: wager.matchup,
+        selectionLabel: wager.selectionLabel,
+        stake: wager.stake,
+      }),
+    );
   }
 
   return result;

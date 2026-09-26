@@ -227,6 +227,11 @@ export function BetSlip({
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  // One idempotency key per placement intent. Kept while the request body is
+  // unchanged, so retrying after a lost response returns the wager that may
+  // already exist instead of debiting again; a changed selection, stake or
+  // group is a new intent, and a confirmed placement clears it.
+  const placement = useRef<{ intent: string; key: string } | null>(null);
   const confirmationRef = useRef<HTMLDivElement>(null);
   // The bar turns into the confirmation; move focus there so a screen reader
   // hears it and a keyboard user isn't left on a button that just vanished.
@@ -254,16 +259,24 @@ export function BetSlip({
     if (!stakeEntered) return;
     setPending(true);
     setError("");
+    const request = {
+      routeId: data.routeId,
+      marketId: market.id,
+      selectionId: selection.id,
+      price: selection.price,
+      stake,
+      groupId: groupId || undefined,
+    };
+    const intent = JSON.stringify(request);
+    if (placement.current?.intent !== intent) {
+      placement.current = { intent, key: crypto.randomUUID() };
+    }
     const response = await fetch("/api/bets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        routeId: data.routeId,
-        marketId: market.id,
-        selectionId: selection.id,
-        price: selection.price,
-        stake,
-        groupId: groupId || undefined,
+        ...request,
+        idempotencyKey: placement.current.key,
       }),
     }).catch(() => null);
     const payload: unknown = await response?.json().catch(() => null);
@@ -275,7 +288,10 @@ export function BetSlip({
               (payload as { error: { message?: string } }).error?.message ?? "",
             )
           : "";
-      setError(text || "The bet did not go through. Try again.");
+      setError(
+        text ||
+          "We couldn't confirm the bet. Try again — it won't be placed twice.",
+      );
       return;
     }
 
@@ -283,9 +299,12 @@ export function BetSlip({
     // keeps zod out of the browser bundle.
     const result = (payload as { data?: WagerPlacementResult } | null)?.data;
     if (!result?.wager || !result.summary) {
-      setError("The bet did not go through. Try again.");
+      setError(
+        "We couldn't confirm the bet. Try again — it won't be placed twice.",
+      );
       return;
     }
+    placement.current = null;
     if (data.signedIn)
       setConfirmedData({
         ...data,

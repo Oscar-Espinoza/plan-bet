@@ -239,7 +239,10 @@ export async function getGroupLeaderboard(
     .select({
       userId: groupMembers.userId,
       name: users.name,
-      netReturn: sql<number>`coalesce(sum(${creditEntries.amount}), 0)::int`,
+      netReturn:
+        sql<number>`coalesce(sum(${creditEntries.amount}), 0)::bigint`.mapWith(
+          Number,
+        ),
       wagerCount: sql<number>`coalesce(count(distinct ${creditEntries.wagerId}), 0)::int`,
       won: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'won'), 0)::int`,
       lost: sql<number>`coalesce(count(*) filter (where ${creditEntries.outcome} = 'lost'), 0)::int`,

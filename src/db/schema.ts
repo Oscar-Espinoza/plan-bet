@@ -429,12 +429,20 @@ export const wagers = pgTable(
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
     pricesVersion: text("prices_version").notNull(),
     rulesVersion: text("rules_version").notNull(),
+    // One per placement intent, minted by the slip and resent on a retry, so
+    // a request whose response was lost cannot debit twice. Null on wagers
+    // placed before it existed (Postgres treats nulls as distinct).
+    idempotencyKey: uuid("idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
     index("wagers_user_created_idx").on(table.userId, table.createdAt),
+    uniqueIndex("wagers_user_idempotency_uidx").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
     index("wagers_game_idx").on(table.canonicalGameId),
     index("wagers_group_idx").on(table.groupId),
     index("wagers_user_game_group_idx").on(

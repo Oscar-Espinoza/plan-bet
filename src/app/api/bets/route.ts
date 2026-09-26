@@ -83,10 +83,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // A replay (same idempotency key) created nothing, so it is a 200 carrying
+  // the original wager rather than a second 201.
   return apiSuccess(
     { wager: outcome.wager, summary: outcome.summary },
     context,
-    { status: 201 },
+    { status: outcome.replayed ? 200 : 201 },
   );
 }
 
