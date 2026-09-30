@@ -1,4 +1,4 @@
-import { parseLocale } from "@/lib/locale";
+import { requestLocale } from "@/lib/locale";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { hashClientAddress } from "@/data/buddy-repository";
@@ -95,7 +95,10 @@ export async function POST(request: NextRequest) {
   const userId = account.ok ? account.userId : undefined;
 
   const preflight = await prepareBuddyTurn({
-    locale: parseLocale(request.cookies.get("locale")?.value),
+    locale: requestLocale(
+      request.cookies.get("locale")?.value,
+      request.headers.get("accept-language"),
+    ),
     timeZone: viewerZone(
       body.data.timeZone ?? request.headers.get("x-vercel-ip-timezone"),
     ),

@@ -1,4 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
+import { Breadcrumb } from "@/components/breadcrumb";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -46,6 +47,7 @@ export default async function Page({ searchParams }: Props) {
   return (
     <>
       <header className="page-heading">
+        <Breadcrumb items={[{ label: t("Sign in") }]} />
         <div>
           <p className="eyebrow">{t("Account")}</p>
           <h1 className="display-title">{t("Sign in")}</h1>

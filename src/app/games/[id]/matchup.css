@@ -832,7 +832,6 @@
   border-radius: 0.65rem;
   background: linear-gradient(145deg, #1b2c3a, #12212d);
   color: var(--chalk);
-  box-shadow: 0 0.15rem 0.3rem rgb(0 0 0 / 12%);
 }
 
 .wager-panel .selection-button span:first-child {
@@ -872,7 +871,6 @@
   border-color: var(--club);
   background: var(--club);
   color: var(--club-on);
-  box-shadow: 0 0.2rem 0.75rem rgb(215 255 52 / 12%);
 }
 
 .wager-panel .selection-button-active span {

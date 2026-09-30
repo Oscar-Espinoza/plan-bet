@@ -1,6 +1,5 @@
-import { getTranslation } from "@/lib/locale-server";
-import { cookies, headers } from "next/headers";
-import { parseLocale } from "@/lib/locale";
+import { getLocale, getTranslation } from "@/lib/locale-server";
+import { headers } from "next/headers";
 import { LanguageProvider } from "@/components/language-provider";
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
@@ -104,7 +103,7 @@ const requestTime = () => Date.now();
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const locale = parseLocale((await cookies()).get("locale")?.value);
+  const locale = await getLocale();
   const zone = viewerZone((await headers()).get("x-vercel-ip-timezone"));
   return (
     <html

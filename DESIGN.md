@@ -30,7 +30,8 @@ Matchday Plan uses a night-match visual world: deep navy surfaces, cool structur
 ## Components
 
 - Mobile app chrome is fixed above and below a single scrolling workspace.
-- Panels use one-pixel cool borders, 10px radii, restrained elevation, and compact padding.
+- Panels use one-pixel cool borders, 10px radii, and compact padding. No shadows, glows or accent edge bars on cards, rows, chips or buttons, on any page, unless Oscar has asked for or approved that specific one.
+- The only approved shadows are on layers that float over the page: the alert dialog, the buddy panel and launcher, and the sticky bet bar.
 - Acid lime is reserved for the primary action, active navigation, active filters, selected odds, and live emphasis.
 - Match imagery is atmospheric background material; all product text and controls remain code-native.
 - Team crests use provider imagery with a high-contrast initial mark fallback.

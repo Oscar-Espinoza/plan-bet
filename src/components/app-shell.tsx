@@ -1,6 +1,6 @@
 "use client";
 
-import { LanguageSwitch, useTranslation } from "@/components/language-provider";
+import { LanguageLinks, useTranslation } from "@/components/language-provider";
 import type { Message } from "@/lib/locale";
 import { useLayoutEffect, useRef } from "react";
 import { NavigationLink as Link } from "@/components/fast-link";
@@ -13,6 +13,7 @@ import { LocalLink } from "@/components/fast-link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, UsersRound, CircleDot, UserRound } from "lucide-react";
 import { useBandHeight } from "@/components/band-height";
+import { CRUMB_SLOT_ID } from "@/components/breadcrumb-portal";
 import { Buddy } from "@/components/buddy-launcher";
 import { HydrateStore } from "@/components/hydrate-store";
 import { TourBar } from "@/components/tour-bar";
@@ -100,6 +101,7 @@ function ShellContent({
               <span className="brand-mark">MP</span>
               <span className="brand-name">Matchday Plan</span>
             </Link>
+            <div id={CRUMB_SLOT_ID} className="topbar-crumb" />
             <nav className="topbar-nav" aria-label={t("Primary navigation")}>
               {navItems.map((item) => {
                 const active = isCurrent(pathname, item.href);
@@ -116,10 +118,7 @@ function ShellContent({
                 );
               })}
             </nav>
-            <div className="topbar-controls">
-              {accountControl}
-              <LanguageSwitch />
-            </div>
+            <div className="topbar-controls">{accountControl}</div>
           </div>
         </header>
         <div
@@ -175,7 +174,7 @@ function ShellContent({
                 Baseball Savant
               </a>
               . <Link href="/rules">{t("Rules")}</Link> ·{" "}
-              <Link href="/system">{t("System")}</Link>
+              <Link href="/system">{t("System")}</Link> · <LanguageLinks />
             </p>
             <p className="fine-print">
               {t(

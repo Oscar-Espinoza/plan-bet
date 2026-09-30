@@ -5,6 +5,31 @@ export type TranslationValues = Record<string, string | number | undefined>;
 export function parseLocale(value: string | undefined): Locale {
   return value === "es" ? "es" : "en";
 }
+
+/**
+ * The reader's saved choice (the `locale` cookie) wins; without one, the
+ * first of English or Spanish in the browser's Accept-Language, by weight.
+ */
+export function requestLocale(
+  cookie: string | undefined,
+  acceptLanguage: string | null | undefined,
+): Locale {
+  if (cookie === "es" || cookie === "en") return cookie;
+  const preferred = (acceptLanguage ?? "")
+    .split(",")
+    .map((part, index) => {
+      const [tag = "", ...params] = part.trim().toLowerCase().split(";");
+      const q = params.find((param) => param.trim().startsWith("q="));
+      return {
+        language: tag.split("-")[0],
+        weight: q ? Number(q.trim().slice(2)) || 0 : 1,
+        index,
+      };
+    })
+    .filter(({ language }) => language === "es" || language === "en")
+    .sort((a, b) => b.weight - a.weight || a.index - b.index)[0];
+  return preferred?.language === "es" ? "es" : "en";
+}
 export function intlLocale(locale: Locale) {
   return locale === "es" ? "es-AR" : "en-US";
 }

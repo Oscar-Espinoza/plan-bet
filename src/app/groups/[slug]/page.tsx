@@ -1,11 +1,21 @@
-import { GroupActivity, GroupStandings } from "@/components/group-activity";
+import {
+  GroupActivity,
+  GroupStandings,
+  GroupUpcoming,
+} from "@/components/group-activity";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { GroupTabs } from "@/components/group-tabs";
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { SPORT_COOKIE, sportPreferenceSchema } from "@/lib/sport-preference";
+import { UserPlus, Users } from "lucide-react";
 import { NavigationLink as Link } from "@/components/fast-link";
-import { ArrowLeft, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getCachedDashboardData } from "@/data/sports-data";
+import { upcomingGroupFixtures } from "@/lib/group-activity";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { JoinLink } from "@/components/join-link";
 import { NotifyToggle } from "@/components/notify-toggle";
@@ -52,13 +62,38 @@ export default async function Page({ params }: Props) {
   // exist — membership is never disclosed to a non-member.
   if (!group || !(await isGroupMember(group.id, account.userId))) notFound();
 
-  const [members, leaderboard, wagerActivity, pendingInvites] =
+  const [members, leaderboard, wagerActivity, pendingInvites, dashboard] =
     await Promise.all([
       listGroupMembers(group.id),
       getGroupLeaderboard(group.id),
       listGroupMatchActivity(group.id, 20),
       listPendingInvites(group.id),
+      getCachedDashboardData(),
     ]);
+  // The board's remembered sport chip narrows the fixtures here too, so a
+  // football-only reader isn't shown baseball to bet on.
+  const sport = sportPreferenceSchema.parse(
+    (await cookies()).get(SPORT_COOKIE)?.value,
+  );
+  const upcoming = upcomingGroupFixtures(
+    Object.values(dashboard)
+      .flatMap((schedule) => schedule.games)
+      .filter((game) => sport === "all" || game.sport === sport),
+    wagerActivity,
+  );
+  // A fixture in "Upcoming games" already shows who is in on it.
+  const upcomingIds = new Set(upcoming.map(({ game }) => game.id));
+  const recentActivity = wagerActivity.filter(
+    (match) =>
+      !(
+        (match.game && upcomingIds.has(match.game.id)) ||
+        match.bets.some(({ wager }) => upcomingIds.has(wager.routeId))
+      ),
+  );
+  const memberNames = members.map((member) => ({
+    userId: member.userId,
+    name: member.name ?? member.email,
+  }));
   // Only email-targeted invites here — the one live join-link invite is
   // entirely self-managed by <JoinLink>, which never needs to expose its
   // token through this list-shaped read.
@@ -68,11 +103,13 @@ export default async function Page({ params }: Props) {
 
   return (
     <div className="group-detail">
-      <Link href="/groups" className="group-back">
-        <ArrowLeft aria-hidden="true" size={18} />
-        {t("Groups")}
-      </Link>
       <header className="page-heading">
+        <Breadcrumb
+          items={[
+            { label: t("Groups"), href: "/groups" },
+            { label: group.name },
+          ]}
+        />
         <div>
           <p className="eyebrow">{t("Group wagers")}</p>
           <h1 className="display-title">{group.name}</h1>
@@ -83,17 +120,27 @@ export default async function Page({ params }: Props) {
       </header>
 
       <GroupTabs
+        action={
+          <Button asChild variant="secondary" className="group-tabs-action">
+            <Link href={`/groups/${group.slug}?tab=members#invite`}>
+              <UserPlus aria-hidden="true" size={16} />
+              {t("Invite")}
+            </Link>
+          </Button>
+        }
         overview={
           <div className="group-overview">
-            <GroupActivity
-              matches={wagerActivity}
-              members={members.map((member) => ({
-                userId: member.userId,
-                name: member.name ?? member.email,
-              }))}
+            <GroupStandings entries={leaderboard} viewerId={account.userId} />
+            <GroupUpcoming
+              fixtures={upcoming}
+              members={memberNames}
               viewerId={account.userId}
             />
-            <GroupStandings entries={leaderboard} viewerId={account.userId} />
+            <GroupActivity
+              matches={recentActivity}
+              members={memberNames}
+              viewerId={account.userId}
+            />
           </div>
         }
         members={
@@ -123,7 +170,7 @@ export default async function Page({ params }: Props) {
                 }
               />
             </div>
-            <div className="form-block">
+            <div className="form-block" id="invite">
               <JoinLink slug={group.slug} />
             </div>
             <div className="form-block">

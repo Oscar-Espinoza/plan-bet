@@ -25,23 +25,28 @@ export function useTranslation() {
   const locale = useContext(LanguageContext);
   return translator(locale);
 }
-export function LanguageSwitch() {
+function useSetLocale() {
   const { locale } = useTranslation();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState(locale);
+  const choose = (next: Locale) => {
+    setSelected(next);
+    document.cookie = `locale=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+    startTransition(() => router.refresh());
+  };
+  return { locale, pending, selected, choose };
+}
+
+export function LanguageSwitch() {
+  const { locale, pending, selected, choose } = useSetLocale();
   return (
     <select
       className="language-switch"
       aria-label={locale === "es" ? "Idioma" : "Language"}
       value={pending ? selected : locale}
       disabled={pending}
-      onChange={(event) => {
-        const next = event.target.value === "es" ? "es" : "en";
-        setSelected(next);
-        document.cookie = `locale=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
-        startTransition(() => router.refresh());
-      }}
+      onChange={(event) => choose(event.target.value === "es" ? "es" : "en")}
     >
       <option value="en" label="EN">
         English
@@ -50,5 +55,36 @@ export function LanguageSwitch() {
         Español
       </option>
     </select>
+  );
+}
+
+/** The footer's quiet switch: each language named in itself. */
+export function LanguageLinks() {
+  const { locale, pending, selected, choose } = useSetLocale();
+  const current = pending ? selected : locale;
+  return (
+    <span
+      className="language-links"
+      role="group"
+      aria-label={locale === "es" ? "Idioma" : "Language"}
+    >
+      {(
+        [
+          ["es", "Español"],
+          ["en", "English"],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          type="button"
+          key={value}
+          lang={value}
+          aria-pressed={current === value}
+          disabled={pending}
+          onClick={() => current !== value && choose(value)}
+        >
+          {label}
+        </button>
+      ))}
+    </span>
   );
 }

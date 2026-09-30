@@ -1,9 +1,11 @@
 import { Suspense, type ReactNode } from "react";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { NavigationLink as Link } from "@/components/fast-link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, ChevronRight } from "lucide-react";
+import { SectionTabs } from "@/components/section-tabs";
 import { z } from "zod";
 import { BetsHistory } from "@/components/bets-history";
 import { LanguageSwitch } from "@/components/language-provider";
@@ -18,7 +20,6 @@ import {
   listWagerHistory,
 } from "@/data/wagers-repository";
 import { requireAccount, signOut } from "@/lib/auth";
-import type { RecordSlice } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 // Client router cache, page-scoped. See src/app/games/[id]/page.tsx.
@@ -53,35 +54,22 @@ function buildHref(
   filters: { sport: string; outcome: string; range: string; scope: string },
   page: number,
 ) {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ tab: "bets" });
   if (filters.sport !== "all") params.set("sport", filters.sport);
   if (filters.outcome !== "all") params.set("outcome", filters.outcome);
   if (filters.range !== "all") params.set("range", filters.range);
   if (filters.scope !== "all") params.set("scope", filters.scope);
   if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/you?${qs}` : "/you";
+  return `/you?${params.toString()}`;
 }
+
+const tabSchema = z.enum(["overview", "bets", "settings"]).catch("overview");
 
 // Moved from account/page.tsx: the one surface that shows a hit rate now
 // owns the one function that computes it.
 function hitRateLabel(won: number, lost: number) {
   const decided = won + lost;
   return decided > 0 ? `${Math.round((won / decided) * 100)}%` : "Not provided";
-}
-
-async function SliceRow({ slice }: { slice: RecordSlice }) {
-  const { t } = await getTranslation();
-  return (
-    <div className="stat-row">
-      <span>{t(slice.label)}</span>
-      <strong>
-        {slice.won}-{slice.lost}
-        {slice.voided ? `-${slice.voided}` : ""} ·{" "}
-        {t(hitRateLabel(slice.won, slice.lost))}
-      </strong>
-    </div>
-  );
 }
 
 type Props = {
@@ -103,6 +91,7 @@ export default async function Page({ searchParams }: Props) {
     return (
       <>
         <header className="page-heading">
+          <Breadcrumb items={[{ label: t("You") }]} />
           <div>
             <p className="eyebrow">{t("Free-to-play record")}</p>
             <h1 className="display-title">{t("Where you stand")}</h1>
@@ -139,6 +128,257 @@ export default async function Page({ searchParams }: Props) {
   if (!account.ok) redirect("/sign-in?callbackUrl=/you");
 
   const raw = await searchParams;
+  const tab = tabSchema.parse(first(raw.tab));
+  const summaryPromise = getCreditSummary(account.userId);
+
+  return (
+    <>
+      <header className="page-heading">
+        <Breadcrumb items={[{ label: t("You") }]} />
+        <div>
+          <p className="eyebrow">
+            {account.name ?? account.email ?? t("Free-to-play record")}
+          </p>
+          <h1 className="display-title">{t("Where you stand")}</h1>
+          {/* The balance and record head every tab: they are what the page
+              is for, and the tabs below only change what sits under them. */}
+          <Suspense
+            fallback={
+              <div
+                className="standing-lead standing-lead-loading"
+                role="status"
+                aria-label={t("Loading…")}
+              />
+            }
+          >
+            <Resolved promise={summaryPromise}>
+              {(summary) => (
+                <div className="standing-lead">
+                  <div>
+                    <p className="eyebrow">{t("Balance")}</p>
+                    <p className="standing-figure">
+                      {formatNumber(summary.balance)}{" "}
+                      <small>{t("credits")}</small>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="eyebrow">{t("Record")}</p>
+                    <p className="standing-figure standing-figure-minor">
+                      {summary.won}
+                      {t("W")} {summary.lost}
+                      {t("L")} {summary.voided}
+                      {t("V")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="eyebrow">{t("Accuracy")}</p>
+                    <p className="standing-figure standing-figure-minor">
+                      {t(hitRateLabel(summary.won, summary.lost))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="eyebrow">{t("Net")}</p>
+                    <p
+                      className="standing-figure standing-figure-minor"
+                      data-tone={
+                        summary.net > 0
+                          ? "up"
+                          : summary.net < 0
+                            ? "down"
+                            : undefined
+                      }
+                    >
+                      {summary.net > 0 ? "+" : ""}
+                      {formatNumber(summary.net)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Resolved>
+          </Suspense>
+          <p className="page-description">
+            {t("Fictional credits, house prices, never real money.")}{" "}
+          </p>
+        </div>
+      </header>
+
+      {/* All three panels render with the page, so switching tabs is
+          instant; ?tab= only picks which one opens first. */}
+      <SectionTabs
+        label="Account sections"
+        initial={tab}
+        panels={[
+          {
+            key: "overview",
+            label: "Overview",
+            content: <Overview userId={account.userId} />,
+          },
+          {
+            key: "bets",
+            label: "Wagers",
+            content: <Wagers userId={account.userId} raw={raw} />,
+          },
+          {
+            key: "settings",
+            label: "Settings",
+            content: (
+              <Preferences
+                email={account.email}
+                resetCount={summaryPromise.then(
+                  (summary) => summary.resetCount,
+                )}
+              />
+            ),
+          },
+        ]}
+      />
+    </>
+  );
+}
+
+/** Open wagers first, then the last few settled, then where the record comes from. */
+async function Overview({ userId }: { userId: string }) {
+  const { t } = await getTranslation();
+  const openPromise = Promise.all([
+    countOpenWagers(userId),
+    listWagerHistory(userId, { outcome: "open", limit: 5, offset: 0 }),
+  ]);
+  const settledPromise = listWagerHistory(userId, {
+    outcome: "settled",
+    limit: 3,
+    offset: 0,
+  });
+  const slicesPromise = getRecordSlices(userId);
+  return (
+    <div className="section-grid">
+      <Suspense fallback={<CardLoading label={t("Loading…")} />}>
+        <Resolved promise={openPromise}>
+          {([openCount, openWagers]) => (
+            <Card
+              title={t("Open wagers")}
+              titleId="open-wagers-heading"
+              headerExtra={
+                openCount > 5 ? (
+                  <Link className="card-link" href="/you?tab=bets&outcome=open">
+                    {t("See all")} ({openCount})
+                    <ChevronRight aria-hidden="true" size={16} />
+                  </Link>
+                ) : (
+                  <StatusTag>
+                    {openCount} {t("open")}
+                  </StatusTag>
+                )
+              }
+            >
+              <BetsHistory
+                compact
+                items={openWagers.items}
+                emptyState={{
+                  title: "No open wagers",
+                  copy: "Place a free-to-play wager from a game page to see it here.",
+                }}
+              />
+            </Card>
+          )}
+        </Resolved>
+      </Suspense>
+
+      <Suspense fallback={<CardLoading label={t("Loading…")} />}>
+        <Resolved promise={settledPromise}>
+          {(justSettled) => (
+            <Card
+              title={t("Just settled")}
+              titleId="just-settled-heading"
+              headerExtra={
+                <Link className="card-link" href="/you?tab=bets">
+                  {t("History")}
+                  <ChevronRight aria-hidden="true" size={16} />
+                </Link>
+              }
+            >
+              <BetsHistory
+                compact
+                items={justSettled.items}
+                emptyState={{
+                  title: "Nothing settled yet",
+                  copy: "Settled wagers land here once a game finishes.",
+                }}
+              />
+            </Card>
+          )}
+        </Resolved>
+      </Suspense>
+
+      <Suspense fallback={<CardLoading label={t("Loading…")} />}>
+        <Resolved promise={slicesPromise}>
+          {(slices) => (
+            <Card title={t("Slices")} titleId="slices-heading">
+              {slices.bySport.length || slices.byMarket.length ? (
+                <table className="slice-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="sr-only">
+                        {t("Slice")}
+                      </th>
+                      <th scope="col">{t("W")}</th>
+                      <th scope="col">{t("L")}</th>
+                      <th scope="col">{t("V")}</th>
+                      <th scope="col" aria-label={t("Hit rate")}>
+                        %
+                      </th>
+                    </tr>
+                  </thead>
+                  {(
+                    [
+                      ["By sport", slices.bySport],
+                      ["By market", slices.byMarket],
+                    ] as const
+                  ).map(
+                    ([label, rows]) =>
+                      rows.length > 0 && (
+                        <tbody key={label}>
+                          <tr className="slice-group">
+                            <th scope="rowgroup" colSpan={5}>
+                              {t(label)}
+                            </th>
+                          </tr>
+                          {rows.map((slice) => (
+                            <tr key={slice.key}>
+                              <th scope="row">{t(slice.label)}</th>
+                              <td>{slice.won}</td>
+                              <td>{slice.lost}</td>
+                              <td>{slice.voided}</td>
+                              <td>{t(hitRateLabel(slice.won, slice.lost))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      ),
+                  )}
+                </table>
+              ) : (
+                <div className="panel-body">
+                  <p className="not-provided">
+                    {t("No settled wagers yet.")}{" "}
+                    <Link href="/">{t("Browse the board")}</Link>.
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+        </Resolved>
+      </Suspense>
+    </div>
+  );
+}
+
+async function Wagers({
+  userId,
+  raw,
+}: {
+  userId: string;
+  raw: Record<string, string | string[] | undefined>;
+}) {
+  const { t } = await getTranslation();
   const filters = {
     sport: sportSchema.parse(first(raw.sport)),
     outcome: outcomeSchema.parse(first(raw.outcome)),
@@ -146,19 +386,7 @@ export default async function Page({ searchParams }: Props) {
     scope: scopeSchema.parse(first(raw.scope)),
   };
   const page = pageSchema.parse(first(raw.page));
-
-  const summaryPromise = getCreditSummary(account.userId);
-  const openPromise = Promise.all([
-    countOpenWagers(account.userId),
-    listWagerHistory(account.userId, { outcome: "open", limit: 5, offset: 0 }),
-  ]);
-  const settledPromise = listWagerHistory(account.userId, {
-    outcome: "settled",
-    limit: 5,
-    offset: 0,
-  });
-  const slicesPromise = getRecordSlices(account.userId);
-  const historyPromise = listWagerHistory(account.userId, {
+  const history = await listWagerHistory(userId, {
     sport: filters.sport === "all" ? undefined : filters.sport,
     outcome: filters.outcome === "all" ? undefined : filters.outcome,
     since: sinceFor(filters.range),
@@ -166,7 +394,6 @@ export default async function Page({ searchParams }: Props) {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
-
   const filtersActive =
     filters.sport !== "all" ||
     filters.outcome !== "all" ||
@@ -181,313 +408,183 @@ export default async function Page({ searchParams }: Props) {
         title: "No wagers yet",
         copy: "Place a free-to-play wager from a game page to see your history here.",
       };
+  const selects = [
+    {
+      id: "you-sport",
+      name: "sport",
+      label: "Sport",
+      value: filters.sport,
+      options: [
+        ["all", "All sports"],
+        ["soccer", "Soccer"],
+        ["baseball", "Baseball"],
+      ],
+    },
+    {
+      id: "you-outcome",
+      name: "outcome",
+      label: "Outcome",
+      value: filters.outcome,
+      options: [
+        ["all", "All outcomes"],
+        ["open", "Open"],
+        ["won", "Won"],
+        ["lost", "Lost"],
+        ["void", "Void"],
+      ],
+    },
+    {
+      id: "you-range",
+      name: "range",
+      label: "Time range",
+      value: filters.range,
+      options: [
+        ["all", "All time"],
+        ["7d", "Last 7 days"],
+        ["30d", "Last 30 days"],
+        ["90d", "Last 90 days"],
+      ],
+    },
+    {
+      id: "you-scope",
+      name: "scope",
+      label: "Placed with",
+      value: filters.scope,
+      options: [
+        ["all", "Solo and group"],
+        ["solo", "Solo only"],
+        ["group", "Group only"],
+      ],
+    },
+  ] as const;
 
   return (
-    <>
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">
-            {account.name ?? account.email ?? t("Free-to-play record")}
-          </p>
-          <h1 className="display-title">{t("Where you stand")}</h1>
-          <Suspense
-            fallback={
-              <div
-                className="standing-lead standing-lead-loading"
-                role="status"
-                aria-label={t("Loading…")}
-              />
-            }
-          >
-            <Resolved promise={summaryPromise}>
-              {(summary) => (
-                <>
-                  {" "}
-                  <div className="standing-lead">
-                    <div>
-                      <p className="eyebrow">{t("Balance")}</p>
-                      <p className="standing-figure">
-                        {formatNumber(summary.balance)}{" "}
-                        <small>{t("credits")}</small>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="eyebrow">{t("Record")}</p>
-                      <p className="standing-figure standing-figure-minor">
-                        {summary.won}
-                        {t("W")} {summary.lost}
-                        {t("L")} {summary.voided}
-                        {t("V")}{" "}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </Resolved>
-          </Suspense>
-          <p className="page-description">
-            {t("Fictional credits, house prices, never real money.")}{" "}
-          </p>
-        </div>
-      </header>
-
-      <div className="section-grid">
-        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
-          <Resolved promise={openPromise}>
-            {([openCount, openWagers]) => (
-              <Card
-                title={t("Open wagers")}
-                titleId="open-wagers-heading"
-                headerExtra={
-                  <StatusTag>
-                    {openCount} {t("open")}
-                  </StatusTag>
-                }
-              >
-                <BetsHistory
-                  items={openWagers.items}
-                  emptyState={{
-                    title: "No open wagers",
-                    copy: "Place a free-to-play wager from a game page to see it here.",
-                  }}
-                />
-              </Card>
-            )}
-          </Resolved>
-        </Suspense>
-
-        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
-          <Resolved promise={settledPromise}>
-            {(justSettled) => (
-              <Card title={t("Just settled")} titleId="just-settled-heading">
-                <BetsHistory
-                  items={justSettled.items}
-                  emptyState={{
-                    title: "Nothing settled yet",
-                    copy: "Settled wagers land here once a game finishes.",
-                  }}
-                />
-              </Card>
-            )}
-          </Resolved>
-        </Suspense>
-
-        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
-          <Resolved promise={slicesPromise}>
-            {(slices) => (
-              <Card title={t("Slices")} titleId="slices-heading">
-                <p className="stat-group-label">{t("By sport")}</p>
-                {slices.bySport.length ? (
-                  slices.bySport.map((slice) => (
-                    <SliceRow slice={slice} key={slice.key} />
-                  ))
-                ) : (
-                  <div className="panel-body">
-                    <p className="not-provided">
-                      {t("No settled wagers yet.")}{" "}
-                      <Link href="/">{t("Browse the board")}</Link>.
-                    </p>
-                  </div>
-                )}
-                <p className="stat-group-label">{t("By market")}</p>
-                {slices.byMarket.length ? (
-                  slices.byMarket.map((slice) => (
-                    <SliceRow slice={slice} key={slice.key} />
-                  ))
-                ) : (
-                  <div className="panel-body">
-                    <p className="not-provided">
-                      {t("No settled wagers yet.")}{" "}
-                      <Link href="/">{t("Browse the board")}</Link>.
-                    </p>
-                  </div>
-                )}
-              </Card>
-            )}
-          </Resolved>
-        </Suspense>
-
-        <Suspense fallback={<CardLoading label={t("Loading…")} />}>
-          <Resolved promise={summaryPromise}>
-            {(summary) => (
-              <Card title={t("Detail")} titleId="detail-heading">
-                <div className="stat-row">
-                  <span>{t("Hit rate")}</span>
-                  <strong>{t(hitRateLabel(summary.won, summary.lost))}</strong>
-                </div>
-                <div className="stat-row">
-                  <span>{t("Net")}</span>
-                  <strong>
-                    {formatNumber(summary.net)} {t("credits")}
-                  </strong>
-                </div>
-                <div className="form-block">
-                  <span>
-                    {t("Times reset:")} {formatNumber(summary.resetCount)}{" "}
-                    {t("— a reset makes this record less meaningful.")}{" "}
-                  </span>
-                </div>
-              </Card>
-            )}
-          </Resolved>
-        </Suspense>
+    <section className="panel" aria-labelledby="you-history-heading">
+      <div className="panel-header">
+        <h2 className="panel-title" id="you-history-heading">
+          {t("History")}
+        </h2>
+        <span className="fine-print">
+          {t("Page")} {page}
+        </span>
       </div>
 
-      <Suspense fallback={<CardLoading label={t("Loading…")} />}>
-        <Resolved promise={historyPromise}>
-          {(history) => (
-            <section className="panel" aria-labelledby="you-history-heading">
-              <div className="panel-header">
-                <h2 className="panel-title" id="you-history-heading">
-                  {t("History")}{" "}
-                </h2>
+      <form
+        method="get"
+        aria-label={t("Filter wager history")}
+        className="filter-bar"
+      >
+        <input type="hidden" name="tab" value="bets" />
+        {selects.map((select) => (
+          <div key={select.id}>
+            <label htmlFor={select.id} className="field-label">
+              {t(select.label)}
+            </label>
+            <select
+              id={select.id}
+              name={select.name}
+              className="control-select"
+              defaultValue={select.value}
+            >
+              {select.options.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {t(label)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+        <Button type="submit" size="sm">
+          {t("Apply filters")}
+        </Button>
+      </form>
+
+      <BetsHistory items={history.items} emptyState={emptyState} />
+
+      <div className="panel-body flex items-center justify-between">
+        {page > 1 ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link href={buildHref(filters, page - 1)}>{t("Prev")}</Link>
+          </Button>
+        ) : (
+          <Button variant="secondary" size="sm" disabled>
+            {t("Prev")}
+          </Button>
+        )}
+        {history.hasMore ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link href={buildHref(filters, page + 1)}>{t("Next")}</Link>
+          </Button>
+        ) : (
+          <Button variant="secondary" size="sm" disabled>
+            {t("Next")}
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* Everything that isn't a game or a group lives here, one full-height row
+   each — on a phone these were otherwise 12px footer links. */
+async function Preferences({
+  email,
+  resetCount,
+}: {
+  email: string | null | undefined;
+  resetCount: Promise<number>;
+}) {
+  const { formatNumber, t } = await getTranslation();
+  const resets = await resetCount;
+  return (
+    <section className="panel" aria-labelledby="you-settings-heading">
+      <div className="panel-header">
+        <h2 className="panel-title" id="you-settings-heading">
+          {t("Settings")}
+        </h2>
+      </div>
+      <div className="settings-list">
+        <Link className="settings-row" href="/rules">
+          <span>{t("Rules")}</span>
+          <ChevronRight aria-hidden="true" size={18} />
+        </Link>
+        <Link className="settings-row" href="/system">
+          <span>{t("System")}</span>
+          <ChevronRight aria-hidden="true" size={18} />
+        </Link>
+        <div className="settings-row">
+          <span>{t("Language")}</span>
+          <LanguageSwitch />
+        </div>
+        <div className="settings-row">
+          <span>
+            {t("Reset your bankroll back to the starting balance.")}
+            {resets > 0 && (
+              <>
+                {" "}
                 <span className="fine-print">
-                  {t("Page")} {page}
+                  {t("Times reset:")} {formatNumber(resets)}{" "}
+                  {t("— a reset makes this record less meaningful.")}
                 </span>
-              </div>
-
-              <form
-                method="get"
-                aria-label={t("Filter wager history")}
-                className="filter-bar"
-              >
-                <div>
-                  <label htmlFor="you-sport" className="field-label">
-                    {t("Sport")}{" "}
-                  </label>
-                  <select
-                    id="you-sport"
-                    name="sport"
-                    className="control-select"
-                    defaultValue={filters.sport}
-                  >
-                    <option value="all">{t("All sports")}</option>
-                    <option value="soccer">{t("Soccer")}</option>
-                    <option value="baseball">{t("Baseball")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="you-outcome" className="field-label">
-                    {t("Outcome")}{" "}
-                  </label>
-                  <select
-                    id="you-outcome"
-                    name="outcome"
-                    className="control-select"
-                    defaultValue={filters.outcome}
-                  >
-                    <option value="all">{t("All outcomes")}</option>
-                    <option value="open">{t("Open")}</option>
-                    <option value="won">{t("Won")}</option>
-                    <option value="lost">{t("Lost")}</option>
-                    <option value="void">{t("Void")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="you-range" className="field-label">
-                    {t("Time range")}{" "}
-                  </label>
-                  <select
-                    id="you-range"
-                    name="range"
-                    className="control-select"
-                    defaultValue={filters.range}
-                  >
-                    <option value="all">{t("All time")}</option>
-                    <option value="7d">{t("Last 7 days")}</option>
-                    <option value="30d">{t("Last 30 days")}</option>
-                    <option value="90d">{t("Last 90 days")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="you-scope" className="field-label">
-                    {t("Placed")}{" "}
-                  </label>
-                  <select
-                    id="you-scope"
-                    name="scope"
-                    className="control-select"
-                    defaultValue={filters.scope}
-                  >
-                    <option value="all">{t("Solo and group")}</option>
-                    <option value="solo">{t("Solo only")}</option>
-                    <option value="group">{t("Group only")}</option>
-                  </select>
-                </div>
-                <Button type="submit" size="sm">
-                  {t("Apply filters")}{" "}
-                </Button>
-              </form>
-
-              <BetsHistory items={history.items} emptyState={emptyState} />
-
-              <div className="panel-body flex items-center justify-between">
-                {page > 1 ? (
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href={buildHref(filters, page - 1)}>{t("Prev")}</Link>
-                  </Button>
-                ) : (
-                  <Button variant="secondary" size="sm" disabled>
-                    {t("Prev")}{" "}
-                  </Button>
-                )}
-                {history.hasMore ? (
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href={buildHref(filters, page + 1)}>{t("Next")}</Link>
-                  </Button>
-                ) : (
-                  <Button variant="secondary" size="sm" disabled>
-                    {t("Next")}{" "}
-                  </Button>
-                )}
-              </div>
-            </section>
-          )}
-        </Resolved>
-      </Suspense>
-
-      {/* Everything that isn't a game or a group lives here, one full-height
-          row each — on a phone these were otherwise 12px footer links. */}
-      <section className="panel" aria-labelledby="you-settings-heading">
-        <div className="panel-header">
-          <h2 className="panel-title" id="you-settings-heading">
-            {t("Settings")}
-          </h2>
+              </>
+            )}
+          </span>
+          <ResetBankroll />
         </div>
-        <div className="settings-list">
-          <Link className="settings-row" href="/rules">
-            <span>{t("Rules")}</span>
-            <ChevronRight aria-hidden="true" size={18} />
-          </Link>
-          <Link className="settings-row" href="/system">
-            <span>{t("System")}</span>
-            <ChevronRight aria-hidden="true" size={18} />
-          </Link>
-          <div className="settings-row">
-            <span>{t("Language")}</span>
-            <LanguageSwitch />
-          </div>
-          <div className="settings-row">
-            <span>
-              {t("Reset your bankroll back to the starting balance.")}
-            </span>
-            <ResetBankroll />
-          </div>
-          <form
-            className="settings-row"
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
-            <span>{account.email ?? t("Signed in")}</span>
-            <Button type="submit" variant="secondary" size="sm">
-              {t("Sign out")}
-            </Button>
-          </form>
-        </div>
-      </section>
-    </>
+        <form
+          className="settings-row"
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/" });
+          }}
+        >
+          <span>{email ?? t("Signed in")}</span>
+          <Button type="submit" variant="secondary" size="sm">
+            {t("Sign out")}
+          </Button>
+        </form>
+      </div>
+    </section>
   );
 }
 

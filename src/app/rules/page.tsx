@@ -1,4 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
+import { Breadcrumb } from "@/components/breadcrumb";
 import type { Metadata } from "next";
 import { RULES_VERSION } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ export default async function Page() {
   return (
     <>
       <header className="page-heading">
+        <Breadcrumb items={[{ label: t("Rules") }]} />
         <div>
           <p className="eyebrow">{t("Wager simulator")}</p>
           <h1 className="display-title">{t("Rules")}</h1>

@@ -1,14 +1,12 @@
-import { headers } from "next/headers";
-import { z } from "zod";
+import { cookies, headers } from "next/headers";
 import { Slate, type BoardData } from "@/components/slate";
 import { StadiumPreload } from "@/components/stadium-preload";
 import { getCachedDashboardData } from "@/data/sports-data";
 import { viewerZone } from "@/lib/utils";
+import { SPORT_COOKIE, sportPreferenceSchema } from "@/lib/sport-preference";
 
 export const dynamic = "force-dynamic";
 export const unstable_dynamicStaleTime = 30;
-
-const sportFilterSchema = z.enum(["all", "soccer", "baseball"]).catch("all");
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -16,7 +14,9 @@ type Props = {
 
 export default async function Home({ searchParams }: Props) {
   const params = await searchParams;
-  const sport = sportFilterSchema.parse(params.sport);
+  const sport = sportPreferenceSchema.parse(
+    params.sport ?? (await cookies()).get(SPORT_COOKIE)?.value,
+  );
   const dashboard = await getCachedDashboardData();
   // The board never reads a team's sport context; leaving it out keeps it off
   // the RSC payload the client has to parse.

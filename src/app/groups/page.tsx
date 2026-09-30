@@ -1,4 +1,5 @@
 import { GroupList } from "@/components/group-list";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { getTranslation } from "@/lib/locale-server";
 import type { Metadata } from "next";
 import { NavigationLink as Link } from "@/components/fast-link";
@@ -23,6 +24,7 @@ export default async function Page() {
     return (
       <>
         <header className="page-heading">
+          <Breadcrumb items={[{ label: t("Groups") }]} />
           <div>
             <p className="eyebrow">{t("Group wagers")}</p>
             <h1 className="display-title">{t("Groups")}</h1>
@@ -51,6 +53,7 @@ export default async function Page() {
   return (
     <>
       <header className="page-heading">
+        <Breadcrumb items={[{ label: t("Groups") }]} />
         <div>
           <p className="eyebrow">{t("Group wagers")}</p>
           <h1 className="display-title">{t("Groups")}</h1>
@@ -60,7 +63,7 @@ export default async function Page() {
             )}{" "}
           </p>
         </div>
-        <Button asChild>
+        <Button asChild variant="secondary" className="page-heading-action">
           <Link href="/groups/new">
             <Plus aria-hidden="true" size={18} />
             {t("New group")}

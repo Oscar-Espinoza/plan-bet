@@ -1,4 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
+import { Breadcrumb } from "@/components/breadcrumb";
 import type { Metadata } from "next";
 import { AlertTriangle, CheckCircle2, Repeat } from "lucide-react";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -28,6 +29,7 @@ export default async function Page() {
   return (
     <>
       <header className="page-heading">
+        <Breadcrumb items={[{ label: t("System") }]} />
         <div>
           <p className="eyebrow">{t("Operational telemetry")}</p>
           <h1 className="display-title">{t("System")}</h1>

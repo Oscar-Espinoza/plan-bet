@@ -1,4 +1,5 @@
 import { getTranslation } from "@/lib/locale-server";
+import { Breadcrumb } from "@/components/breadcrumb";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CreateGroupForm } from "@/components/create-group-form";
@@ -22,6 +23,12 @@ export default async function Page() {
   return (
     <>
       <header className="page-heading">
+        <Breadcrumb
+          items={[
+            { label: t("Groups"), href: "/groups" },
+            { label: t("New group") },
+          ]}
+        />
         <div>
           <p className="eyebrow">{t("Group wagers")}</p>
           <h1 className="display-title">{t("New group")}</h1>

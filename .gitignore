@@ -38,3 +38,6 @@ next-env.d.ts
 
 # per-machine MCP config (holds API tokens)
 .codex/config.toml
+
+# Local progress dashboard for agent sessions
+.dashboard/

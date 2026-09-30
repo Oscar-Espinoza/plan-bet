@@ -25,6 +25,7 @@ import type {
   TeamSlug,
 } from "@/lib/contracts";
 import { cn } from "@/lib/utils";
+import { sportPreferenceCookie } from "@/lib/sport-preference";
 
 export type SportFilter = "all" | Sport;
 
@@ -116,7 +117,9 @@ export function Slate({
 }) {
   const { t, locale } = useTranslation();
   const params = useSearchParams();
-  const filter = params ? (params.get("sport") ?? "all") : _initialSport;
+  // No ?sport= in the URL means the server already applied the remembered
+  // chip (the cookie), which arrives as the prop.
+  const filter = params?.get("sport") ?? _initialSport;
   const sport: SportFilter =
     filter === "soccer" || filter === "baseball" ? filter : "all";
   const games = Object.values(data)
@@ -250,6 +253,9 @@ export function Slate({
               sport === filter.value && "slate-chip-active",
             )}
             aria-current={sport === filter.value ? "page" : undefined}
+            onClick={() => {
+              document.cookie = sportPreferenceCookie(filter.value);
+            }}
           >
             <span>{t(filter.label)}</span>
           </LocalLink>
