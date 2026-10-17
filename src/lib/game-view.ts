@@ -54,6 +54,8 @@ export type MatchView = {
   };
   timing: {
     scheduledAt: string;
+    startTimeTbd?: boolean;
+    scheduledDate?: string;
     venue?: string;
     status: GameStatus;
     result?: GameResult;
@@ -441,6 +443,8 @@ export function buildMatchView(snapshot: GameSnapshot, team: Team): MatchView {
     },
     timing: {
       scheduledAt: game.scheduledAt,
+      startTimeTbd: game.startTimeTbd,
+      scheduledDate: game.scheduledDate,
       venue: game.venue?.trim() || undefined,
       status: game.status,
       result: game.result,

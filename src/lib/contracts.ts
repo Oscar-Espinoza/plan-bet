@@ -69,6 +69,9 @@ export const gameSummarySchema = z.object({
   homeTeamCrestUrl: z.url().optional(),
   awayTeamCrestUrl: z.url().optional(),
   scheduledAt: z.iso.datetime(),
+  // MLB supplies a placeholder timestamp until first pitch is announced.
+  startTimeTbd: z.boolean().optional(),
+  scheduledDate: z.iso.date().optional(),
   venue: z.string().optional(),
   status: gameStatusSchema,
   result: gameResultSchema.optional(),

@@ -56,7 +56,7 @@ export function RequestClockProvider({
 }
 
 /** `timeZone: undefined` means the browser's own zone. */
-function useClock(): { timeZone?: string; now: () => number } {
+export function useViewerClock(): { timeZone?: string; now: () => number } {
   const hydrated = useHydrated();
   const request = useContext(RequestClockContext);
   return hydrated
@@ -67,12 +67,29 @@ function useClock(): { timeZone?: string; now: () => number } {
 export function LocalDateTime({
   value,
   short = false,
+  dateOnly,
 }: {
   value: string;
   short?: boolean;
+  /** An official fixture date whose start time has not been announced. */
+  dateOnly?: string;
 }) {
-  const { locale } = useTranslation();
-  const { timeZone } = useClock();
+  const { locale, t } = useTranslation();
+  const { timeZone } = useViewerClock();
+  if (dateOnly) {
+    const date = new Intl.DateTimeFormat(intlLocale(locale), {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${dateOnly}T00:00:00Z`));
+    return (
+      <time dateTime={dateOnly}>
+        {date} · {t("Time TBD")}
+      </time>
+    );
+  }
   return (
     <time dateTime={value}>
       {short
@@ -95,7 +112,7 @@ function relativeKickoffLabel(value: string, now: number) {
 
 export function RelativeKickoff({ value }: { value: string }) {
   const { t } = useTranslation();
-  const { now } = useClock();
+  const { now } = useViewerClock();
   return <time dateTime={value}>{t(relativeKickoffLabel(value, now()))}</time>;
 }
 
@@ -110,21 +127,33 @@ function clockAt(value: string, locale: string, timeZone?: string) {
 
 /** The slate row's fixed mono time column — just the clock, no date. The day
  * group heading above the row already carries the date. */
-export function KickoffTime({ value }: { value: string }) {
-  const { locale } = useTranslation();
-  const { timeZone } = useClock();
+export function KickoffTime({
+  value,
+  timeTbd,
+}: {
+  value: string;
+  timeTbd?: boolean;
+}) {
+  const { locale, t } = useTranslation();
+  const { timeZone } = useViewerClock();
+  if (timeTbd)
+    return (
+      <span aria-label={t("Time TBD")} title={t("Time TBD")}>
+        {t("TBD")}
+      </span>
+    );
   return <time dateTime={value}>{clockAt(value, locale, timeZone)}</time>;
 }
 
 /** Names the zone every unlabelled time on the page is in, once. */
 export function TimezoneLegend() {
   const { t, locale } = useTranslation();
-  const { timeZone } = useClock();
+  const { timeZone, now } = useViewerClock();
   const zone = new Intl.DateTimeFormat(
     intlLocale(locale === "es" ? "es" : "en"),
     { timeZoneName: "short", timeZone },
   )
-    .formatToParts(new Date())
+    .formatToParts(new Date(now()))
     .find((part) => part.type === "timeZoneName")?.value;
   if (!zone) return null;
   return (
@@ -142,7 +171,7 @@ export function TimezoneLegend() {
  */
 export function Countdown({ value }: { value: string }) {
   const { t } = useTranslation();
-  const clock = useClock();
+  const clock = useViewerClock();
   const [ticked, setNow] = useState(0);
   const now = ticked || clock.now();
 

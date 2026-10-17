@@ -131,6 +131,8 @@ export function normalizeMlbGameUpdate(
     canonicalGameId: `mlb-${game.gamePk}`,
     status: normalizeMlbStatus(game.status),
     scheduledAt: game.gameDate,
+    startTimeTbd: game.status.startTimeTBD,
+    scheduledDate: game.officialDate,
     result: toGameResult(game, fetchedAt),
   };
 }
@@ -279,6 +281,8 @@ export function normalizeBaseballTeamData(input: {
     homeTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.home.team.id),
     awayTeamSlug: TRACKED_SLUGS_BY_ID.get(raw.teams.away.team.id),
     scheduledAt: raw.gameDate,
+    startTimeTbd: raw.status.startTimeTBD,
+    scheduledDate: raw.officialDate,
     venue: raw.venue?.name,
     status: normalizeMlbStatus(raw.status),
     result: toGameResult(raw, input.fetchedAt),
@@ -423,8 +427,8 @@ export function normalizeBaseballTeamData(input: {
       {
         id: `${factPrefix}-schedule`,
         label: "Scheduled time",
-        value: game.scheduledAt,
-        valueType: "datetime" as const,
+        value: game.startTimeTbd ? "Not provided" : game.scheduledAt,
+        valueType: game.startTimeTbd ? undefined : ("datetime" as const),
         sourceId: sourceIds.schedule,
         observedAt,
       },

@@ -42,12 +42,13 @@ export const mlbScheduleGameSchema = z.object({
   gameType: z.string().min(1),
   season: z.string().regex(/^\d{4}$/),
   gameDate: z.iso.datetime(),
-  officialDate: z.string().optional(),
+  officialDate: z.iso.date().optional(),
   status: z.object({
     abstractGameState: z.string().min(1),
     detailedState: z.string().min(1),
     codedGameState: z.string().optional(),
     statusCode: z.string().optional(),
+    startTimeTBD: z.boolean().optional(),
   }),
   teams: z.object({
     away: mlbScheduleSideSchema,

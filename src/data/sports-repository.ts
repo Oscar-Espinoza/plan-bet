@@ -293,6 +293,8 @@ export async function applyGameUpdates(input: {
       ...current,
       status: update.status,
       scheduledAt: update.scheduledAt,
+      startTimeTbd: update.startTimeTbd,
+      scheduledDate: update.scheduledDate,
       result: update.result,
     });
     await database

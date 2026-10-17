@@ -20,7 +20,8 @@ export function Scorebug({
   const { t } = useTranslation();
   const { homeTeam, awayTeam, trackedSide, clubColor, competition, stage } =
     identity;
-  const { result, scheduledAt, venue, status } = timing;
+  const { result, scheduledAt, startTimeTbd, scheduledDate, venue, status } =
+    timing;
 
   const side = (name: string, which: "home" | "away") => (
     <div
@@ -89,7 +90,7 @@ export function Scorebug({
         <p className="mp-aftermath">{t("After penalties")}</p>
       )}
 
-      {!result && (
+      {!result && !startTimeTbd && (
         <div className="mp-clock">
           <span className="mp-clock-label">{t("Kickoff in")}</span>
           <strong className="mp-clock-figure">
@@ -99,7 +100,14 @@ export function Scorebug({
       )}
 
       <div className="mp-when">
-        <LocalDateTime value={scheduledAt} />
+        <LocalDateTime
+          value={scheduledAt}
+          dateOnly={
+            startTimeTbd
+              ? (scheduledDate ?? scheduledAt.slice(0, 10))
+              : undefined
+          }
+        />
         {venue && <span className="mp-venue">{venue}</span>}
       </div>
     </header>

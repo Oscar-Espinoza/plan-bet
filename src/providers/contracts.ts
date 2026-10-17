@@ -45,6 +45,8 @@ export type ProviderGameUpdate = {
   canonicalGameId: string;
   status: GameStatus;
   scheduledAt: string;
+  startTimeTbd?: boolean;
+  scheduledDate?: string;
   result?: GameResult;
 };
 

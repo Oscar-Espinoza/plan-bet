@@ -16,6 +16,7 @@ import {
   LocalDateTime,
   RelativeKickoff,
   TimezoneLegend,
+  useViewerClock,
 } from "@/components/local-date-time";
 import { StatusTag } from "@/components/ui/status-tag";
 import type {
@@ -51,6 +52,8 @@ function matchPreview(game: GameSummary, data: BoardData): PreviewMetadata {
       },
       timing: {
         scheduledAt: game.scheduledAt,
+        startTimeTbd: game.startTimeTbd,
+        scheduledDate: game.scheduledDate,
         status: game.status,
         result: game.result,
         venue: game.venue?.trim() || undefined,
@@ -80,7 +83,7 @@ function isDuplicate(game: GameSummary) {
   );
 }
 
-function dayKey(value: string, tz: string) {
+function dayKey(value: string, tz?: string) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(
     new Date(value),
   );
@@ -88,7 +91,7 @@ function dayKey(value: string, tz: string) {
 
 function dayLabel(
   value: string,
-  tz: string,
+  tz: string | undefined,
   todayKey: string,
   tomorrowKey: string,
   locale: Locale,
@@ -109,13 +112,12 @@ function dayLabel(
 export function Slate({
   data,
   sport: _initialSport,
-  tz,
 }: {
   data: BoardData;
   sport: SportFilter;
-  tz: string;
 }) {
   const { t, locale } = useTranslation();
+  const { timeZone: tz, now: clockNow } = useViewerClock();
   const params = useSearchParams();
   // No ?sport= in the URL means the server already applied the remembered
   // chip (the cookie), which arrives as the prop.
@@ -133,31 +135,33 @@ export function Slate({
   const liveGames = games.filter((game) => game.status === "live");
   const scheduledGames = games.filter((game) => game.status !== "live");
 
-  const now = new Date();
+  const now = new Date(clockNow());
   const todayKey = dayKey(now.toISOString(), tz);
-  const tomorrowKey = dayKey(
-    new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    tz,
-  );
+  const tomorrow = new Date(`${todayKey}T00:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowKey = dayKey(tomorrow.toISOString(), "UTC");
 
-  // ponytail: day headings group by the geo-header zone while the clocks below
-  // them are the browser's own. They agree for anyone whose browser matches
-  // their location; behind a VPN a late kickoff can land under the wrong
-  // heading. Regroup client-side if that ever matters.
   const groups: { key: string; label: string; games: GameSummary[] }[] = [];
   for (const game of scheduledGames) {
-    const key = dayKey(game.scheduledAt, tz);
-    const group = groups.at(-1);
-    if (group?.key === key) {
+    // An unannounced first pitch has a calendar date, not a local instant.
+    const dateOnly = game.startTimeTbd;
+    const value = dateOnly
+      ? `${game.scheduledDate ?? game.scheduledAt.slice(0, 10)}T00:00:00Z`
+      : game.scheduledAt;
+    const zone = dateOnly ? "UTC" : tz;
+    const key = dayKey(value, zone);
+    const group = groups.find((group) => group.key === key);
+    if (group) {
       group.games.push(game);
     } else {
       groups.push({
         key,
-        label: dayLabel(game.scheduledAt, tz, todayKey, tomorrowKey, locale),
+        label: dayLabel(value, zone, todayKey, tomorrowKey, locale),
         games: [game],
       });
     }
   }
+  groups.sort((a, b) => a.key.localeCompare(b.key));
 
   const nextUp = scheduledGames[0] ?? liveGames[0];
   // One stamp per sport on the board — under a sport filter, showing both
@@ -187,7 +191,9 @@ export function Slate({
               <h2 className="next-up-eyebrow" id="next-match-heading">
                 {t("Next match")}{" "}
               </h2>
-              <RelativeKickoff value={nextUp.scheduledAt} />
+              {!nextUp.startTimeTbd && (
+                <RelativeKickoff value={nextUp.scheduledAt} />
+              )}
             </div>
             <h3 className="next-up-teams">
               <span className="next-up-team">
@@ -205,7 +211,14 @@ export function Slate({
             </h3>
             <div className="next-up-detail">
               <span>{t(nextUp.competition)}</span>
-              <LocalDateTime value={nextUp.scheduledAt} />
+              <LocalDateTime
+                value={nextUp.scheduledAt}
+                dateOnly={
+                  nextUp.startTimeTbd
+                    ? (nextUp.scheduledDate ?? nextUp.scheduledAt.slice(0, 10))
+                    : undefined
+                }
+              />
             </div>
             <Button asChild className="next-up-cta">
               <MatchLink
@@ -335,7 +348,10 @@ export function Slate({
                     key={game.id}
                   >
                     <div className="game-time">
-                      <KickoffTime value={game.scheduledAt} />
+                      <KickoffTime
+                        value={game.scheduledAt}
+                        timeTbd={game.startTimeTbd}
+                      />
                     </div>
                     <div className="game-opponent game-matchup-stacked">
                       <span className="game-team">
