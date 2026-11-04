@@ -1,6 +1,9 @@
 import { env } from "cloudflare:workers";
 import { appBaseUrl } from "#lib/server/email";
+import { isAuthConfigured, requireAccount } from "#lib/server/auth";
+import { loadAccountChipMetrics } from "#lib/server/data/credits";
 import { getTranslation } from "#lib/server/locale";
+import { MAINTENANCE_MESSAGE } from "#lib/server/maintenance";
 import spanish from "#lib/shared/messages.es.json";
 import type { LayoutServerLoad } from "./$types";
 
@@ -23,20 +26,44 @@ function siteUrl(): string {
   return base.includes("<") ? "http://localhost:8787" : base;
 }
 
-export const load: LayoutServerLoad = ({ locals }) => {
+export const load: LayoutServerLoad = async (event) => {
   const { t } = getTranslation({
-    cookieLocale: locals.locale,
-    acceptLanguage: null,
+    cookieLocale: event.locals.locale,
+    acceptLanguage: event.request.headers.get("accept-language"),
   });
+
+  const authConfigured = isAuthConfigured();
+  const account = requireAccount(event);
+  let accountChip:
+    | {
+        signedIn: true;
+        balance: number;
+        won: number;
+        lost: number;
+        openCount: number;
+      }
+    | { signedIn: false } = { signedIn: false };
+
+  if (account.ok) {
+    const metrics = await loadAccountChipMetrics(account.userId);
+    accountChip = { signedIn: true, ...metrics };
+  }
+
   return {
-    locale: locals.locale,
-    zone: locals.zone,
-    requestTime: locals.requestTime,
+    locale: event.locals.locale,
+    zone: event.locals.zone,
+    requestTime: event.locals.requestTime,
     siteUrl: siteUrl(),
-    spanish: locals.locale === "es" ? spanish : null,
+    spanish: event.locals.locale === "es" ? spanish : null,
     title: t("Matchday Plan — Practice your calls"),
     description: t(DESCRIPTION),
     ogDescription: t(OG_DESCRIPTION),
     twitterDescription: t(TWITTER_DESCRIPTION),
+    maintenance: event.locals.maintenance,
+    maintenanceMessage: t(MAINTENANCE_MESSAGE),
+    account: {
+      authConfigured,
+      ...accountChip,
+    },
   };
 };

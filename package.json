@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview:cf": "wrangler dev --env preview",
+    "preview:cf": "wrangler dev --env preview --port 8787",
     "deploy:preview": "pnpm build && wrangler deploy --env preview",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.66.0",
+    "better-auth": "1.7.5",
     "clsx": "2.1.1",
     "csv-parse": "7.0.3",
     "drizzle-orm": "0.45.4",

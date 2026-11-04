@@ -46,8 +46,29 @@ declare global {
       zone: string;
       /** The request's own Date.now(), captured once in hooks. */
       requestTime: number;
-      /** Filled by T07. Stubbed as null until then. */
-      user: null;
+      /** Better Auth user when a valid session exists; otherwise null. */
+      user: {
+        id: string;
+        name: string;
+        email: string;
+        emailVerified: boolean;
+        image?: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      } | null;
+      /** Better Auth session row when signed in. */
+      session: {
+        id: string;
+        userId: string;
+        token: string;
+        expiresAt: Date;
+        createdAt: Date;
+        updatedAt: Date;
+        ipAddress?: string | null;
+        userAgent?: string | null;
+      } | null;
+      /** True when MATCHDAY_MAINTENANCE=1 (spec §3.8). */
+      maintenance: boolean;
       /**
        * True when a Better Auth session cookie is present, whether or not
        * the token is valid. Presence alone bypasses the shared HTML cache.

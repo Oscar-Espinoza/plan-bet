@@ -251,3 +251,45 @@ Round 2 acceptance, fresh `pnpm preview:cf` after the rebuild:
 - The same command again → `x-mp-cache: HIT` (and `cf-cache-status: HIT`).
 - The same URL with `-H 'Cookie: better-auth.session_token=x'` → `x-mp-cache: BYPASS`, `cache-control: private, no-cache`, no `cf-cache-status` (not served from the stored data response).
 - HTML `/` → `MISS` then `HIT`, both `public, max-age=0, must-revalidate`, with `x-mp-version: 0`. Session cookie on `/` → `BYPASS`, `private, no-cache`. `Cookie: locale=es` → `MISS`. `/api/health` → `cache-control: no-store` and no `x-mp-cache`. `/bets?x=1` → `308`, `location: /you?x=1`.
+
+## T07 Auth — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T07-auth / (not opened) Models: plan Claude Opus 5.5, build Composer 2.5, verify not run
+Builder scorecard: left for the coordinator
+Files: 10 modified, 9 new under `src/` (`auth.ts`, `maintenance.ts`, `data/credits.ts`, `data/wagers-repository.ts`, `account-control.svelte`, `sign-in/*`, `sign-out/+server.ts`), plus `package.json`, lockfile, Spanish maintenance string, this log. Pieces: 8
+Ported from: `legacy/src/lib/auth.ts`, `legacy/src/lib/auth-config.ts`, `legacy/src/app/sign-in/page.tsx`, `legacy/src/components/account-control.tsx`, balance/open-count reads from `legacy/src/data/credits.ts` and `legacy/src/data/wagers-repository.ts`
+Deviations from legacy (planned rewrites):
+
+- Better Auth 1.7.5 + Drizzle sqlite adapter replaces Auth.js; starting grant stays the T02 trigger only (no app-code grant).
+- `BETTER_AUTH_SECRET` replaces `AUTH_SECRET`; `isAuthConfigured()` requires secret + D1 + at least one OAuth provider (spec §3.8).
+- Google `email_verified !== true` is refused via Better Auth `user.validateUserInfo` (docs: /docs/concepts/users-accounts — provisioning gate); OAuth error redirects with `?error=AccessDenied` like legacy.
+- Sign-in uses `better-auth/svelte` client on `/sign-in` only; sign-out is `POST /sign-out` calling `auth.api.signOut`.
+- `preview:cf` pins `--port 8787`; local auth needs `.dev.vars` `PUBLIC_SITE_URL=http://localhost:8787` so `baseURL` matches `svelteKitHandler` origin checks.
+
+Deviations from the plan:
+
+- `/` first-load JS gzip 55796 bytes vs T04 54488 (+1308 B, ~284 B over the ±1 KiB coordinator note); account chip + maintenance banner in the root layout account for the delta. Sign-in client code stays on `/sign-in` chunk.
+- Maintenance banner reads `String(MATCHDAY_MAINTENANCE) === "1"` so wrangler `--var MATCHDAY_MAINTENANCE:1` works.
+
+Packages: `better-auth` 1.7.5.
+
+Preview: set random `BETTER_AUTH_SECRET` on `matchday-preview` with `wrangler secret put --env preview` (2026-11-04). OAuth client secrets not set (coordinator).
+
+Acceptance (`scripts/check-ok.mjs` prints HEAD short sha after commit):
+
+1. `pnpm check` → `CHECK OK` and `/` 55796 (limit 61440); `scripts/check-ok.mjs` prints the current HEAD short sha on re-run. `/games/[id]` n/a.
+2. Local `pnpm preview:cf` (D1 migrated, `.dev.vars` with `PUBLIC_SITE_URL=http://localhost:8787`):
+   - Without secrets: `/` renders with empty `topbar-controls`; `/sign-in` → `Sign-in unavailable` + provider copy.
+   - With `BETTER_AUTH_SECRET` + GitHub vars: `/sign-in` → `Choose a provider` + `Continue with GitHub` only.
+3. `pnpm exec wrangler dev --env preview --port 8787 --var MATCHDAY_MAINTENANCE:1` then `curl -s -X POST -H 'Content-Type: application/json' http://localhost:8787/api/auth/sign-in/social -d '{"provider":"github"}'` → `{"error":{"code":"maintenance",...}}` HTTP 503; GET `/` still 200 (banner when `maintenance` local is true after rebuild).
+4. Simulated session (local D1):
+   - Insert `user` `22222222-2222-4222-8222-222222222222` → one `grant` 1000 `signup`; insert `session` row with `token` `local-t07-session-token`.
+   - Cookie: name `better-auth.session_token` (HTTP) or `__Secure-better-auth.session_token` (HTTPS). Value is **signed**, not the raw DB token: `encodeURIComponent(\`${token}.${base64HmacSha256(token, BETTER_AUTH_SECRET)}\`)`(better-call`signCookieValue`, same as Better Auth session cookie).
+   - Example signed value for this rehearsal: `local-t07-session-token.cTRs67J8pci%2FQA2bkeAhel2abj1lv%2FojbvS0D7%2F8T1E%3D` with the local secret above.
+   - `curl -sD- -o /dev/null -H 'Cookie: better-auth.session_token=<signed>' http://localhost:8787/` → `x-mp-cache: BYPASS`, `cache-control: private, no-cache`; HTML chip `1,000` and `0-0`.
+   - `INSERT` stake `-10` for that user → chip reads `990`.
+5. Google `email_verified: false`: `src/lib/server/auth.ts` `user.validateUserInfo` returns `{ error: "AccessDenied" }` when `source.oauth.providerId === "google"` and `isTrustedProviderEmail` fails on `source.oauth.profile.email_verified`. Better Auth docs: validateUserInfo runs before OAuth provisioning and returns 403 / redirect error when `result.error` is set. Live OAuth refusal when preview Google is configured is for the coordinator.
+
+Budgets touched: `/` first-load JS gzip 55796 bytes (limit 61440). `/games/[id]` n/a.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Coordinator sets OAuth secrets on preview and confirms Google/GitHub sign-in + live `email_verified` refusal. T08 extends credits/wagers APIs and `/you`.
