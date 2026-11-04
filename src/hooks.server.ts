@@ -26,9 +26,6 @@ const PRIVATE_CACHE = "private, no-cache";
 const STORED_CACHE = "public, s-maxage=60";
 
 const EARLY_HINT_LINK = [
-  "</fonts/archivo-latin-wdth-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
-  "</fonts/ibm-plex-sans-latin-wght-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
-  "</fonts/dm-mono-latin-400-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
   '</assets/night-stadium-800.avif>; rel=preload; as=image; type=image/avif; media="(max-width: 1023px)"',
   '</assets/night-stadium.avif>; rel=preload; as=image; type=image/avif; media="(min-width: 1024px)"',
 ].join(", ");
@@ -229,6 +226,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.cookies.get("tz"),
     cfTimezone(event.request),
   );
+
+  // Crest bytes are a public image, not a session. Skip the auth lookup.
+  if (requestUrl.pathname.startsWith("/crests/fd/")) {
+    return resolve(event);
+  }
 
   if (
     event.locals.maintenance &&
