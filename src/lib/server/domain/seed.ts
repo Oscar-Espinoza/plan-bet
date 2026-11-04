@@ -1,0 +1,604 @@
+import {
+  gameSnapshotSchema,
+  gameSummarySchema,
+  teamSchema,
+  type BaseballContext,
+  type GameSnapshot,
+  type GameSummary,
+  type SoccerContext,
+  type Team,
+  type TeamSlug,
+} from "./contracts";
+
+const DAY = 86_400_000;
+
+export function getDemoAnchor(now = new Date()) {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12),
+  );
+}
+
+export const demoGeneratedAt = new Date(
+  getDemoAnchor().getTime() - 2 * 60 * 60 * 1000,
+).toISOString();
+
+const rawTeams: Team[] = [
+  {
+    slug: "real-madrid",
+    sport: "soccer",
+    name: "Real Madrid",
+    shortName: "Madrid",
+    abbreviation: "RMA",
+    mark: "RM",
+    colors: { primary: "#d8c26e", secondary: "#f7f3dd" },
+    providerIds: { demo: "soc-001", "football-data": "86" },
+  },
+  {
+    slug: "barcelona",
+    sport: "soccer",
+    name: "FC Barcelona",
+    shortName: "Barcelona",
+    abbreviation: "FCB",
+    mark: "FCB",
+    colors: { primary: "#a8274c", secondary: "#1e4fa3" },
+    providerIds: { demo: "soc-002", "football-data": "81" },
+  },
+  {
+    slug: "new-york-yankees",
+    sport: "baseball",
+    name: "New York Yankees",
+    shortName: "Yankees",
+    abbreviation: "NYY",
+    mark: "NY",
+    colors: { primary: "#a7b4c8", secondary: "#132448" },
+    providerIds: {
+      demo: "mlb-001",
+      "mlb-stats": "147",
+      "baseball-savant": "NYY",
+    },
+  },
+  {
+    slug: "boston-red-sox",
+    sport: "baseball",
+    name: "Boston Red Sox",
+    shortName: "Red Sox",
+    abbreviation: "BOS",
+    mark: "B",
+    colors: { primary: "#d24851", secondary: "#17365d" },
+    providerIds: {
+      demo: "mlb-002",
+      "mlb-stats": "111",
+      "baseball-savant": "BOS",
+    },
+  },
+];
+
+export const teams = teamSchema.array().parse(rawTeams);
+
+type GameTemplate = Omit<GameSummary, "scheduledAt" | "status"> & {
+  dayOffset: number;
+  hourUtc: number;
+};
+
+const gameTemplates: Record<TeamSlug, GameTemplate[]> = {
+  "real-madrid": [
+    {
+      id: "soc-rma-01",
+      sport: "soccer",
+      teamSlug: "real-madrid",
+      competition: "LaLiga",
+      homeTeam: "Real Madrid",
+      awayTeam: "Villarreal",
+      awayTeamCrestUrl: "https://crests.football-data.org/94.svg",
+      homeTeamSlug: "real-madrid",
+      venue: "Santiago Bernabéu",
+      dayOffset: 2,
+      hourUtc: 19,
+    },
+    {
+      id: "soc-rma-02",
+      sport: "soccer",
+      teamSlug: "real-madrid",
+      competition: "UEFA Champions League",
+      homeTeam: "Inter",
+      homeTeamCrestUrl: "https://crests.football-data.org/108.svg",
+      awayTeam: "Real Madrid",
+      awayTeamSlug: "real-madrid",
+      venue: "San Siro",
+      dayOffset: 6,
+      hourUtc: 20,
+    },
+    {
+      id: "soc-rma-03",
+      sport: "soccer",
+      teamSlug: "real-madrid",
+      competition: "LaLiga",
+      homeTeam: "Real Sociedad",
+      homeTeamCrestUrl: "https://crests.football-data.org/92.svg",
+      awayTeam: "Real Madrid",
+      awayTeamSlug: "real-madrid",
+      venue: "Reale Arena",
+      dayOffset: 10,
+      hourUtc: 17,
+    },
+    {
+      id: "soc-rma-04",
+      sport: "soccer",
+      teamSlug: "real-madrid",
+      competition: "LaLiga",
+      homeTeam: "Real Madrid",
+      awayTeam: "Sevilla",
+      awayTeamCrestUrl: "https://crests.football-data.org/559.svg",
+      homeTeamSlug: "real-madrid",
+      venue: "Santiago Bernabéu",
+      dayOffset: 15,
+      hourUtc: 20,
+    },
+    {
+      id: "soc-rma-05",
+      sport: "soccer",
+      teamSlug: "real-madrid",
+      competition: "Copa del Rey",
+      homeTeam: "Athletic Club",
+      homeTeamCrestUrl: "https://crests.football-data.org/77.svg",
+      awayTeam: "Real Madrid",
+      awayTeamSlug: "real-madrid",
+      venue: "San Mamés",
+      dayOffset: 20,
+      hourUtc: 18,
+    },
+  ],
+  barcelona: [
+    {
+      id: "soc-fcb-01",
+      sport: "soccer",
+      teamSlug: "barcelona",
+      competition: "LaLiga",
+      homeTeam: "FC Barcelona",
+      awayTeam: "Real Betis",
+      awayTeamCrestUrl: "https://crests.football-data.org/90.svg",
+      homeTeamSlug: "barcelona",
+      venue: "Estadi Olímpic",
+      dayOffset: 3,
+      hourUtc: 20,
+    },
+    {
+      id: "soc-fcb-02",
+      sport: "soccer",
+      teamSlug: "barcelona",
+      competition: "UEFA Champions League",
+      homeTeam: "Arsenal",
+      homeTeamCrestUrl: "https://crests.football-data.org/57.svg",
+      awayTeam: "FC Barcelona",
+      awayTeamSlug: "barcelona",
+      venue: "Emirates Stadium",
+      dayOffset: 7,
+      hourUtc: 20,
+    },
+    {
+      id: "soc-fcb-03",
+      sport: "soccer",
+      teamSlug: "barcelona",
+      competition: "LaLiga",
+      homeTeam: "Valencia",
+      homeTeamCrestUrl: "https://crests.football-data.org/95.svg",
+      awayTeam: "FC Barcelona",
+      awayTeamSlug: "barcelona",
+      venue: "Mestalla",
+      dayOffset: 11,
+      hourUtc: 18,
+    },
+    {
+      id: "soc-fcb-04",
+      sport: "soccer",
+      teamSlug: "barcelona",
+      competition: "LaLiga",
+      homeTeam: "FC Barcelona",
+      awayTeam: "Girona",
+      awayTeamCrestUrl: "https://crests.football-data.org/298.svg",
+      homeTeamSlug: "barcelona",
+      venue: "Estadi Olímpic",
+      dayOffset: 16,
+      hourUtc: 19,
+    },
+    {
+      id: "soc-fcb-05",
+      sport: "soccer",
+      teamSlug: "barcelona",
+      competition: "Copa del Rey",
+      homeTeam: "Atlético Madrid",
+      homeTeamCrestUrl: "https://crests.football-data.org/78.svg",
+      awayTeam: "FC Barcelona",
+      awayTeamSlug: "barcelona",
+      venue: "Metropolitano",
+      dayOffset: 21,
+      hourUtc: 20,
+    },
+  ],
+  "new-york-yankees": [
+    {
+      id: "mlb-nyy-01",
+      sport: "baseball",
+      teamSlug: "new-york-yankees",
+      competition: "MLB · American League",
+      homeTeam: "New York Yankees",
+      awayTeam: "Toronto Blue Jays",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/141.svg",
+      homeTeamSlug: "new-york-yankees",
+      venue: "Yankee Stadium",
+      dayOffset: 1,
+      hourUtc: 23,
+    },
+    {
+      id: "mlb-nyy-02",
+      sport: "baseball",
+      teamSlug: "new-york-yankees",
+      competition: "MLB · American League",
+      homeTeam: "New York Yankees",
+      awayTeam: "Toronto Blue Jays",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/141.svg",
+      homeTeamSlug: "new-york-yankees",
+      venue: "Yankee Stadium",
+      dayOffset: 2,
+      hourUtc: 18,
+    },
+    {
+      id: "mlb-nyy-03",
+      sport: "baseball",
+      teamSlug: "new-york-yankees",
+      competition: "MLB · American League",
+      homeTeam: "Baltimore Orioles",
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/110.svg",
+      awayTeam: "New York Yankees",
+      awayTeamSlug: "new-york-yankees",
+      venue: "Camden Yards",
+      dayOffset: 4,
+      hourUtc: 23,
+    },
+    {
+      id: "mlb-nyy-04",
+      sport: "baseball",
+      teamSlug: "new-york-yankees",
+      competition: "MLB · American League",
+      homeTeam: "Baltimore Orioles",
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/110.svg",
+      awayTeam: "New York Yankees",
+      awayTeamSlug: "new-york-yankees",
+      venue: "Camden Yards",
+      dayOffset: 5,
+      hourUtc: 17,
+    },
+    {
+      id: "mlb-nyy-05",
+      sport: "baseball",
+      teamSlug: "new-york-yankees",
+      competition: "MLB · Interleague",
+      homeTeam: "New York Yankees",
+      awayTeam: "New York Mets",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/121.svg",
+      homeTeamSlug: "new-york-yankees",
+      venue: "Yankee Stadium",
+      dayOffset: 8,
+      hourUtc: 23,
+    },
+  ],
+  "boston-red-sox": [
+    {
+      id: "mlb-bos-01",
+      sport: "baseball",
+      teamSlug: "boston-red-sox",
+      competition: "MLB · American League",
+      homeTeam: "Boston Red Sox",
+      awayTeam: "Tampa Bay Rays",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/139.svg",
+      homeTeamSlug: "boston-red-sox",
+      venue: "Fenway Park",
+      dayOffset: 1,
+      hourUtc: 23,
+    },
+    {
+      id: "mlb-bos-02",
+      sport: "baseball",
+      teamSlug: "boston-red-sox",
+      competition: "MLB · American League",
+      homeTeam: "Boston Red Sox",
+      awayTeam: "Tampa Bay Rays",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/139.svg",
+      homeTeamSlug: "boston-red-sox",
+      venue: "Fenway Park",
+      dayOffset: 3,
+      hourUtc: 17,
+    },
+    {
+      id: "mlb-bos-03",
+      sport: "baseball",
+      teamSlug: "boston-red-sox",
+      competition: "MLB · American League",
+      homeTeam: "Detroit Tigers",
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/116.svg",
+      awayTeam: "Boston Red Sox",
+      awayTeamSlug: "boston-red-sox",
+      venue: "Comerica Park",
+      dayOffset: 5,
+      hourUtc: 23,
+    },
+    {
+      id: "mlb-bos-04",
+      sport: "baseball",
+      teamSlug: "boston-red-sox",
+      competition: "MLB · American League",
+      homeTeam: "Detroit Tigers",
+      homeTeamCrestUrl: "https://www.mlbstatic.com/team-logos/116.svg",
+      awayTeam: "Boston Red Sox",
+      awayTeamSlug: "boston-red-sox",
+      venue: "Comerica Park",
+      dayOffset: 6,
+      hourUtc: 18,
+    },
+    {
+      id: "mlb-bos-05",
+      sport: "baseball",
+      teamSlug: "boston-red-sox",
+      competition: "MLB · American League",
+      homeTeam: "Boston Red Sox",
+      awayTeam: "Houston Astros",
+      awayTeamCrestUrl: "https://www.mlbstatic.com/team-logos/117.svg",
+      homeTeamSlug: "boston-red-sox",
+      venue: "Fenway Park",
+      dayOffset: 9,
+      hourUtc: 23,
+    },
+  ],
+};
+
+export function generateGames(
+  teamSlug: TeamSlug,
+  now = new Date(),
+): GameSummary[] {
+  const anchor = getDemoAnchor(now);
+  return gameTemplates[teamSlug].map(({ dayOffset, hourUtc, ...game }) => {
+    const date = new Date(anchor.getTime() + dayOffset * DAY);
+    date.setUTCHours(hourUtc, 0, 0, 0);
+    return gameSummarySchema.parse({
+      ...game,
+      scheduledAt: date.toISOString(),
+      status: "scheduled",
+    });
+  });
+}
+
+export const gamesByTeam = Object.fromEntries(
+  teams.map((team) => [team.slug, generateGames(team.slug)]),
+) as Record<TeamSlug, GameSummary[]>;
+
+export const allGames = Object.values(gamesByTeam).flat();
+
+const soccerContexts: Record<"real-madrid" | "barcelona", SoccerContext> = {
+  "real-madrid": {
+    kind: "soccer",
+    tablePosition: 2,
+    points: 61,
+    record: "18W · 7D · 3L",
+    recentForm: ["W", "W", "D", "W", "L"],
+    availability: [
+      {
+        name: "D. Carvajal",
+        status: "Monitoring",
+        note: "Late fitness check in this demo scenario",
+      },
+      { name: "E. Militão", status: "Available" },
+    ],
+    matchupNotes: [
+      "Four of the last five demo fixtures were decided by one goal.",
+      "Madrid carry the stronger home defensive record in this snapshot.",
+    ],
+  },
+  barcelona: {
+    kind: "soccer",
+    tablePosition: 1,
+    points: 64,
+    record: "20W · 4D · 4L",
+    recentForm: ["W", "D", "W", "W", "W"],
+    availability: [
+      { name: "Pedri", status: "Available" },
+      {
+        name: "A. Christensen",
+        status: "Monitoring",
+        note: "Workload managed in this demo scenario",
+      },
+    ],
+    matchupNotes: [
+      "Barcelona have led at halftime in three of their five demo form matches.",
+      "The opponent allows more chances from wide areas in this snapshot.",
+    ],
+  },
+};
+
+const baseballContexts: Record<
+  "new-york-yankees" | "boston-red-sox",
+  BaseballContext
+> = {
+  "new-york-yankees": {
+    kind: "baseball",
+    divisionRank: 1,
+    record: "71–49",
+    lastTen: "7–3",
+    recentForm: ["W", "W", "L", "W", "W"],
+    probablePitchers: [
+      { team: "Yankees", name: "Marcus Cole", throws: "R", era: "3.24" },
+      { team: "Opponent", name: "Eli Navarro", throws: "L", era: "3.88" },
+    ],
+    splits: { vsLeft: ".267 AVG / .794 OPS", vsRight: ".251 AVG / .751 OPS" },
+    availability: [
+      {
+        name: "J. Torres",
+        status: "Day-to-day",
+        note: "Demo lower-body soreness",
+      },
+    ],
+    matchupNotes: [
+      "The demo lineup has produced its strongest slugging marks against left-handed starters.",
+      "The bullpen worked seven innings across the prior two demo games.",
+    ],
+  },
+  "boston-red-sox": {
+    kind: "baseball",
+    divisionRank: 3,
+    record: "65–55",
+    lastTen: "6–4",
+    recentForm: ["L", "W", "W", "L", "W"],
+    probablePitchers: [
+      { team: "Red Sox", name: "Noah Bennett", throws: "L", era: "3.71" },
+      { team: "Opponent", name: undefined, throws: undefined, era: undefined },
+    ],
+    splits: { vsLeft: ".243 AVG / .721 OPS", vsRight: ".264 AVG / .778 OPS" },
+    availability: [
+      {
+        name: "M. Santos",
+        status: "Monitoring",
+        note: "Demo wrist management",
+      },
+    ],
+    matchupNotes: [
+      "Boston's demo offense has scored first in six of ten games.",
+      "The opposing starter is not provided in this snapshot.",
+    ],
+  },
+};
+
+const contextFor = (slug: TeamSlug) =>
+  slug === "real-madrid" || slug === "barcelona"
+    ? soccerContexts[slug]
+    : baseballContexts[slug];
+
+function makeSnapshot(game: GameSummary): GameSnapshot {
+  const context = contextFor(game.teamSlug);
+  const sourcePrefix = game.id;
+  const sources = [
+    {
+      id: `${sourcePrefix}-schedule`,
+      name: "Demo schedule feed",
+      description:
+        "Date-relative fixture, venue, and competition data for the portfolio preview.",
+      provider: "demo",
+      operation: "schedule",
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-context`,
+      name: "Demo analyst notebook",
+      description:
+        "Plausible, non-live form and matchup context created for Session 01.",
+      provider: "demo",
+      operation: "context",
+      observedAt: demoGeneratedAt,
+    },
+  ];
+  const formValue = context.recentForm.join(" · ");
+  const standingValue =
+    context.kind === "soccer"
+      ? `#${context.tablePosition} · ${context.points} pts`
+      : context.divisionRank && context.record
+        ? `#${context.divisionRank} division · ${context.record}`
+        : "Not provided";
+  const evidenceFacts = [
+    {
+      // Mirrors the live adapters, which both emit a datetime schedule fact.
+      // Without it, demo mode has nothing to anchor a local kickoff time to.
+      id: `${sourcePrefix}-fact-schedule`,
+      label: "Scheduled time",
+      value: game.scheduledAt,
+      valueType: "datetime" as const,
+      sourceId: `${sourcePrefix}-schedule`,
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-fact-form`,
+      label: context.kind === "soccer" ? "Last five" : "Recent form",
+      value: formValue,
+      sourceId: `${sourcePrefix}-context`,
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-fact-standing`,
+      label: context.kind === "soccer" ? "Table position" : "Division standing",
+      value: standingValue,
+      sourceId: `${sourcePrefix}-context`,
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-fact-venue`,
+      label: "Venue",
+      value: game.venue ?? "Not provided",
+      sourceId: `${sourcePrefix}-schedule`,
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-fact-availability`,
+      label: "Availability",
+      value:
+        context.availability
+          .map((entry) => `${entry.name}: ${entry.status}`)
+          .join("; ") || "Not provided",
+      sourceId: `${sourcePrefix}-context`,
+      observedAt: demoGeneratedAt,
+    },
+    {
+      id: `${sourcePrefix}-fact-matchup`,
+      label: "Matchup note",
+      value: context.matchupNotes?.[0] ?? "Not provided",
+      sourceId: `${sourcePrefix}-context`,
+      observedAt: demoGeneratedAt,
+    },
+  ];
+  return gameSnapshotSchema.parse({
+    game,
+    context,
+    sources,
+    evidenceFacts,
+    freshness: {
+      mode: "demo",
+      provider: "demo",
+      sourceObservedAt: demoGeneratedAt,
+      fetchedAt: demoGeneratedAt,
+      attribution: {
+        name: "Matchday Plan demo data",
+        url: "https://plan-bet.vercel.app",
+      },
+    },
+  });
+}
+
+export function getTeam(slug: TeamSlug | string) {
+  return teams.find((team) => team.slug === slug);
+}
+
+export function getGame(id: string, now = new Date()) {
+  for (const team of teams) {
+    const game = generateGames(team.slug, now).find(
+      (candidate) => candidate.id === id,
+    );
+    if (game) return game;
+  }
+}
+
+export function getSnapshot(id: string, now = new Date()) {
+  const game = getGame(id, now);
+  return game ? makeSnapshot(game) : undefined;
+}
+
+export function validateSeedData() {
+  const currentSnapshots = allGames.map((game) => makeSnapshot(game));
+  const parsedTeams = teamSchema.array().parse(teams);
+  const parsedGames = gameSummarySchema.array().parse(allGames);
+  const parsedSnapshots = gameSnapshotSchema.array().parse(currentSnapshots);
+  for (const snapshot of parsedSnapshots) {
+    const sourceIds = new Set(snapshot.sources.map((source) => source.id));
+    for (const fact of snapshot.evidenceFacts) {
+      if (!sourceIds.has(fact.sourceId)) {
+        throw new Error(`Evidence fact ${fact.id} references a missing source`);
+      }
+    }
+  }
+  return { teams: parsedTeams, games: parsedGames, snapshots: parsedSnapshots };
+}
