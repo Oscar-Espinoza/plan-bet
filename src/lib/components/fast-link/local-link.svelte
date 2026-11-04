@@ -20,10 +20,18 @@
     scroll?: boolean;
     preloadCode?: "hover" | "viewport" | "tap" | "off" | "";
     preloadData?: "hover" | "viewport" | "tap" | "off" | "";
+    replaceHistory?: boolean;
   };
 
-  let { href, onclick, children, preloadCode, preloadData, ...rest }: Props =
-    $props();
+  let {
+    href,
+    onclick,
+    children,
+    preloadCode,
+    preloadData,
+    replaceHistory = false,
+    ...rest
+  }: Props = $props();
 
   const navigation = useNavigationPreview();
   const samePath = $derived(href.split(/[?#]/)[0] === page.url.pathname);
@@ -65,6 +73,12 @@
           shallow: true,
           reset: false,
         },
+      );
+    } else if (replaceHistory) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
       );
     } else {
       void goto(resolve(asRoute(`${url.pathname}${url.search}${url.hash}`)), {
