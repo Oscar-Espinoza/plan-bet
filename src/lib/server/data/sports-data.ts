@@ -16,7 +16,7 @@ import { providerErrorCode } from "../providers/provider-error";
 import { getSportsProvider } from "../providers/registry";
 import { readFixtureContext } from "./fixture-context-repository";
 import { withContextFacts } from "./fixture-facts";
-import { publishReadModels, readBoardFromKv, readGameFromKv } from "./publish";
+import { readBoardFromKv, readGameFromKv } from "./publish";
 import {
   acquireRefreshLease,
   completeRefreshLease,
@@ -150,7 +150,6 @@ async function performSportRefresh(
       try {
         await persistSportsTeamData({ bundle, fetchedAt: now });
         refreshed += 1;
-        await publishReadModels(now);
         logIngestion("info", {
           requestId,
           sport,

@@ -6,6 +6,7 @@ import {
   createRouteContext,
 } from "#lib/server/api-response";
 import { isAuthorized } from "#lib/server/cron-auth";
+import { JobsTimeoutError, withTimeout } from "#lib/server/jobs-timeout";
 import { logEvent } from "#lib/server/logger";
 import { providerErrorCode } from "#lib/server/providers/provider-error";
 
@@ -38,9 +39,24 @@ export const GET: RequestHandler = async ({ request }) => {
 
   const startedAt = Date.now();
   try {
-    const body = await env.JOBS.refreshAll();
+    const body = await withTimeout(env.JOBS.refreshAll(), 280_000);
     return apiSuccess(body, context);
   } catch (error) {
+    if (error instanceof JobsTimeoutError) {
+      logEvent("error", "api_request", {
+        requestId: context.requestId,
+        route: context.route,
+        status: 504,
+        code: "timeout",
+        errorCode: "timeout",
+        durationMs: Date.now() - startedAt,
+      });
+      return apiFailure(
+        "timeout",
+        "The scheduled refresh request timed out.",
+        context,
+      );
+    }
     logEvent("error", "api_request", {
       requestId: context.requestId,
       route: context.route,

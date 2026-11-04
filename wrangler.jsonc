@@ -22,7 +22,9 @@
       "migrations_dir": "drizzle",
     },
   ],
-  "kv_namespaces": [{ "binding": "PUBLIC", "id": "dee24d2bc7ae4ebb9169318918a5d0e9" }],
+  "kv_namespaces": [
+    { "binding": "PUBLIC", "id": "dee24d2bc7ae4ebb9169318918a5d0e9" },
+  ],
   "services": [
     { "binding": "JOBS", "service": "matchday-jobs", "entrypoint": "Jobs" },
   ],

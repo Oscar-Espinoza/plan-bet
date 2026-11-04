@@ -974,3 +974,63 @@ Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview *
   - Timeout around `env.JOBS.*` RPC calls.
   - `FOOTBALL_DATA_API_TOKEN` (soccer refresh is unconfigured).
   - After a stable week: delete `legacy/` and `scripts/verify/`, rewrite the docs, delete Neon after 30 days.
+
+## T16 Publish once — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T16-publish-once / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 8 code files plus this log. Pieces: 3
+Ported from: none. Production refresh was putting the full KV read model after every team bundle (about 145 puts each, four teams in one `refreshAll`) and hitting "Too many API requests by single Worker invocation". Later D1 writes then failed as `persistence_error`.
+
+What changed:
+
+- `performSportRefresh` no longer calls `publishReadModels`. `refreshAllSports` publishes once after both sports, and only when `refreshed > 0`. `Jobs.refresh` (the `scheduleRefresh` RPC) does the same at its end. `publishReadModels` still logs failures and does not throw. `scheduleRefresh` is still fire-and-forget.
+- One KV manifest, `publish:hashes:v1`: key to SHA-256 hex (first 16 chars) of the JSON string (`crypto.subtle`). Object keys are sorted before stringify so D1 row order is not a change; that string is what gets stored. The publish reads the manifest once, puts only `board:v1`, `game:v1:*`, and `routes:v1` when the hash differs, and writes the manifest, `publish:version`, and `publish:lastAt` only when at least one content key changed. The log is `publish_read_models` with `games`, `written`, `unchanged`, and `version`. The edge-cache key already includes the version, so an unchanged publish leaves it alone.
+- `/api/cron/refresh` and `/api/cron/enrich` race `env.JOBS.*` against 280s; `/api/cron/settle` against 60s. Timeout is `apiFailure("timeout")` (504) and an `api_request` log with `errorCode: "timeout"`.
+
+Deviations from the plan: none.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `beb9eb6`, the commit before this log):
+
+1. `pnpm check` → `CHECK OK beb9eb6`. Four files already on the branch failed `prettier --check` (one-line KV bindings and the Vercel redirect). This commit reflows them and does not change their behavior: `wrangler.jsonc`, `workers/jobs/wrangler.jsonc`, `scripts/migrate/vercel-redirect/public/index.html`, `scripts/migrate/vercel-redirect/vercel.json`.
+
+2. Local jobs Worker only. No deploy, no remote D1 or KV. Migrations 0000–0002 applied with `wrangler d1 migrations apply DB --local --env preview --config workers/jobs/wrangler.jsonc --persist-to /tmp/t16-wrangler`. Dev server: `wrangler dev --config workers/jobs/wrangler.jsonc --env preview --test-scheduled --persist-to /tmp/t16-wrangler --port 8799`. Soccer skipped (`FOOTBALL_DATA_API_TOKEN` unset). Baseball refreshed Yankees and Red Sox from the public MLB stats API into that local D1.
+
+Run 1, `GET /__scheduled?cron=5+*+*+*+*` → 200. Two teams persisted, one publish (not one per team):
+
+```
+{"timestamp":"2026-11-04T16:17:39.552Z","level":"info","event":"publish_read_models","games":10,"written":12,"unchanged":0,"version":"1"}
+```
+
+`written` 12 is the board, 10 game keys, and routes.
+
+Run 2, same cron, still one publish. Stored snapshots include `freshness.fetchedAt` and `expiresAt`, so those keys really changed. The routes map is ids only and was left alone. Version moved because content changed:
+
+```
+{"timestamp":"2026-11-04T16:17:51.533Z","level":"info","event":"publish_read_models","games":10,"written":11,"unchanged":1,"version":"2"}
+```
+
+Same local D1, no further refresh. A scratch handler (not committed) called `publishReadModels` twice. Both logs are `written: 0` and the version stays `"2"`:
+
+```
+{"timestamp":"2026-11-04T16:18:42.762Z","level":"info","event":"publish_read_models","games":10,"written":0,"unchanged":12,"version":"2"}
+{"timestamp":"2026-11-04T16:18:42.783Z","level":"info","event":"publish_read_models","games":10,"written":0,"unchanged":12,"version":"2"}
+```
+
+`wrangler kv key get publish:version --binding PUBLIC --local --env preview --persist-to /tmp/t16-wrangler` printed `2`. Stopped the listener from `ss -ltnp`: workerd pid 384144 on `127.0.0.1:8799`.
+
+3. Timeout. Scratch `tsx` script, not committed. It imports the route's `withTimeout`, `JobsTimeoutError`, `logEvent`, and `apiFailure`, and races a never-resolving promise with 50ms in place of the 280s refresh limit. A promise that resolves still returns (`FAST_OK`). A rejected promise still rejects (`provider down`), not as a timeout.
+
+```
+{"timestamp":"2026-11-04T16:17:52.840Z","level":"error","event":"api_request","requestId":"63205996-c858-4435-9e1a-f3922626e162","route":"POST /api/cron/refresh","status":504,"code":"timeout","errorCode":"timeout","durationMs":50}
+{"timestamp":"2026-11-04T16:17:52.841Z","level":"error","event":"api_request","requestId":"63205996-c858-4435-9e1a-f3922626e162","route":"POST /api/cron/refresh","status":504,"code":"timeout","durationMs":51}
+STATUS 504
+BODY {"error":{"code":"timeout","message":"The scheduled refresh request timed out.","requestId":"63205996-c858-4435-9e1a-f3922626e162"}}
+ELAPSED_MS 64
+```
+
+The second `api_request` line is `apiFailure`, same as the existing `internal_error` path on these routes (the route logs `errorCode`, then `apiFailure` logs `code`).
+
+Budgets touched: none. This check printed `/` 60573 bytes gzip (limit 61440) and `/games/[id]` 73030 (limit 81920). No UI change in this ticket.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: coordinator deploys after review. `FOOTBALL_DATA_API_TOKEN` is still unset, so soccer refresh stays unconfigured.
