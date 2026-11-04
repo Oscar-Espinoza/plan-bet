@@ -193,11 +193,14 @@ function startWorker(port: number) {
       String(port),
       "--ip",
       "127.0.0.1",
+      "--show-interactive-dev-session",
+      "false",
     ],
     {
       cwd: root,
       detached: true,
       stdio: ["ignore", logFd, logFd],
+      env: { ...process.env, CI: "1" },
     },
   );
   closeSync(logFd);
