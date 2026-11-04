@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `group_invites_one_pending_link_uidx` ON `group_invites` (`group_id`) WHERE "group_invites"."email" is null and "group_invites"."status" = 'pending';

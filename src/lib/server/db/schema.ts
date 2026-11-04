@@ -453,6 +453,11 @@ export const groupInvites = sqliteTable(
   },
   (table) => [
     uniqueIndex("group_invites_token_unique").on(table.token),
+    // One live join link per group. Email invites (email not null) are excluded.
+    // Expired rows leave this index when accept or createJoinLink sets status.
+    uniqueIndex("group_invites_one_pending_link_uidx")
+      .on(table.groupId)
+      .where(sql`${table.email} is null and ${table.status} = 'pending'`),
     index("group_invites_group_idx").on(table.groupId),
     index("group_invites_email_idx").on(table.email),
     check(
