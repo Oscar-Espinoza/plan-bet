@@ -21,6 +21,7 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T07    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 3               | 0                | 0                 | 0             | clean   | PASS           | 10.7 min                                                            | included |
 | T06    | C    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 26.5 min (exited cleanly)                                           | included |
 | T08a   | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 3 / 4               | 0                | 0                 | 0             | clean   | PASS (round 2) | 42 min                                                              | included |
+| T09    | A    | Composer 2.5 | yes           | 0          | —             | —                       | 0                | 0                 | 0             | clean   | PASS (builder) | —                                                                   | included |
 
 ## Coordinator notes
 
@@ -512,3 +513,46 @@ LEDGER INVARIANTS OK
 ```
 
 `pnpm check` → `CHECK OK 52505d2`. `/` 66226 bytes gzip (`BUDGET WARN`, hard fail 76800). `/games/[id]` n/a. A re-run after this commit prints the new sha.
+
+## T09 Settlement, health and system — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T09-settle / (not opened) Models: plan Claude Opus 5.5, build Composer 2.5, verify not run
+Files: `src/lib/server/data/settlement.ts`, `system-metrics.ts`, `group-notifications.ts` (added `notifyGroupSettlements`), `publish.ts` (`publish:lastAt`), `workers/jobs/src/index.ts`, `src/routes/api/health/+server.ts`, `src/routes/system/+page.server.ts`, `+page.svelte`, `scripts/verify/settlement-scenario.ts`, this log. Pieces: 5
+Ported from: `legacy/src/data/settlement.ts`, `legacy/src/data/system-metrics.ts`, `legacy/src/app/api/health/route.ts`, `legacy/src/app/system/page.tsx`, `notifyGroupSettlements` in `legacy/src/data/group-notifications.ts`
+Deviations from legacy (planned rewrites):
+
+- Settlement `return` insert uses D1 raw SQL with `ON CONFLICT (wager_id) WHERE kind = 'return' DO NOTHING` and `meta.changes === 1` (Drizzle partial-index target). Legacy Postgres used bare `onConflictDoNothing()`.
+- Terminal filter uses the generated `games.status` column (`json_extract`) instead of a Postgres `summary->>'status'` fragment.
+- `invalidatePublicSports()` → `waitUntil(publishReadModels())` after a run that paid wagers.
+- Group settlement mail → `waitUntil(notifyGroupSettlements(...))` from `cloudflare:workers` (legacy awaited after lease release on Node).
+- Health adds `publish: { version, lastPublishedAt }` from KV (`publish:version`, `publish:lastAt` written in `publishReadModels`).
+
+Acceptance:
+
+1. `pnpm check` → `CHECK OK 7a14ac3`. `BUDGET WARN / is 68116 bytes gzip` (hard fail 76800). `/games/[id]` 62013.
+2. Fresh `.wrangler/state`, `pnpm db:migrate:local`, then `pnpm dlx tsx scripts/verify/settlement-scenario.ts` (loads `settleWagers` via `getPlatformProxy` + the money-scenario hook; Node strip-types cannot load the provider tree). Seed: one user, games `finished` (5–2), `cancelled`, and `live` with a score; four moneyline wagers (home won, away lost, home void, home on live). Two runs:
+
+```
+SETTLE RUN 1 {"ok":true,"settled":3,"skipped":0,"failed":0,"byOutcome":{"won":1,"lost":1,"void":1}}
+SETTLE RUN 2 {"ok":true,"settled":0,"skipped":0,"failed":0,"byOutcome":{"won":0,"lost":0,"void":0}}
+RETURN ROWS amounts 0, 10, 19 (one row each); live wager still open
+SETTLEMENT SCENARIO OK
+LEDGER INVARIANTS OK
+```
+
+Representative seed (see `scripts/verify/settlement-scenario.ts` for full SQL): user insert + three `games` rows + four `wagers`/`stake` pairs on canonical ids `t09-finished-*`, `t09-cancelled-*`, `t09-live-*`; finished `result` includes `source` and `observedAt` for `gameSummarySchema`.
+
+3. Preview: `pnpm deploy:preview` → matchday-preview version `780655b8-9323-4a57-b37a-59b3b30bae7b`; `pnpm jobs:deploy:preview` → matchday-jobs-preview `275d8317-8445-4558-8c25-9cc7f24cb577`. No new migrations.
+
+```
+curl -s https://matchday-preview.jolyyjhon.workers.dev/api/health | jq '.data.checks.database'
+→ schema "current", pendingMigrations 0, missingTables 0
+```
+
+`/system` returns 200 in en and es (HTML; no browser console run in this headless builder).
+
+4. Preview `POST /api/cron/settle` with bearer `CRON_SECRET` **not run here** — this worktree has no `.dev.vars`; unauthorized without the preview secret Oscar sets in the dashboard.
+
+Budgets touched: `/` 68116 bytes gzip (warn). `/games/[id]` 62013.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Coordinator can POST settle on preview with the deployed secret. T10 adds invite mail; `/you` and bet slip remain T08b in another worktree.
