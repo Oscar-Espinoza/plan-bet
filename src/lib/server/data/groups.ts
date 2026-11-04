@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import type { Group, GroupInvite } from "../domain/contracts";
 import { getDatabase } from "../db/client";
 import { groupInvites, groupMembers, groups, user } from "../db/schema";
@@ -49,19 +49,21 @@ export async function createGroup(input: {
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const id = crypto.randomUUID();
-    const nowMs = Date.now();
+    const now = new Date();
     const [inserted, member] = (await db.batch([
-      db.run(sql`
-        insert into groups (id, name, slug, created_by_user_id, created_at)
-        values (${id}, ${input.name}, ${slug}, ${input.userId}, ${nowMs})
-        on conflict (slug) do nothing
-      `),
-      db.run(sql`
-        insert into group_members (
-          group_id, user_id, role, notify_on_activity, joined_at
-        )
-        select ${id}, ${input.userId}, 'owner', 1, ${nowMs}
-        where exists (select 1 from groups where id = ${id})
+      db
+        .insert(groups)
+        .values({
+          id,
+          name: input.name,
+          slug,
+          createdByUserId: input.userId,
+          createdAt: now,
+        })
+        .onConflictDoNothing({ target: groups.slug }),
+      db.insert(groupMembers).select(sql`
+        select ${id}, ${input.userId}, 'owner', 1, ${now.getTime()}
+        where exists (select 1 from ${groups} where ${groups.id} = ${id})
       `),
     ])) as unknown as [RunMeta, RunMeta];
 
@@ -101,10 +103,7 @@ export async function inviteToGroup(input: {
   const db = getDatabase();
 
   const [inserted] = (await db.batch([
-    db.run(sql`
-      insert into group_invites (
-        id, group_id, email, token, invited_by_user_id, status, created_at, expires_at
-      )
+    db.insert(groupInvites).select(sql`
       select
         ${id},
         ${input.groupId},
@@ -115,13 +114,13 @@ export async function inviteToGroup(input: {
         ${nowMs},
         ${expiresMs}
       where exists (
-        select 1 from group_members
-        where group_id = ${input.groupId}
-          and user_id = ${input.invitedByUserId}
+        select 1 from ${groupMembers}
+        where ${groupMembers.groupId} = ${input.groupId}
+          and ${groupMembers.userId} = ${input.invitedByUserId}
       )
       and not exists (
-        select 1 from "user" u
-        inner join group_members m on m.user_id = u.id
+        select 1 from ${user} u
+        inner join ${groupMembers} m on m.user_id = u.id
         where m.group_id = ${input.groupId}
           and u.email = ${input.email}
       )
@@ -159,9 +158,10 @@ export type CreateJoinLinkResult =
   | { ok: false; reason: "not_a_member" };
 
 /**
- * One pending link invite per group. The partial unique index is the lock:
- * a concurrent insert either no-ops on conflict or loses the transaction,
- * then both callers read the single pending row.
+ * One pending link invite per group. The partial unique index rejects a
+ * second pending link. That error is caught and both callers read the
+ * single pending row. Drizzle emits ON CONFLICT WHERE after DO NOTHING,
+ * which SQLite rejects, so the index itself is the guard.
  */
 export async function createJoinLink(input: {
   groupId: string;
@@ -177,42 +177,42 @@ export async function createJoinLink(input: {
 
   try {
     await db.batch([
-      db.run(sql`
-        update group_invites
-        set status = 'expired'
-        where group_id = ${input.groupId}
-          and email is null
-          and status = 'pending'
-          and expires_at <= ${nowMs}
-      `),
-      db.run(sql`
-        insert into group_invites (
-          id, group_id, email, token, invited_by_user_id, status, created_at, expires_at
-        )
-        select
-          ${id},
-          ${input.groupId},
-          null,
-          ${token},
-          ${input.userId},
-          'pending',
-          ${nowMs},
-          ${expiresMs}
-        where exists (
-          select 1 from group_members
-          where group_id = ${input.groupId}
-            and user_id = ${input.userId}
-        )
-        and not exists (
-          select 1 from group_invites
-          where group_id = ${input.groupId}
-            and email is null
-            and status = 'pending'
-            and expires_at > ${nowMs}
-        )
-        on conflict (group_id) where "group_invites"."email" is null
-          and "group_invites"."status" = 'pending' do nothing
-      `),
+      db
+        .update(groupInvites)
+        .set({ status: "expired" })
+        .where(
+          and(
+            eq(groupInvites.groupId, input.groupId),
+            isNull(groupInvites.email),
+            eq(groupInvites.status, "pending"),
+            lte(groupInvites.expiresAt, now),
+          ),
+        ),
+      db.insert(groupInvites).select(
+        sql`
+            select
+              ${id},
+              ${input.groupId},
+              null,
+              ${token},
+              ${input.userId},
+              'pending',
+              ${nowMs},
+              ${expiresMs}
+            where exists (
+              select 1 from ${groupMembers}
+              where ${groupMembers.groupId} = ${input.groupId}
+                and ${groupMembers.userId} = ${input.userId}
+            )
+            and not exists (
+              select 1 from ${groupInvites}
+              where ${groupInvites.groupId} = ${input.groupId}
+                and ${groupInvites.email} is null
+                and ${groupInvites.status} = 'pending'
+                and ${groupInvites.expiresAt} > ${nowMs}
+            )
+          `,
+      ),
     ]);
   } catch (error) {
     if (!isUniqueConflict(error)) throw error;
@@ -252,18 +252,21 @@ export async function revokeInvite(input: {
 }): Promise<RevokeInviteResult> {
   const db = getDatabase();
   const [revoked] = (await db.batch([
-    db.run(sql`
-      update group_invites
-      set status = 'revoked'
-      where id = ${input.inviteId}
-        and group_id = ${input.groupId}
-        and status = 'pending'
-        and exists (
-          select 1 from group_members
-          where group_id = ${input.groupId}
-            and user_id = ${input.userId}
-        )
-    `),
+    db
+      .update(groupInvites)
+      .set({ status: "revoked" })
+      .where(
+        and(
+          eq(groupInvites.id, input.inviteId),
+          eq(groupInvites.groupId, input.groupId),
+          eq(groupInvites.status, "pending"),
+          sql`exists (
+            select 1 from ${groupMembers}
+            where ${groupMembers.groupId} = ${input.groupId}
+              and ${groupMembers.userId} = ${input.userId}
+          )`,
+        ),
+      ),
   ])) as unknown as [RunMeta];
   if (changedRows(revoked) === 1) return { ok: true };
   if (!(await isGroupMember(input.groupId, input.userId))) {
@@ -294,49 +297,61 @@ export async function acceptGroupInvite(input: {
   const nowMs = now.getTime();
   const db = getDatabase();
   const [, accepted, member] = (await db.batch([
-    db.run(sql`
-      update group_invites
-      set status = 'expired'
-      where token = ${input.token}
-        and status = 'pending'
-        and expires_at <= ${nowMs}
-    `),
-    db.run(sql`
-      update group_invites
-      set status = 'accepted'
-      where token = ${input.token}
-        and status = 'pending'
-        and expires_at > ${nowMs}
-        and (
-          email is null
-          or lower(email) = lower(${input.userEmail})
-        )
-    `),
-    db.run(sql`
-      insert into group_members (
-        group_id, user_id, role, notify_on_activity, joined_at
+    db
+      .update(groupInvites)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(groupInvites.token, input.token),
+          eq(groupInvites.status, "pending"),
+          lte(groupInvites.expiresAt, now),
+        ),
+      ),
+    db
+      .update(groupInvites)
+      .set({ status: "accepted" })
+      .where(
+        and(
+          eq(groupInvites.token, input.token),
+          eq(groupInvites.status, "pending"),
+          gt(groupInvites.expiresAt, now),
+          sql`(
+            ${groupInvites.email} is null
+            or lower(${groupInvites.email}) = lower(${input.userEmail})
+          )`,
+        ),
+      ),
+    db
+      .insert(groupMembers)
+      .select(
+        sql`
+          select ${groupInvites.groupId}, ${input.userId}, 'member', 1, ${nowMs}
+          from ${groupInvites}
+          where ${groupInvites.token} = ${input.token}
+            and ${groupInvites.status} = 'accepted'
+            and changes() = 1
+        `,
       )
-      select group_id, ${input.userId}, 'member', 1, ${nowMs}
-      from group_invites
-      where token = ${input.token}
-        and status = 'accepted'
-        and changes() = 1
-      on conflict (group_id, user_id) do nothing
-    `),
+      .onConflictDoNothing({
+        target: [groupMembers.groupId, groupMembers.userId],
+      }),
   ])) as unknown as [RunMeta, RunMeta, RunMeta];
 
   if (changedRows(accepted) === 1) {
     if (changedRows(member) === 0) {
-      await db.run(sql`
-        insert into group_members (
-          group_id, user_id, role, notify_on_activity, joined_at
+      await db
+        .insert(groupMembers)
+        .select(
+          sql`
+            select ${groupInvites.groupId}, ${input.userId}, 'member', 1, ${nowMs}
+            from ${groupInvites}
+            where ${groupInvites.token} = ${input.token}
+              and ${groupInvites.status} = 'accepted'
+          `,
         )
-        select group_id, ${input.userId}, 'member', 1, ${nowMs}
-        from group_invites
-        where token = ${input.token}
-          and status = 'accepted'
-        on conflict (group_id, user_id) do nothing
-      `);
+        .onConflictDoNothing({
+          target: [groupMembers.groupId, groupMembers.userId],
+        });
     }
     const [groupRow] = await db
       .select({ slug: groups.slug })
