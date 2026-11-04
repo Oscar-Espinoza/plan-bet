@@ -1,3 +1,5 @@
+import { pruneCriticalCss } from "#lib/server/critical-css";
+
 /**
  * Reorder `<head>` so the inlined stylesheet is discovered first, drop
  * font preloads and every modulepreload, and hold `kit.start` until after
@@ -11,11 +13,19 @@
  * before first paint. `document.fonts.check()` adds the class immediately
  * when the faces are already loaded in this document; a check on its own
  * does not request them.
+ *
+ * The inlined sheet is pruned to rules that can match this document.
+ * The full hashed file is requested from the after-first-paint callback,
+ * with `media="print"` until it loads so the request is not render-blocking.
  */
-export function optimizePageHtml(html: string, pathname: string): string {
-  const delayed = delayKitStart(html);
+export function optimizePageHtml(
+  html: string,
+  pathname: string,
+): { html: string; criticalMs: number | null } {
+  const pruned = pruneInlinedCss(html);
+  const delayed = delayKitStart(pruned.html);
   const headMatch = delayed.match(/<head([^>]*)>([\s\S]*?)<\/head>/i);
-  if (!headMatch) return delayed;
+  if (!headMatch) return { html: delayed, criticalMs: pruned.ms };
 
   const [, attrs, content] = headMatch;
   const links: string[] = [];
@@ -58,10 +68,28 @@ export function optimizePageHtml(html: string, pathname: string): string {
     .filter(Boolean)
     .join("\n\t\t");
 
-  return delayed.replace(
-    headMatch[0],
-    `<head${attrs}>\n\t\t${ordered}\n\t</head>`,
+  return {
+    html: delayed.replace(
+      headMatch[0],
+      `<head${attrs}>\n\t\t${ordered}\n\t</head>`,
+    ),
+    criticalMs: pruned.ms,
+  };
+}
+
+function pruneInlinedCss(html: string): { html: string; ms: number | null } {
+  let ms = 0;
+  let seen = false;
+  const next = html.replace(
+    /<style\b([^>]*)>([\s\S]*?)<\/style>/gi,
+    (_tag, attrs: string, css: string) => {
+      seen = true;
+      const pruned = pruneCriticalCss(css, html);
+      ms += pruned.ms;
+      return `<style${attrs}>${pruned.css}</style>`;
+    },
   );
+  return { html: next, ms: seen ? ms : null };
 }
 
 /**
@@ -82,6 +110,16 @@ const FONTS_IF_READY = `try{if(document.fonts.check('600 16px "archivo"')&&docum
 const AFTER_FIRST_PAINT = `((run) => { let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) { document.documentElement.classList.add("fonts"); run(); } else requestAnimationFrame(arm); }; arm(); })(() => {\n\t\t\t\t\t\t`;
 
 /**
+ * Inserted at the start of the after-first-paint callback, before
+ * `kit.start`. `media="print"` keeps the sheet off the render-blocking
+ * path; `load` flips it to `all`. The disabled marker link stays so Vite
+ * does not inject a second, blocking stylesheet. `globalThis.__mpFullCss`
+ * resolves when the full sheet has been applied, so client navigation can
+ * wait instead of painting with only this page's critical rules.
+ */
+const FULL_CSS = `(() => { const marker = document.querySelector('link[rel="stylesheet"][disabled]'); if (!marker || document.querySelector("link[data-full-css]")) return; const link = document.createElement("link"); link.rel = "stylesheet"; link.href = marker.href; link.media = "print"; link.setAttribute("data-full-css", ""); const ready = new Promise((resolve) => { link.addEventListener("load", () => { link.media = "all"; resolve(); }, { once: true }); link.addEventListener("error", () => resolve(), { once: true }); }); globalThis.__mpFullCss = ready; document.head.appendChild(link); })();\n\t\t\t\t\t\t`;
+
+/**
  * `document.currentScript` is only set while this inline script runs, so
  * `element` is captured immediately. The dynamic import waits for the
  * first-contentful-paint entry (after one frame and a macrotask) so those
@@ -95,7 +133,7 @@ function delayKitStart(html: string): string {
   if (!start.test(html)) return html;
   const opened = html.replace(
     start,
-    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${AFTER_FIRST_PAINT}import($1$2$1).then(async (kit) => {`,
+    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${AFTER_FIRST_PAINT}${FULL_CSS}import($1$2$1).then(async (kit) => {`,
   );
   const closed = opened.replace(
     /\}\);\n(\s*)if \('serviceWorker' in navigator\)/,

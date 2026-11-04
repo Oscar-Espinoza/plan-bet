@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { goto } from "$app/navigation";
+  import { fullCssReady } from "./full-css";
   import { resolve } from "$app/paths";
   import { asRoute } from "./href";
   import {
@@ -26,13 +27,17 @@
       options?: { replace?: boolean; scroll?: boolean },
     ) {
       const url = new URL(href, window.location.href);
-      destination = { href, pathname: url.pathname, metadata };
-      flying = true;
-      void goto(resolve(asRoute(href)), {
-        replace: Boolean(options?.replace),
-        reset: options?.scroll !== false,
-      }).finally(() => {
-        flying = false;
+      // The preview mounts new markup. Hold it until the full sheet is
+      // applied so a throttled stylesheet cannot flash an unstyled page.
+      void fullCssReady().then(() => {
+        destination = { href, pathname: url.pathname, metadata };
+        flying = true;
+        void goto(resolve(asRoute(href)), {
+          replace: Boolean(options?.replace),
+          reset: options?.scroll !== false,
+        }).finally(() => {
+          flying = false;
+        });
       });
     },
   });

@@ -155,12 +155,16 @@ function decorate(
   version: string,
   html: boolean,
   signedIn: boolean,
+  criticalMs: number | null = null,
 ): Response {
   const headers: Record<string, string> = {
     "cache-control": browserCacheControl(signedIn),
     "x-mp-cache": result,
   };
   if (html) headers["x-mp-version"] = version;
+  if (criticalMs !== null) {
+    headers["x-mp-critical-ms"] = criticalMs.toFixed(2);
+  }
   return withHeaders(response, headers);
 }
 
@@ -228,11 +232,14 @@ async function resolveWithEdgeCache(
     }
   }
 
+  let criticalMs: number | null = null;
   const response = await resolve(event, {
     transformPageChunk: ({ html, done }) => {
       let chunk = html.replaceAll("%lang%", event.locals.locale);
       if (done) {
-        chunk = optimizePageHtml(chunk, requestUrl.pathname);
+        const optimized = optimizePageHtml(chunk, requestUrl.pathname);
+        chunk = optimized.html;
+        criticalMs = optimized.criticalMs;
       }
       return chunk;
     },
@@ -255,13 +262,16 @@ async function resolveWithEdgeCache(
     defer(store(key, response.clone()));
     return deliverHtml(
       event.request,
-      withEarlyHints(decorate(response, "MISS", published, html, false), html),
+      withEarlyHints(
+        decorate(response, "MISS", published, html, false, criticalMs),
+        html,
+      ),
     );
   }
   return deliverHtml(
     event.request,
     withEarlyHints(
-      decorate(response, "BYPASS", published, html, signedIn),
+      decorate(response, "BYPASS", published, html, signedIn, criticalMs),
       html,
     ),
   );
