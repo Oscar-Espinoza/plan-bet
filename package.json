@@ -22,6 +22,7 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && node scripts/budget.mjs && node scripts/check-ok.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --env preview",
+    "verify:money": "node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8787",
     "jobs:dev": "wrangler dev --config workers/jobs/wrangler.jsonc --env preview",
     "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
   },

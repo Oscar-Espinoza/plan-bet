@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { Table, getTableName, is, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { drizzle } from "drizzle-orm/d1";
-import journal from "../../../../drizzle/meta/_journal.json";
+import journal from "../../../../drizzle/meta/_journal.json" with { type: "json" };
 import * as schema from "./schema";
 
 export class DatabaseConfigurationError extends Error {
