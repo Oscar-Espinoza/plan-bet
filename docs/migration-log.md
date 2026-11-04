@@ -20,6 +20,7 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T05    | C    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 1 (layering)     | 0                 | 0             | clean   | PASS (round 2) | 11.2 min                                                            | included |
 | T07    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 3               | 0                | 0                 | 0             | clean   | PASS           | 10.7 min                                                            | included |
 | T06    | C    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 26.5 min (exited cleanly)                                           | included |
+| T08a   | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 3 / 4               | 0                | 0                 | 0             | clean   | PASS (round 2) | 42 min                                                              | included |
 
 ## Coordinator notes
 
@@ -40,6 +41,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T07 review (Opus): gate `CHECK OK 2223aa1`. Verified in Better Auth 1.7.5 source that `user.validateUserInfo` exists and that the OAuth callback passes the raw Google profile, so the `email_verified` refusal works (not an invented API). Signed-in requests bypass the edge cache; the chip reads balance, W–L and open count in one `db.batch()`. Minor: the Google check runs on account creation/linking, not on every sign-in as legacy did; during maintenance an in-flight OAuth callback (GET) can still complete; `getSession` runs on every request (cheap with the cookie cache). `requireAccount(event)` now takes the request event.
 
 - T06 review (Opus): gate `CHECK OK c1a5f27`; unknown id 404 with no provider call; upcoming baseball game pages 0 px vs production at 320/390/1280 × en/es; preview paints 8–30 ms after the board click; page and data request MISS→HIT. Minor (deferred to T08b, which owns the panel): the anonymous sign-in card renders even when auth is unconfigured, where legacy renders nothing. Not verifiable on the preview: finished games (no finished rows in preview D1). `/` JS crept to 67,755 B (BUDGET WARN); `/games/[id]` 61,594 B.
+
+- T08a review (Opus + independent Opus audit): round 1 money logic passed the audit (no ledger-corrupting sequence; every legacy lock check is a predicate in the write batch) but 3 MAJOR + 4 MINOR: the scenario never exercised the batch's game/membership predicates; a failed batch fell back to insufficient_balance with a full balance; a retry could report a rejection for a placed wager; ledger SQL blind to orphan stakes; step 8 vacuous on 0 successes; step 10 order-dependent; no totals-line round-trip. Round 2 fixed all seven, exported `commitPlacement`, and showed the script fails with the games predicate removed. Re-verified on a fresh DB: 18 PASS lines, MONEY SCENARIO OK, LEDGER INVARIANTS OK, `CHECK OK e81a5ab`. Docs follow-up for T15: `docs/wagers.md` still describes Postgres advisory locks.
 
 ## Tickets
 
