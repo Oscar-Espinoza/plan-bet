@@ -592,3 +592,76 @@ Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is 
 Budgets touched: `/` first-load JS gzip 69046 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` first-load JS gzip 69285 bytes (limit 81920).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Signed-in visual parity against production waits on a session there. The tour bar still overlaps the lower slip column on a short viewport.
+
+## T14 Data migration tooling and rehearsal — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T14-data / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 15 (14 tooling files plus this log). Pieces: 6 (export, transform, reconcile, rehearsal fixture, local seed shim, package scripts and README)
+Ported from: none. New tooling. Source shape is `legacy/src/db/schema.ts`. Target shape is `src/lib/server/db/schema.ts`, `drizzle/0000_fat_thunderbolts.sql`, and `drizzle/0001_starting_grant_trigger.sql`.
+Deviations from legacy:
+
+- Auth.js `users` / `accounts` become Better Auth `user` / `account`. User ids are kept. `name` is the legacy name, else the email local part, else `User`. `emailVerified` is 1 when legacy `email_verified` is not null. `user.updated_at` copies `created_at` because legacy users have no `updated_at`. A user with no email is skipped. The transform exits 1 if that user owns wagers, ledger rows, or any other required user foreign key (groups, memberships, invites, comments, votes). Nullable buddy `user_id` would be cleared and warned; this rehearsal's skipped user had no buddy rows.
+- Account `id` is a new uuid. `account_id` is `provider_account_id`, `provider_id` is `provider`. `expires_at` is Auth.js seconds and becomes `access_token_expires_at` milliseconds. `refresh_token_expires_at` and `password` are null. Account timestamps are the export time. `type`, `token_type`, and `session_state` have no Better Auth columns and are not loaded.
+- `sessions` and `verification_tokens` are listed in `manifest-transform.json` and are not loaded. D1 `session` and `verification` stay empty.
+- Price and line become `price_hundredths` and `line_tenths`. `games.status` is not inserted; it is the existing generated column. `fact_ids` and jsonb become JSON text.
+- Apostrophes in SQL literals are `char(39)` pieces. Wrangler's statement splitter ends a quote at the next `'`, so a doubled quote would split the statement.
+- `import.sql` starts with `PRAGMA defer_foreign_keys = true;`, drops `user_starting_grant` before user inserts, and ends with the `CREATE TRIGGER` text byte-identical to `drizzle/0001_starting_grant_trigger.sql` (`trigger_bytes_match true`). Wrangler local execute runs the file as one `db.batch()`, so there is no extra `BEGIN`.
+
+Deviations from the plan:
+
+- The legacy seed uses `@neondatabase/serverless`, which only speaks WebSocket and cannot reach the Docker Postgres. `scripts/migrate/neon-local-preload.mjs` replaces that module with `pg` for `pnpm --dir legacy test:seed`. `pg` 8.23.1 is a devDependency for that shim. `postgres` 4.0.0 is the export driver.
+- Reconcile counts tables in groups of five. This SQLite build rejects a compound SELECT with more terms (`too many terms in compound SELECT`), the same limit `scripts/verify/ledger-invariants.sql` already documents.
+- Rehearsal is the local Docker database and local D1. The plan forbids production access, and importing this fixture into preview D1 would overwrite the shared preview database. Production export stays with Oscar or the coordinator, as `scripts/migrate/README.md` says.
+- Node is 24.20.0. `package.json` engines ask for 24.18.1. pnpm warns. The gate still passes.
+- T10 may add a D1 migration after this branch. The transform maps the tables in this tree. The coordinator re-runs reconcile after merging.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `29e5f0c`, the commit before this log):
+
+1. `pnpm check` → `CHECK OK 29e5f0c`. `BUDGET WARN / is 69077 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 69316`. No route code changed. A re-run after this commit prints the new sha.
+
+2. Local rehearsal. Throwaway container `t14-pg` on port 55432 (`postgres:16-alpine`), legacy migrations applied, then:
+
+```
+NODE_OPTIONS="--import $(pwd)/scripts/migrate/neon-local-preload.mjs" pnpm --dir legacy test:seed t14-a@rehearsal.invalid
+NODE_OPTIONS="--import $(pwd)/scripts/migrate/neon-local-preload.mjs" pnpm --dir legacy test:seed t14-b@rehearsal.invalid
+node --experimental-strip-types scripts/migrate/rehearsal-edges.ts --url-env DATABASE_URL --env-file legacy/.env.local
+```
+
+Seed: t14-a and t14-b each `14W 15L 1V`, balance 927, group Sunday League, Dani's open Yankees wager. `EDGES OK` added a nameless user, a name with an apostrophe, quotes, a newline, emoji and `café`, a no-email user, a totals wager at line 8.5, a void settlement, a reset of amount 0, a link invite and a revoked invite, buddy message and note, an OAuth account, a session, and a verification token.
+
+Export (`elapsed_ms=31`):
+
+```
+teams 1, games 1, team_games 1, game_snapshots 1, ingestion_runs 1,
+users 7, accounts 1, sessions 1, verification_tokens 1,
+buddy_messages 1, buddy_notes 1, groups 1, group_members 6, group_invites 2,
+wagers 75, credit_entries 155, provider_cache 1, fixture_context 1,
+game_comments 3, comment_votes 1
+EXPORT OK tables=20 rows=262
+```
+
+Transform (`elapsed_ms=8`):
+
+```
+TRANSFORM warning: skipped user 14141414-1414-4414-8414-141414141416: missing email
+TRANSFORM OK statements=21 bytes=61814
+```
+
+Negative copy (a wager owned by that user): `TRANSFORM FAIL` / `wagers 14141414-1414-4414-8414-141414141499 references user 14141414-1414-4414-8414-141414141416 who has no email`, exit 1, no `import.sql` written.
+
+`rm -rf .wrangler/state && pnpm db:migrate:local` applied `0000` and `0001`. `pnpm exec wrangler d1 execute DB --local --env preview --file migration-out/import.sql` → exit 0, 21 commands.
+
+`pnpm migrate:reconcile -- --source migration-out --d1 local` → `RECONCILE OK users=6 tables=20 elapsed_ms=6790`. Ledger invariants returned no rows (reconcile exits 1 otherwise). `pnpm migrate:reconcile -- --d1 prod` → `Refusing production reconcile. Set MP_RECONCILE_PROD=1 to read production D1.` exit 1, no wrangler call.
+
+After import, before any new user: `grants=6` and `users=6`. Nameless user stored as `noname`, `email_verified=0`. Quoted user name `O'Brien "Ace" 🎯` plus newline plus `café`, `email_verified=1`, `created_at=updated_at=1704164645678`. Comment body `He said "it's a goal" 🎯` plus newline plus `next line — café`. Totals wager `line_tenths=85`, `price_hundredths=191`. Account token `tok'en`, expiry `1700000000000`. Void return amount 15, reset amount 0. Generated `games.status=finished`. Link invite email null / pending, revoked invite present. `session` 0, `verification` 0. Trigger `user_starting_grant` is present.
+
+Inserting `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa` afterwards created exactly one `grant` 1000 `signup`. Totals became `grants=7`, `users=7`.
+
+3. `grep -n "INSERT\|UPDATE\|DELETE" scripts/migrate/export-neon.ts` → no matches (exit 1). The transaction is `begin isolation level repeatable read read only`, and the session sets `default_transaction_read_only`.
+
+4. `docker stop t14-pg` removed the container (`docker ps` shows no `t14-pg`). `legacy/.env.local` was deleted. `git status` does not list it.
+
+Budgets touched: `/` first-load JS gzip 69077 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` 69316 (limit 81920). No UI or route changes in this ticket.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Production export, transform, import, and reconcile stay with Oscar (spec §7). Re-run reconcile after T10's migration lands if that migration adds tables this transform does not know.
