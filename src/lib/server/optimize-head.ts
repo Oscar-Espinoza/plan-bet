@@ -72,14 +72,20 @@ export function optimizePageHtml(html: string, pathname: string): string {
  */
 const FONTS_IF_READY = `try{if(document.fonts.check('600 16px "archivo"')&&document.fonts.check('400 16px "plexSans"')&&document.fonts.check('400 16px "dmMono"')&&document.fonts.check('500 16px "dmMono"'))document.documentElement.classList.add("fonts")}catch(e){}\n\t\t\t\t\t`;
 
-/** Adds `fonts` on the frame after first contentful paint, or after 90 frames. */
-const ARM_FONTS = `(() => { if (document.documentElement.classList.contains("fonts")) return; let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) document.documentElement.classList.add("fonts"); else requestAnimationFrame(arm); }; arm(); })();\n\t\t\t\t\t\t`;
+/**
+ * Waits for a first-contentful-paint entry (or 90 frames when the browser
+ * has no paint timing), then adds `fonts` and runs the client start. One
+ * frame plus a macrotask still began the `start` import a few milliseconds
+ * before first paint, which put that script in Lighthouse's pessimistic
+ * first-paint graph, so the import waits on the same entry as the fonts.
+ */
+const AFTER_FIRST_PAINT = `((run) => { let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) { document.documentElement.classList.add("fonts"); run(); } else requestAnimationFrame(arm); }; arm(); })(() => {\n\t\t\t\t\t\t`;
 
 /**
  * `document.currentScript` is only set while this inline script runs, so
- * `element` is captured immediately. The dynamic import waits until after
- * the first paint (one frame, then a macrotask) so those chunks are not in
- * the first-paint window. Nested routes import `../_app/...` rather than
+ * `element` is captured immediately. The dynamic import waits for the
+ * first-contentful-paint entry (after one frame and a macrotask) so those
+ * chunks are not in the first-paint window. Nested routes import `../_app/...` rather than
  * `./_app/...`. The service-worker block stays outside the wait: it
  * registers on `load`.
  */
@@ -89,11 +95,11 @@ function delayKitStart(html: string): string {
   if (!start.test(html)) return html;
   const opened = html.replace(
     start,
-    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${ARM_FONTS}import($1$2$1).then(async (kit) => {`,
+    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${AFTER_FIRST_PAINT}import($1$2$1).then(async (kit) => {`,
   );
   const closed = opened.replace(
     /\}\);\n(\s*)if \('serviceWorker' in navigator\)/,
-    "});\n$1}, 0);\n$1});\n\n$1if ('serviceWorker' in navigator)",
+    "});\n$1});\n$1}, 0);\n$1});\n\n$1if ('serviceWorker' in navigator)",
   );
   return closed === opened ? html : closed;
 }
