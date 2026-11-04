@@ -771,3 +771,54 @@ Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is 
 Budgets touched: `/` first-load JS gzip 70998 bytes (limit 61440, warn, hard limit 76800; +815 from T10). `/games/[id]` first-load JS gzip 71426 bytes (limit 81920; +815 from T10).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` on preview (they were not in `.dev.vars`). When T11 lands, buddy can call `game-comments.ts` instead of the copy in `buddy.ts`.
+
+## T13 Speed pass and parity sweep — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T13-speed / (not opened) Models: build Composer 2.5, verify not run
+Builder scorecard: left for the coordinator
+Files: ~280 (two commits). Pieces: 9
+Ported from: `legacy/PERFORMANCE.md` patterns (lazy shell chunks, preload, service worker intent), `legacy/src/app/opengraph-image.tsx`, `legacy/src/app/icon.tsx`, navigation preview behaviour in `legacy/src/components/app-shell.tsx`.
+Deviations from legacy:
+
+- T11 carry-over: `buddy.ts` now calls `game-comments.ts` (`listCommentThreads`, `commentPhase`, `pickPins`) instead of the duplicated query; stricter group-membership on read matches T11.
+- Client `gameTeamLogo` no longer ships `team-badge-catalog.json` (~4059 B gzip saved on `/`); crests use server `*CrestUrl` fields and the four bundled SVG slugs.
+- Dynamic imports in `shell-content.svelte` for navigation preview, buddy launcher, and lazy account control (~7242 B gzip on `/` combined with catalog removal).
+- Service worker uses SvelteKit 3 `$app/env` + `$app/manifest` (not the old `$app/service-worker` build list). Session cookies skip all SW handling; HTML/`__data.json` are network-first with last `/` offline fallback key `matchday-${version}:home`.
+- CSS inline threshold experiment not enabled: no Lighthouse mobile A/B on preview in this session (coordinator can compare with/without `inlineStyleThreshold` ~24 KB CSS gzip).
+- Full parity box sweep (320/390/1280 × en/es) not completed: Playwright is not a project dependency; sample HTTP checks below. Coordinator should rerun headless Chrome script on preview vs `plan-bet.vercel.app`.
+- `pnpm verify:comments` failed locally (`BETTER_AUTH_SECRET` missing from `.dev.vars`); `pnpm verify:buddy` → `BUDDY SCENARIO OK`.
+- Installed wrangler 4.157.0 accepts `compatibility_date` `2026-11-01` without override (T11 follow-up closed).
+
+`/` first-load JS analysis (after `pnpm build`, top gzip chunks on `/`):
+
+1. 36937 B — `_app/immutable/chunks/MtBGoXOY.js` (Svelte 5 + SvelteKit client runtime)
+2. 5284 B — `nodes/0` (layout shell)
+3. 4998 B — `nodes/4` (board page)
+4. 1614 B — shared chunk (locale/utils)
+5. 1286 B — `entry/app`
+6.–10. smaller shared chunks (<1200 B each)
+
+JS cuts (gzip on `/`): 71075 → 60589 B (−10486). Lazy shell + account chip deferral ~7242 B; drop client badge catalog ~4059 B; remainder from chunk graph shifts after service worker registration.
+
+Acceptance (builder; coordinator re-runs):
+
+1. `pnpm check` → `CHECK OK 00628b7`. `node scripts/budget.mjs` → `/ 60589` (limit 61440), `/games/[id] 73046` (limit 81920).
+2. Lighthouse 12 mobile on preview for `/` and one game page: not run (coordinator vs `legacy/PERFORMANCE.md` 92/96, LCP 3.39/2.85 s, CLS 0.000).
+3. Service worker offline `/` and session cookie Cache Storage check: not run (coordinator after deploy).
+4. Early Hints `Link` on HTML: verified on local `wrangler dev` port 8781 (stopped PID 280733): `Link: </fonts/archivo-latin-wdth-normal.woff2>; rel=preload; …, </assets/night-stadium-800.webp>; rel=preload; as=image, …`
+5. Parity (partial):
+
+| Route | 320 en | 390 en | 1280 en | Notes |
+| --- | --- | --- | --- | --- |
+| `/` | HTTP 200/200 | (not measured px) | | preview vs prod status match on curl sample |
+| `/?sport=soccer` | 200/200 | | | |
+| `/?sport=baseball` | 200/200 | | | |
+| `/rules`, `/system` | 200/200 | | | |
+| `/games/soc-rma-01`, `/games/mlb-nyy-03` | 200/200 | | | fixture text may differ (demo data) |
+| `/sign-in`, `/you` (signed out) | 200/200 | | | |
+
+Listed data diffs (not port bugs): preview demo soccer fixtures and KV/D1 freshness vs production Neon; no finished-game rows on preview for comment-phase UI.
+
+Budgets touched: `/` first-load JS gzip 60589 bytes (limit 61440). `/games/[id]` 73046 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance and scorecard).
+FOLLOWUPS: Coordinator Lighthouse + SW offline acceptance on preview; install Playwright or use Chrome for full parity table; run `pnpm verify:comments` with `.dev.vars` auth secret; optional CSS inline A/B.
