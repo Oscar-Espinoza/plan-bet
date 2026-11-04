@@ -13,6 +13,10 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | Ticket | Tier | Builder | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome | Wall time | Cost |
 | ------ | ---- | ------- | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | ------- | --------- | ---- |
 
+## Coordinator notes
+
+- T00 review (Opus): gate re-run `CHECK OK 5015ec1`; legacy demo build passes; preview health healthy (D1 `select 1` 172 ms from the São Paulo edge to the ENAM primary). Grok's note is correct: adapter-cloudflare 8 passes no `platform` to `server.respond`, so bindings come from `import { env } from "cloudflare:workers"` (and `waitUntil` from the same module). Later plans use that instead of `platform.env`/`platform.ctx`.
+
 ## Tickets
 
 ## T00 Bootstrap and guardrails — 2026-11-03 — PASS
