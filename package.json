@@ -27,6 +27,8 @@
     "migrate:reconcile": "node --experimental-strip-types scripts/migrate/reconcile.ts",
     "verify:money": "node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8787",
     "verify:groups": "node --experimental-strip-types scripts/verify/groups-scenario.ts --base http://localhost:8790",
+    "verify:comments": "node --experimental-strip-types scripts/verify/comments-scenario.ts --base http://localhost:8780",
+    "verify:settle": "tsx scripts/verify/settlement-scenario.ts",
     "jobs:dev": "wrangler dev --config workers/jobs/wrangler.jsonc --env preview",
     "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
   },
@@ -57,6 +59,7 @@
     "svelte": "5.57.3",
     "svelte-check": "4.7.8",
     "tailwindcss": "4.3.4",
+    "tsx": "^4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
