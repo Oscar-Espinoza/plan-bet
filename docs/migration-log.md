@@ -957,3 +957,20 @@ Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview *
 - **Rehearsal on production D1:** `scripts/migrate/cutover.sh rehearse` printed export 2,356 rows, then `RECONCILE OK users=4 tables=20` (one oversized `provider_cache` row skipped, as documented).
 - **Vercel redirect:** `scripts/migrate/vercel-redirect/` was tested as a protected preview deploy. `/`, `/rules` and `/games/x?y=1` all return 308 to `matchday.tendo.ar` with the path and query kept. The test deploy was removed.
 - **Cutover:** `scripts/migrate/cutover.sh go` runs spec §7 steps 1–6 in order and stops on the first failed check.
+
+## T15 cutover — 2026-11-04 — coordinator — DONE
+
+- Oscar subscribed to Workers Paid. After that, refresh (52 s), enrich (135 s) and settle all pass on production with real data. This confirms the Free hang was the plan limit.
+- OAuth: added `https://matchday.tendo.ar/api/auth/callback/{github,google}` to the existing GitHub app and Google client. The old callbacks were kept, and the secrets match.
+- `scripts/migrate/cutover.sh go` ran: maintenance on (POST 503) → Vercel 308 → export 2,356 rows → transform → wipe → import → `RECONCILE OK users=4 tables=20` → maintenance off → refresh and enrich 200.
+- Smoke test passed. The old URL returns 308 with path and query kept, pages return 200, signed-out users get 303 to sign-in, both sign-in providers return the new-domain `redirect_uri`, and an anonymous POST to `/api/bets` returns 401.
+- `main` was fast-forwarded to `cf/main` and pushed. Vercel cancels `main` builds (ignoreCommand), so the redirect stays the production deployment.
+- Lighthouse mobile on production, one run each:
+  - `/`: score 89, FCP 1.99 s, LCP 3.41 s, TBT 3 ms, CLS 0, TTFB 67 ms (edge HIT), 342 KB.
+  - Game page on a cold cache: score 85, FCP 2.62 s, LCP 3.83 s, TTFB 715 ms, 322 KB.
+- First paint is still behind the old site's 0.95 s, so that's T13b.
+- **Open:**
+  - T13b: first-paint tuning.
+  - Timeout around `env.JOBS.*` RPC calls.
+  - `FOOTBALL_DATA_API_TOKEN` (soccer refresh is unconfigured).
+  - After a stable week: delete `legacy/` and `scripts/verify/`, rewrite the docs, delete Neon after 30 days.
