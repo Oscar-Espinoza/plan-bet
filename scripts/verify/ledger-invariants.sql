@@ -15,7 +15,13 @@ select 'return_count', c.wager_id, cast(count(*) as text)
 from credit_entries c
 where c.kind = 'return' and c.wager_id is not null
 group by c.wager_id
-having count(*) > 1;
+having count(*) > 1
+union all
+select 'orphan_stake', c.id, coalesce(c.wager_id, '')
+from credit_entries c
+left join wagers w on w.id = c.wager_id
+where c.kind = 'stake'
+  and (c.wager_id is null or w.id is null or w.user_id != c.user_id);
 
 select 'grant_count' as violation, user_id as entity_id, cast(count(*) as text) as detail
 from credit_entries

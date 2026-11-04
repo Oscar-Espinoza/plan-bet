@@ -1,6 +1,12 @@
 import { waitUntil } from "cloudflare:workers";
 import { and, eq, getTableColumns, param, sql } from "drizzle-orm";
-import type { CreditSummary, GameSummary, Wager } from "../domain/contracts";
+import {
+  gameStatusSchema,
+  type CreditSummary,
+  type GameSummary,
+  type Sport,
+  type Wager,
+} from "../domain/contracts";
 import {
   HOUSE_PRICES_VERSION,
   namedSelection,
@@ -9,8 +15,14 @@ import {
 import { RULES_VERSION } from "../../shared/utils";
 import type { WagerClosedReason } from "../../shared/wager-copy";
 import { getDatabase } from "../db/client";
+import { logEvent } from "../logger";
 import { creditEntries, games, groupMembers, wagers } from "../db/schema";
-import { SUMMARY_PROJECTION, getCreditSummary, toSummary } from "./credits";
+import {
+  SUMMARY_PROJECTION,
+  getCreditSummary,
+  readBalance,
+  toSummary,
+} from "./credits";
 import { notifyGroupWagerPlaced } from "./group-notifications";
 import { isGroupMember } from "./groups-repository";
 import { readGameForWager, rowToWager } from "./wagers-repository";
@@ -82,80 +94,108 @@ export type PlaceWagerResult =
   | { ok: false; reason: "insufficient_balance" }
   | { ok: false; reason: "not_a_group_member" };
 
+type PlacementIdentity = {
+  userId: string;
+  idempotencyKey?: string;
+};
+
 /**
- * Pre-reads choose the error a caller sees. The batch is what makes the
- * write safe: balance, kickoff/status/result, and membership are predicates
- * on the insert, and the stake row exists only when that wager id does.
+ * A key that already has a wager is that wager, even when a later check would
+ * now reject a fresh placement. Legacy did this under its lock; we do it
+ * before the batch and again immediately before every rejection.
  */
-export async function placeWager(input: {
+async function placedWager(
+  userId: string,
+  idempotencyKey: string | undefined,
+): Promise<PlaceWagerResult | undefined> {
+  if (!idempotencyKey) return undefined;
+  const [existing] = await getDatabase()
+    .select()
+    .from(wagers)
+    .where(
+      and(eq(wagers.userId, userId), eq(wagers.idempotencyKey, idempotencyKey)),
+    )
+    .limit(1);
+  if (!existing) return undefined;
+  return {
+    ok: true,
+    wager: rowToWager(existing),
+    summary: await getCreditSummary(userId),
+    replayed: true,
+  };
+}
+
+async function rejectUnlessPlaced(
+  input: PlacementIdentity,
+  failure: Exclude<PlaceWagerResult, { ok: true }>,
+): Promise<PlaceWagerResult> {
+  return (await placedWager(input.userId, input.idempotencyKey)) ?? failure;
+}
+
+/**
+ * Openness of the games row the insert actually matched: the status column,
+ * scheduled_at, and a stored result. The summary JSON can disagree with
+ * scheduled_at; this read is what names that refusal.
+ */
+async function gamesRowClosedReason(
+  canonicalGameId: string,
+): Promise<
+  { missing: true } | { missing: false; closed: WagerClosedReason | null }
+> {
+  const [row] = await getDatabase()
+    .select({
+      status: games.status,
+      scheduledAt: games.scheduledAt,
+      result: sql<string | null>`json_extract(${games.summary}, '$.result')`,
+    })
+    .from(games)
+    .where(eq(games.canonicalId, canonicalGameId))
+    .limit(1);
+  if (!row) return { missing: true };
+  const parsed = gameStatusSchema.safeParse(row.status);
+  if (!parsed.success) return { missing: false, closed: "unknown" };
+  if (parsed.data !== "scheduled")
+    return { missing: false, closed: parsed.data };
+  const kickoff = row.scheduledAt?.getTime() ?? 0;
+  if (kickoff <= Date.now()) return { missing: false, closed: "started" };
+  if (row.result != null) return { missing: false, closed: "finished" };
+  return { missing: false, closed: null };
+}
+
+export type CommitPlacementInput = {
   userId: string;
   routeId: string;
+  canonicalGameId: string;
+  sport: Sport;
   marketId: string;
   selectionId: string;
+  marketLabel: string;
+  selectionLabel: string;
+  line: number | null;
   price: number;
   stake: number;
+  potentialReturn: number;
+  matchup: string;
+  competition: string;
+  scheduledAt: Date;
   groupId?: string;
-  actorName?: string | null;
   idempotencyKey?: string;
-}): Promise<PlaceWagerResult> {
+};
+
+/**
+ * The write batch and nothing before it. Balance, the games row, and
+ * membership are predicates on the insert. The stake row exists only when
+ * that wager id does. placeWager calls this after its pre-reads; the money
+ * scenario calls it directly so those predicates are actually exercised.
+ */
+export async function commitPlacement(
+  input: CommitPlacementInput,
+): Promise<PlaceWagerResult> {
   const db = getDatabase();
-
-  if (input.idempotencyKey) {
-    const [existing] = await db
-      .select()
-      .from(wagers)
-      .where(
-        and(
-          eq(wagers.userId, input.userId),
-          eq(wagers.idempotencyKey, input.idempotencyKey),
-        ),
-      )
-      .limit(1);
-    if (existing) {
-      return {
-        ok: true,
-        wager: rowToWager(existing),
-        summary: await getCreditSummary(input.userId),
-        replayed: true,
-      };
-    }
-  }
-
-  if (input.groupId && !(await isGroupMember(input.groupId, input.userId))) {
-    return { ok: false, reason: "not_a_group_member" };
-  }
-
-  const game = await readGameForWager(input.routeId);
-  if (!game) return { ok: false, reason: "unavailable" };
-
-  const resolved = resolveSelection(
-    game.sport,
-    input.marketId,
-    input.selectionId,
-  );
-  if (!resolved) return { ok: false, reason: "invalid_selection" };
-  const { market, selection } = resolved;
-
-  const availability = evaluateWagerAvailability(game.summary);
-  if (!availability.open) {
-    return { ok: false, reason: "closed", status: availability.reason };
-  }
-
-  if (input.price !== selection.price) {
-    return { ok: false, reason: "price_moved", price: selection.price };
-  }
-
   const now = new Date();
   const wagerId = crypto.randomUUID();
   const entryId = crypto.randomUUID();
   const groupId = input.groupId ?? null;
-  const potentialReturn = Math.round(input.stake * selection.price);
-  const selectionLabel = namedSelection(market, selection, {
-    home: game.summary.homeTeam,
-    away: game.summary.awayTeam,
-  });
-  const matchup = `${game.summary.awayTeam} at ${game.summary.homeTeam}`;
-  const scheduledAt = new Date(game.summary.scheduledAt);
 
   const readBack = input.idempotencyKey
     ? db
@@ -179,20 +219,20 @@ export async function placeWager(input: {
           ${wagerId},
           ${input.userId},
           ${param(groupId, wagers.groupId)},
-          ${game.canonicalId},
+          ${input.canonicalGameId},
           ${input.routeId},
-          ${game.sport},
-          ${market.id},
-          ${selection.id},
-          ${market.label},
-          ${selectionLabel},
-          ${param(market.line ?? null, wagers.line)},
-          ${param(selection.price, wagers.price)},
+          ${input.sport},
+          ${input.marketId},
+          ${input.selectionId},
+          ${input.marketLabel},
+          ${input.selectionLabel},
+          ${param(input.line, wagers.line)},
+          ${param(input.price, wagers.price)},
           ${input.stake},
-          ${potentialReturn},
-          ${matchup},
-          ${game.summary.competition},
-          ${param(scheduledAt, wagers.scheduledAt)},
+          ${input.potentialReturn},
+          ${input.matchup},
+          ${input.competition},
+          ${param(input.scheduledAt, wagers.scheduledAt)},
           ${HOUSE_PRICES_VERSION},
           ${RULES_VERSION},
           ${param(input.idempotencyKey ?? null, wagers.idempotencyKey)},
@@ -204,7 +244,7 @@ export async function placeWager(input: {
         ) >= ${input.stake}
           and exists (
             select 1 from ${games}
-            where ${games.canonicalId} = ${game.canonicalId}
+            where ${games.canonicalId} = ${input.canonicalGameId}
               and ${games.status} = 'scheduled'
               and ${games.scheduledAt} > ${param(now, games.scheduledAt)}
               and json_extract(${games.summary}, '$.result') is null
@@ -248,37 +288,163 @@ export async function placeWager(input: {
 
   const stored = storedRows[0];
   if (stored) {
-    const replayed = stored.id !== wagerId;
-    const wager = rowToWager(stored);
-    if (!replayed && input.groupId) {
-      const placedGroupId = input.groupId;
-      waitUntil(
-        notifyGroupWagerPlaced({
-          groupId: placedGroupId,
-          actorUserId: input.userId,
-          actorName: input.actorName ?? null,
-          matchup: wager.matchup,
-          selectionLabel: wager.selectionLabel,
-          stake: wager.stake,
-        }),
-      );
-    }
     return {
       ok: true,
-      wager,
+      wager: rowToWager(stored),
       summary: toSummary(summaryRows[0]),
-      replayed,
+      replayed: stored.id !== wagerId,
     };
   }
 
+  return explainFailedPlacement(input);
+}
+
+/**
+ * The insert wrote nothing. Name the reason from a fresh read. Balance is
+ * insufficient only when it is actually short; a games row that is shut
+ * (including a scheduled_at that disagrees with the summary) is closed or
+ * unavailable. Anything else is logged — the write was refused and no
+ * predicate we re-read explains it.
+ */
+async function explainFailedPlacement(
+  input: CommitPlacementInput,
+): Promise<PlaceWagerResult> {
+  const replay = await placedWager(input.userId, input.idempotencyKey);
+  if (replay) return replay;
+
   if (input.groupId && !(await isGroupMember(input.groupId, input.userId))) {
-    return { ok: false, reason: "not_a_group_member" };
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "not_a_group_member",
+    });
   }
-  const gameNow = await readGameForWager(input.routeId);
-  if (!gameNow) return { ok: false, reason: "unavailable" };
-  const availabilityNow = evaluateWagerAvailability(gameNow.summary);
-  if (!availabilityNow.open) {
-    return { ok: false, reason: "closed", status: availabilityNow.reason };
+
+  const balance = await readBalance(input.userId);
+  if (balance < input.stake) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "insufficient_balance",
+    });
   }
-  return { ok: false, reason: "insufficient_balance" };
+
+  const game = await gamesRowClosedReason(input.canonicalGameId);
+  if (game.missing) {
+    return rejectUnlessPlaced(input, { ok: false, reason: "unavailable" });
+  }
+  if (game.closed) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "closed",
+      status: game.closed,
+    });
+  }
+
+  logEvent("warn", "wager_placement_unexplained", {
+    userId: input.userId,
+    routeId: input.routeId,
+    canonicalGameId: input.canonicalGameId,
+    stake: input.stake,
+    balance,
+  });
+  return rejectUnlessPlaced(input, { ok: false, reason: "unavailable" });
+}
+
+/**
+ * Pre-reads choose the error a caller sees. commitPlacement is what makes
+ * the write safe.
+ */
+export async function placeWager(input: {
+  userId: string;
+  routeId: string;
+  marketId: string;
+  selectionId: string;
+  price: number;
+  stake: number;
+  groupId?: string;
+  actorName?: string | null;
+  idempotencyKey?: string;
+}): Promise<PlaceWagerResult> {
+  const already = await placedWager(input.userId, input.idempotencyKey);
+  if (already) return already;
+
+  if (input.groupId && !(await isGroupMember(input.groupId, input.userId))) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "not_a_group_member",
+    });
+  }
+
+  const game = await readGameForWager(input.routeId);
+  if (!game) {
+    return rejectUnlessPlaced(input, { ok: false, reason: "unavailable" });
+  }
+
+  const resolved = resolveSelection(
+    game.sport,
+    input.marketId,
+    input.selectionId,
+  );
+  if (!resolved) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "invalid_selection",
+    });
+  }
+  const { market, selection } = resolved;
+
+  const availability = evaluateWagerAvailability(game.summary);
+  if (!availability.open) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "closed",
+      status: availability.reason,
+    });
+  }
+
+  if (input.price !== selection.price) {
+    return rejectUnlessPlaced(input, {
+      ok: false,
+      reason: "price_moved",
+      price: selection.price,
+    });
+  }
+
+  const result = await commitPlacement({
+    userId: input.userId,
+    routeId: input.routeId,
+    canonicalGameId: game.canonicalId,
+    sport: game.sport,
+    marketId: market.id,
+    selectionId: selection.id,
+    marketLabel: market.label,
+    selectionLabel: namedSelection(market, selection, {
+      home: game.summary.homeTeam,
+      away: game.summary.awayTeam,
+    }),
+    line: market.line ?? null,
+    price: selection.price,
+    stake: input.stake,
+    potentialReturn: Math.round(input.stake * selection.price),
+    matchup: `${game.summary.awayTeam} at ${game.summary.homeTeam}`,
+    competition: game.summary.competition,
+    scheduledAt: new Date(game.summary.scheduledAt),
+    groupId: input.groupId,
+    idempotencyKey: input.idempotencyKey,
+  });
+
+  if (result.ok && !result.replayed && input.groupId) {
+    const placedGroupId = input.groupId;
+    waitUntil(
+      notifyGroupWagerPlaced({
+        groupId: placedGroupId,
+        actorUserId: input.userId,
+        actorName: input.actorName ?? null,
+        matchup: result.wager.matchup,
+        selectionLabel: result.wager.selectionLabel,
+        stake: result.wager.stake,
+      }),
+    );
+  }
+
+  return result;
 }

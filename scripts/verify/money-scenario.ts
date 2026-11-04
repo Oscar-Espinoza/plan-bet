@@ -462,6 +462,39 @@ async function main() {
     );
   }
 
+  const beforeTotals = counts(userId);
+  const totals = await postJson(base, "/api/bets", cookie, {
+    routeId: openRoute,
+    marketId: "baseball-total-8-5",
+    selectionId: "over",
+    price: 1.9,
+    stake: STAKE,
+    idempotencyKey: randomUUID(),
+  });
+  const totalsId = totals.payload?.data?.wager?.id;
+  const [storedTotals] = totalsId
+    ? d1(
+        `select line_tenths, price_hundredths from wagers where id = ${sqlString(totalsId)}`,
+      )
+    : [];
+  const afterTotals = counts(userId);
+  if (
+    totals.status === 201 &&
+    totals.payload?.data?.wager?.line === 8.5 &&
+    totals.payload?.data?.wager?.price === 1.9 &&
+    Number(storedTotals?.line_tenths) === 85 &&
+    Number(storedTotals?.price_hundredths) === 190 &&
+    afterTotals.wagers === beforeTotals.wagers + 1 &&
+    afterTotals.stakes === beforeTotals.stakes + 1
+  ) {
+    pass("totals line");
+  } else {
+    fail(
+      "totals line",
+      `status ${totals.status} body ${JSON.stringify(totals.payload)} stored ${JSON.stringify(storedTotals)}`,
+    );
+  }
+
   const beforeBurst = counts(userId);
   const burstStake = Math.max(
     1,
@@ -503,12 +536,12 @@ async function main() {
       rows.length === successIds.length &&
       rows.every((row) => Number(row.stakes) === 1);
   }
+  const expectedSuccesses = Math.floor(beforeBurst.balance / burstStake);
   if (
     successes.length + rejected.length === 20 &&
-    afterBurst.balance >= 0 &&
-    successes.length * burstStake <= beforeBurst.balance &&
+    successes.length === expectedSuccesses &&
     afterBurst.balance ===
-      beforeBurst.balance - successes.length * burstStake &&
+      beforeBurst.balance - expectedSuccesses * burstStake &&
     afterBurst.wagers === beforeBurst.wagers + successes.length &&
     stakeRowsOk
   ) {
@@ -546,10 +579,9 @@ async function main() {
       `statuses ${resets.map((item) => item.status).join(",")} amounts ${resetAmounts.join(",")} body ${JSON.stringify(resets[5]?.payload)}`,
     );
   }
+  const expectedReset = [1000 - beforeReset.balance, 0, 0, 0, 0];
   if (
-    resetAmounts.length >= 2 &&
-    resetAmounts[0] === 1000 - beforeReset.balance &&
-    resetAmounts[1] === 0 &&
+    multiset(resetAmounts) === multiset(expectedReset) &&
     counts(userId).resets === 5
   ) {
     pass("10 delta 0");
@@ -635,7 +667,189 @@ async function main() {
     );
   }
 
+  await batchPredicates(userId, outsiderGroupId, openRoute);
+
   return finish(true);
+}
+
+function multiset(values) {
+  return values
+    .map(Number)
+    .sort((left, right) => left - right)
+    .join(",");
+}
+
+function placementInput(userId, routeId, canonicalGameId, extra) {
+  return {
+    userId,
+    routeId,
+    canonicalGameId,
+    sport: "baseball",
+    marketId: MARKET_ID,
+    selectionId: SELECTION_ID,
+    marketLabel: "Moneyline",
+    selectionLabel: "Home",
+    line: null,
+    price: HOUSE_PRICE,
+    stake: STAKE,
+    potentialReturn: Math.round(STAKE * HOUSE_PRICE),
+    matchup: "Red Sox at Yankees",
+    competition: "MLB",
+    scheduledAt: new Date("2027-06-01T18:00:00.000Z"),
+    ...extra,
+  };
+}
+
+function seedDivergedGame(routeId, canonicalId) {
+  const now = Date.now();
+  const summary = JSON.stringify({
+    id: routeId,
+    sport: "baseball",
+    teamSlug: "new-york-yankees",
+    competition: "MLB",
+    homeTeam: "Yankees",
+    awayTeam: "Red Sox",
+    scheduledAt: "2027-06-01T18:00:00.000Z",
+    status: "scheduled",
+  });
+  d1(`
+    insert into games (
+      id, canonical_id, sport, provider, external_id, summary, scheduled_at,
+      source_observed_at, fetched_at, expires_at, payload_hash, created_at, updated_at
+    ) values (
+      ${sqlString(randomUUID())}, ${sqlString(canonicalId)}, 'baseball', 'mlb-stats',
+      ${sqlString(canonicalId)}, ${sqlString(summary)}, ${now - 60_000},
+      ${now}, ${now}, ${now}, 't08a', ${now}, ${now}
+    )
+  `);
+}
+
+async function loadCommitPlacement() {
+  const { register } = await import("node:module");
+  const { pathToFileURL } = await import("node:url");
+  const { getPlatformProxy } = await import("wrangler");
+  await register(
+    pathToFileURL(resolve(root, "scripts/verify/cloudflare-workers-hook.mjs"))
+      .href,
+    { parentURL: import.meta.url },
+  );
+  const proxy = await getPlatformProxy({
+    configPath: resolve(root, "wrangler.jsonc"),
+    environment: "preview",
+    remoteBindings: false,
+  });
+  try {
+    globalThis.__MP_CF_ENV = proxy.env;
+    const loaded = await import(
+      pathToFileURL(resolve(root, "src/lib/server/data/wagers.ts")).href
+    );
+    return {
+      commitPlacement: loaded.commitPlacement,
+      dispose: () => proxy.dispose(),
+    };
+  } catch (error) {
+    await proxy.dispose();
+    throw error;
+  }
+}
+
+async function batchPredicates(userId, outsiderGroupId, openRoute) {
+  const suffix = userId.slice(0, 8);
+  const openCanonical = `t08a-game-open-${suffix}`;
+  const divergedRoute = `t08a-diverged-${suffix}`;
+  const divergedCanonical = `t08a-game-diverged-${suffix}`;
+  seedDivergedGame(divergedRoute, divergedCanonical);
+
+  let dispose = async () => {};
+  try {
+    const loaded = await loadCommitPlacement();
+    dispose = loaded.dispose;
+    const { commitPlacement } = loaded;
+
+    const beforeClosed = counts(userId);
+    const closed = await commitPlacement(
+      placementInput(userId, divergedRoute, divergedCanonical, {
+        idempotencyKey: randomUUID(),
+      }),
+    );
+    const afterClosed = counts(userId);
+    if (
+      closed.ok === false &&
+      closed.reason === "closed" &&
+      closed.status === "started" &&
+      afterClosed.wagers === beforeClosed.wagers &&
+      afterClosed.stakes === beforeClosed.stakes &&
+      afterClosed.balance === beforeClosed.balance
+    ) {
+      pass("batch closed column");
+    } else {
+      fail(
+        "batch closed column",
+        `result ${JSON.stringify(closed)} counts ${JSON.stringify(afterClosed)} before ${JSON.stringify(beforeClosed)}`,
+      );
+    }
+
+    const beforeMember = counts(userId);
+    const outsider = await commitPlacement(
+      placementInput(userId, openRoute, openCanonical, {
+        groupId: outsiderGroupId,
+        idempotencyKey: randomUUID(),
+      }),
+    );
+    const afterMember = counts(userId);
+    if (
+      outsider.ok === false &&
+      outsider.reason === "not_a_group_member" &&
+      afterMember.wagers === beforeMember.wagers &&
+      afterMember.stakes === beforeMember.stakes &&
+      afterMember.balance === beforeMember.balance
+    ) {
+      pass("batch non-member");
+    } else {
+      fail(
+        "batch non-member",
+        `result ${JSON.stringify(outsider)} counts ${JSON.stringify(afterMember)}`,
+      );
+    }
+
+    const beforeKey = counts(userId);
+    const key = randomUUID();
+    const first = await commitPlacement(
+      placementInput(userId, openRoute, openCanonical, {
+        idempotencyKey: key,
+      }),
+    );
+    const second = await commitPlacement(
+      placementInput(userId, openRoute, openCanonical, {
+        idempotencyKey: key,
+      }),
+    );
+    const afterKey = counts(userId);
+    if (
+      first.ok === true &&
+      first.replayed === false &&
+      second.ok === true &&
+      second.replayed === true &&
+      first.wager.id === second.wager.id &&
+      afterKey.wagers === beforeKey.wagers + 1 &&
+      afterKey.stakes === beforeKey.stakes + 1 &&
+      afterKey.balance === beforeKey.balance - STAKE
+    ) {
+      pass("batch same key");
+    } else {
+      fail(
+        "batch same key",
+        `first ${JSON.stringify(first)} second ${JSON.stringify(second)} counts ${JSON.stringify(afterKey)} before ${JSON.stringify(beforeKey)}`,
+      );
+    }
+  } catch (error) {
+    fail(
+      "batch predicates",
+      error instanceof Error ? error.message : String(error),
+    );
+  } finally {
+    await dispose();
+  }
 }
 
 function ledgerViolations() {

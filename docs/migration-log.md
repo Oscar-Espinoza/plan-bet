@@ -410,3 +410,69 @@ LEDGER INVARIANTS OK
 Budgets touched: `/` first-load JS gzip 66226 bytes (limit 61440, hard fail 76800). `/games/[id]` n/a.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: T08b ports the bet slip and `/you`. T10 extends `groups-repository.ts`. T09 owns settlement mail and the single `return` payout. Coordinator can re-run `pnpm verify:money` on port 8787 when that port is free.
+
+### Round 2 (coordinator review)
+
+The batch is `commitPlacement`. `placeWager` still does the pre-reads, then calls it. The scenario imports `commitPlacement` against the same local D1 (`getPlatformProxy`, environment `preview`) through a `cloudflare:workers` resolve hook. `db/client.ts` imports the drizzle journal with a JSON import attribute so Node can load that module.
+
+Corrected behaviour:
+
+- After an insert writes nothing: look the idempotency key up again; then membership; then `readBalance`, and `insufficient_balance` only when `balance < stake`; then the games row (`scheduled_at`, generated `status`, `summary.result`) for `closed` or `unavailable`. If none of those explain it, log `wager_placement_unexplained` and return `unavailable`. This supersedes the round-1 sentence that fell through to `insufficient_balance`.
+- Before every rejection, including the pre-read rejections, a present idempotency key is looked up again. A wager that already exists is returned with `replayed: true`.
+- `ledger-invariants.sql` adds `orphan_stake`: a stake whose `wager_id` is null, whose wager row is missing, or whose wager belongs to another user. A planted row (`t08a-orphan-probe`, null `wager_id`) was the only violation; it was deleted; the query then returned zero rows.
+- Step 8 requires `successes === floor(balanceBefore / stake)` and `balance === balanceBefore - successes * stake`.
+- Step 10 compares the five reset amounts as a multiset: one `1000 - balanceBefore` and four zeros.
+- One totals placement (`baseball-total-8-5` / `over` / 1.90). The response line is 8.5 and the price is 1.9; the row stores `line_tenths` 85 and `price_hundredths` 190.
+
+Predicate proof, same command, preview on port 8787. With the games `exists` predicate temporarily removed, the diverged game (summary kickoff in 2027, `games.scheduled_at` one minute ago) was placed and the script exited 1:
+
+```
+PASS 1 place
+PASS 1 list
+PASS 2 replay
+PASS 3 second key
+PASS 4 overdraw
+PASS 5 closed
+PASS 6 non-member
+PASS 7 price
+PASS totals line
+PASS 8 concurrent (10 placed, stake 97, balance 0)
+PASS 9 reset cap
+PASS 10 delta 0
+PASS same-key race
+PASS missing key
+PASS member place
+Using secrets defined in .dev.vars
+FAIL batch closed column: result {"ok":true,"wager":{"id":"f0e528e3-4e87-43d2-b4ea-3213a7292e07","routeId":"t08a-diverged-d591b644","canonicalGameId":"t08a-game-diverged-d591b644","sport":"baseball","marketId":"baseball-moneyline","marketLabel":"Moneyline","selectionId":"home","selectionLabel":"Home","price":1.85,"stake":10,"potentialReturn":19,"matchup":"Red Sox at Yankees","competition":"MLB","scheduledAt":"2027-06-01T18:00:00.000Z","placedAt":"2026-11-04T06:30:24.504Z","settled":false},"summary":{"balance":950,"lifetimeStaked":1050,"lifetimeReturned":0,"net":-1050,"resetCount":5,"won":0,"lost":0,"voided":0},"replayed":false} counts {"wagers":18,"stakes":18,"resets":5,"balance":950} before {"wagers":17,"stakes":17,"resets":5,"balance":960}
+PASS batch non-member
+PASS batch same key
+1 failure(s)
+```
+
+Predicate restored, same command, exit 0:
+
+```
+PASS 1 place
+PASS 1 list
+PASS 2 replay
+PASS 3 second key
+PASS 4 overdraw
+PASS 5 closed
+PASS 6 non-member
+PASS 7 price
+PASS totals line
+PASS 8 concurrent (10 placed, stake 97, balance 0)
+PASS 9 reset cap
+PASS 10 delta 0
+PASS same-key race
+PASS missing key
+PASS member place
+Using secrets defined in .dev.vars
+PASS batch closed column
+PASS batch non-member
+PASS batch same key
+MONEY SCENARIO OK
+LEDGER INVARIANTS OK
+```
+
+`pnpm check` → `CHECK OK 52505d2`. `/` 66226 bytes gzip (`BUDGET WARN`, hard fail 76800). `/games/[id]` n/a. A re-run after this commit prints the new sha.

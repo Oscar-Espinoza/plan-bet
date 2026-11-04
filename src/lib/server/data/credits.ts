@@ -124,7 +124,11 @@ export async function getCreditSummary(userId: string): Promise<CreditSummary> {
   return toSummary(row);
 }
 
-/** Current ledger sum. A placement decision does not use this read. */
+/**
+ * Current ledger sum. A placement does not use this to decide the write is
+ * safe. After the batch inserts nothing, placeWager reads it only to choose
+ * between insufficient_balance and another reason.
+ */
 export async function readBalance(userId: string): Promise<number> {
   const [row] = await getDatabase()
     .select({ balance: SUMMARY_PROJECTION.balance })
