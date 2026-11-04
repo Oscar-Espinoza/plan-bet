@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { onNavigate } from "$app/navigation";
   import "../app.css";
   import "#lib/styles/matchup.css";
   import AppShell from "#lib/components/app-shell.svelte";
@@ -11,7 +12,20 @@
   import type { LayoutData } from "./$types";
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
-  const image = $derived(`${data.siteUrl}/opengraph-image`);
+  const image = $derived(`${data.siteUrl}/og.png`);
+
+  onNavigate((navigation) => {
+    if (typeof document === "undefined") return;
+    if (!document.startViewTransition) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    return new Promise<void>((resolve) => {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+      });
+    });
+  });
 </script>
 
 <svelte:head>
@@ -45,6 +59,7 @@
     name="twitter:image:alt"
     content="Matchday Plan sports preparation workspace"
   />
+  <link rel="icon" href="/icon.png" type="image/png" sizes="64x64" />
   <link rel="preconnect" href="https://www.mlbstatic.com" />
 </svelte:head>
 

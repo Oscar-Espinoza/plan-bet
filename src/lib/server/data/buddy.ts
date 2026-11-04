@@ -8,7 +8,7 @@ import {
   type GroupLeaderboardEntry,
   type RecordSlices,
 } from "../domain/contracts";
-import { getDatabase, isDatabaseConfigured } from "../db/client";
+import { isDatabaseConfigured } from "../db/client";
 import { logEvent } from "../logger";
 import { isOpenAiConfigured, OpenAiClient } from "../providers/openai/client";
 import { ProviderError } from "../providers/provider-error";

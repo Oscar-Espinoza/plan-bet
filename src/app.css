@@ -2035,7 +2035,11 @@ body {
   border-radius: 13px;
   background:
     linear-gradient(180deg, rgb(7 17 26 / 45%), rgb(7 17 26 / 90%)),
-    url("/assets/night-stadium-800.webp") center 58% / cover;
+    image-set(
+        url("/assets/night-stadium-800.avif") type("image/avif"),
+        url("/assets/night-stadium-800.webp") type("image/webp")
+      )
+      center 58% / cover;
 }
 
 /* 12 KB under a 90% scrim on a phone; the full 1600px photo only where the
@@ -2044,7 +2048,10 @@ body {
   .next-up {
     background-image:
       linear-gradient(180deg, rgb(7 17 26 / 45%), rgb(7 17 26 / 90%)),
-      url("/assets/night-stadium.webp");
+      image-set(
+        url("/assets/night-stadium.avif") type("image/avif"),
+        url("/assets/night-stadium.webp") type("image/webp")
+      );
   }
 }
 
@@ -3298,4 +3305,12 @@ a.settings-row svg {
 .form-block > .side-form {
   width: 100%;
   padding: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.15s;
+    animation-timing-function: ease;
+  }
 }

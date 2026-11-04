@@ -24,6 +24,25 @@ const ANONYMOUS_CACHE = "public, max-age=0, must-revalidate";
 const PRIVATE_CACHE = "private, no-cache";
 const STORED_CACHE = "public, s-maxage=60";
 
+const EARLY_HINT_LINK = [
+  "</fonts/archivo-latin-wdth-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
+  "</fonts/ibm-plex-sans-latin-wght-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
+  "</fonts/dm-mono-latin-400-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
+  "</assets/night-stadium-800.webp>; rel=preload; as=image",
+  "</assets/night-stadium.webp>; rel=preload; as=image",
+].join(", ");
+
+function withEarlyHints(response: Response, html: boolean): Response {
+  if (!html) return response;
+  const next = new Headers(response.headers);
+  next.set("Link", EARLY_HINT_LINK);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: next,
+  });
+}
+
 function cfTimezone(request: Request): string | undefined {
   const cf = (request as Request & { cf?: { timezone?: string } }).cf;
   return typeof cf?.timezone === "string" ? cf.timezone : undefined;
@@ -147,7 +166,10 @@ async function resolveWithEdgeCache(
         const html = (hit.headers.get("content-type") ?? "").includes(
           "text/html",
         );
-        return decorate(hit, "HIT", published, html, false);
+        return withEarlyHints(
+          decorate(hit, "HIT", published, html, false),
+          html,
+        );
       }
     } catch {
       // A cache read failure is a miss. The page still renders.
@@ -174,9 +196,15 @@ async function resolveWithEdgeCache(
   const published = version ?? (await publishVersion());
   if (cacheable && key && isStorableResponse(response, data)) {
     defer(store(key, response.clone()));
-    return decorate(response, "MISS", published, html, false);
+    return withEarlyHints(
+      decorate(response, "MISS", published, html, false),
+      html,
+    );
   }
-  return decorate(response, "BYPASS", published, html, signedIn);
+  return withEarlyHints(
+    decorate(response, "BYPASS", published, html, signedIn),
+    html,
+  );
 }
 
 export const handle: Handle = async ({ event, resolve }) => {

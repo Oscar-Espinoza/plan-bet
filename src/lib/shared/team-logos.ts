@@ -15,8 +15,7 @@ export function mlbTeamLogoUrl(teamId: number) {
 export function gameTeamLogo(game: GameSummary, side: "home" | "away") {
   const slug = side === "home" ? game.homeTeamSlug : game.awayTeamSlug;
   if (slug && trackedLogos[slug]) return trackedLogos[slug];
-  const crest =
-    side === "home" ? game.homeTeamCrestUrl : game.awayTeamCrestUrl;
+  const crest = side === "home" ? game.homeTeamCrestUrl : game.awayTeamCrestUrl;
   if (crest) return crest;
   return undefined;
 }
