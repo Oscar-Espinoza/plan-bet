@@ -8,15 +8,14 @@ import { pruneCriticalCss } from "#lib/server/critical-css";
  * macrotask. Modulepreloads and an immediate `import()` both pull
  * the client chunks into the first-paint window. `fonts` on `<html>` is
  * what switches the used stacks onto the woff2 faces. That class waits
- * until a first-contentful-paint entry exists: the macrotask, and one
- * frame after it, both still started the woff2 requests a few milliseconds
- * before first paint. `document.fonts.check()` adds the class immediately
- * when the faces are already loaded in this document; a check on its own
- * does not request them.
+ * for the first `largest-contentful-paint` entry, or `load` when that
+ * entry never arrives, so the faces do not compete with the LCP image.
+ * `document.fonts.check()` adds the class immediately when the faces are
+ * already loaded in this document; a check on its own does not request them.
  *
  * The inlined sheet is pruned to rules that can match this document.
- * The full hashed file is requested from the after-first-paint callback,
- * with `media="print"` until it loads so the request is not render-blocking.
+ * The full hashed file is requested from the after-first-paint callback
+ * as a style preload, which is not render-blocking, and applied on load.
  */
 export function optimizePageHtml(
   html: string,
@@ -102,22 +101,29 @@ const FONTS_IF_READY = `try{if(document.fonts.check('600 16px "archivo"')&&docum
 
 /**
  * Waits for a first-contentful-paint entry (or 90 frames when the browser
- * has no paint timing), then adds `fonts` and runs the client start. One
- * frame plus a macrotask still began the `start` import a few milliseconds
- * before first paint, which put that script in Lighthouse's pessimistic
- * first-paint graph, so the import waits on the same entry as the fonts.
+ * has no paint timing), then runs the client start. One frame plus a
+ * macrotask still began the `start` import a few milliseconds before
+ * first paint, which put that script in Lighthouse's pessimistic
+ * first-paint graph.
  */
-const AFTER_FIRST_PAINT = `((run) => { let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) { document.documentElement.classList.add("fonts"); run(); } else requestAnimationFrame(arm); }; arm(); })(() => {\n\t\t\t\t\t\t`;
+const AFTER_FIRST_PAINT = `((run) => { let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) run(); else requestAnimationFrame(arm); }; arm(); })(() => {\n\t\t\t\t\t\t`;
 
 /**
  * Inserted at the start of the after-first-paint callback, before
- * `kit.start`. `media="print"` keeps the sheet off the render-blocking
- * path; `load` flips it to `all`. The disabled marker link stays so Vite
- * does not inject a second, blocking stylesheet. `globalThis.__mpFullCss`
- * resolves when the full sheet has been applied, so client navigation can
- * wait instead of painting with only this page's critical rules.
+ * `kit.start`. A style preload is not render-blocking; `load` turns it
+ * into a stylesheet. The disabled marker link stays so Vite does not
+ * inject a second, blocking one. `globalThis.__mpFullCss` resolves when
+ * the full sheet has been applied, so client navigation can wait instead
+ * of painting with only this page's critical rules.
  */
-const FULL_CSS = `(() => { const marker = document.querySelector('link[rel="stylesheet"][disabled]'); if (!marker || document.querySelector("link[data-full-css]")) return; const link = document.createElement("link"); link.rel = "stylesheet"; link.href = marker.href; link.media = "print"; link.setAttribute("data-full-css", ""); const ready = new Promise((resolve) => { link.addEventListener("load", () => { link.media = "all"; resolve(); }, { once: true }); link.addEventListener("error", () => resolve(), { once: true }); }); globalThis.__mpFullCss = ready; document.head.appendChild(link); })();\n\t\t\t\t\t\t`;
+const FULL_CSS = `(() => { const marker = document.querySelector('link[rel="stylesheet"][disabled]'); if (!marker || document.querySelector("link[data-full-css]")) return; const link = document.createElement("link"); link.rel = "preload"; link.as = "style"; link.href = marker.href; link.setAttribute("data-full-css", ""); const ready = new Promise((resolve) => { link.addEventListener("load", () => { link.onload = null; link.rel = "stylesheet"; link.removeAttribute("as"); resolve(); }, { once: true }); link.addEventListener("error", () => resolve(), { once: true }); }); globalThis.__mpFullCss = ready; document.head.appendChild(link); })();\n\t\t\t\t\t\t`;
+
+/**
+ * Starts the webfonts at the first largest-contentful-paint entry. `load`
+ * is the fallback when that entry never arrives. Faces already in this
+ * document are applied by `FONTS_IF_READY` and this returns immediately.
+ */
+const FONTS_ON_LCP = `(() => { if (document.documentElement.classList.contains("fonts")) return; const add = () => document.documentElement.classList.add("fonts"); if (performance.getEntriesByType("largest-contentful-paint").length) { add(); return; } let added = false; const once = () => { if (added) return; added = true; add(); }; try { new PerformanceObserver((list, obs) => { if (list.getEntries().length) { once(); obs.disconnect(); } }).observe({ type: "largest-contentful-paint", buffered: true }); } catch (e) { once(); } addEventListener("load", once, { once: true }); })();\n\t\t\t\t\t\t`;
 
 /**
  * `document.currentScript` is only set while this inline script runs, so
@@ -133,7 +139,7 @@ function delayKitStart(html: string): string {
   if (!start.test(html)) return html;
   const opened = html.replace(
     start,
-    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${AFTER_FIRST_PAINT}${FULL_CSS}import($1$2$1).then(async (kit) => {`,
+    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${AFTER_FIRST_PAINT}${FULL_CSS}${FONTS_ON_LCP}import($1$2$1).then(async (kit) => {`,
   );
   const closed = opened.replace(
     /\}\);\n(\s*)if \('serviceWorker' in navigator\)/,

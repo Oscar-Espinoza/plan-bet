@@ -159,17 +159,22 @@ export function pruneCriticalCss(
   css: string,
   html: string,
 ): { css: string; ms: number } {
-  const started = performance.now();
+  const perfStart = performance.now();
+  const wallStart = Date.now();
+  const finish = (value: string) => ({
+    css: value,
+    // performance.now() on the Workers runtime can stay put through a
+    // synchronous turn. Date.now() is the other clock. Report whichever moved.
+    ms: Math.max(performance.now() - perfStart, Date.now() - wallStart),
+  });
   try {
     const sheet = stylesheetIndex(css);
     const doc = profileDocument(html);
     const pruned = applySheet(sheet, doc);
-    if (pruned.length < css.length * 0.05) {
-      return { css, ms: performance.now() - started };
-    }
-    return { css: pruned, ms: performance.now() - started };
+    if (pruned.length < css.length * 0.05) return finish(css);
+    return finish(pruned);
   } catch {
-    return { css, ms: performance.now() - started };
+    return finish(css);
   }
 }
 
