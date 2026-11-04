@@ -1,43 +1,10 @@
-# Local implementation plans and agent notes
-docs/implementation/
-CLAUDE.md
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# local files
-.DS_Store
-*.pem
+node_modules
+.svelte-kit
+.wrangler/
 .env*
 !.env.example
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# local agent tooling scratch
-.diagram-design
-
-# per-machine MCP config (holds API tokens)
-.codex/config.toml
-
-# Local progress dashboard for agent sessions
-.dashboard/
+migration-out/
+.output
+.DS_Store
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

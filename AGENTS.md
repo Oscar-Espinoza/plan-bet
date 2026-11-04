@@ -1,3 +1,5 @@
+> **Migration in progress on `cf/main`.** Stack, tooling and layout follow `docs/cloudflare-migration-spec.md`. Rules about Next.js, Neon, Vercel, `next/font` and Drizzle-pg apply only to `legacy/`. Product, data, money, buddy and design rules apply everywhere.
+
 # Matchday Plan
 
 Matchday Plan (repo `plan-bet`): a Next.js 16 App Router workspace for practicing wager calls on real upcoming fixtures for four teams (Real Madrid, Barcelona, Yankees, Red Sox), with source-backed context, sign-in-gated accounts, and a free-to-play wager simulator on fictional credits. Deployed at plan-bet.vercel.app.

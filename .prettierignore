@@ -1,5 +1,10 @@
-# Tooling cache, gitignored but still visible to prettier.
-.impeccable/
-
-# Local browser-tool captures, not application source
-.playwright-mcp/
+legacy/
+.svelte-kit/
+.wrangler/
+drizzle/meta/
+docs/cloudflare-migration-spec.md
+.cursor/
+.codex/
+node_modules/
+migration-out/
+pnpm-lock.yaml

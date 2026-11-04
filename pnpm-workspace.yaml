@@ -1,7 +1,13 @@
+packages: []
+
 allowBuilds:
-  cpu-features: false
   esbuild: true
-  protobufjs: false
   sharp: true
-  ssh2: false
-  unrs-resolver: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - "@cloudflare/workers-types@5.20261104.1"
+  - eslint-plugin-svelte@3.24.0
+  - miniflare@5.20261103.0-beta
+  - svelte-eslint-parser@1.10.1
+  - wrangler@4.157.0

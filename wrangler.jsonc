@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "matchday",
+  "main": ".svelte-kit/cloudflare/_worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".svelte-kit/cloudflare",
+  },
+  "observability": { "enabled": true },
+  "vars": {
+    "MATCHDAY_DATA_MODE": "live",
+    "MATCHDAY_MAINTENANCE": "0",
+    "PUBLIC_SITE_URL": "https://<domain>",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "matchday-prod",
+      "database_id": "<T15>",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "kv_namespaces": [{ "binding": "PUBLIC", "id": "<T15>" }],
+  "env": {
+    "preview": {
+      "name": "matchday-preview",
+      "vars": {
+        "MATCHDAY_DATA_MODE": "live",
+        "MATCHDAY_MAINTENANCE": "0",
+        "PUBLIC_SITE_URL": "https://matchday-preview.jolyyjhon.workers.dev",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "matchday-preview",
+          "database_id": "d5c258c4-491c-465e-834b-ab2aa0216924",
+          "migrations_dir": "drizzle",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "PUBLIC", "id": "8a316593b062493cacddfe7b89d63f2f" },
+      ],
+    },
+  },
+}
