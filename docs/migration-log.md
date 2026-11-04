@@ -341,3 +341,33 @@ Round 2 acceptance:
 
 - Headless Chrome `/tmp/t05-chip-network.mjs` on preview `/`: **0** network requests during a Baseball chip click (`replaceState` only).
 - Headless Chrome `/tmp/t05-baseball-parity.mjs`: `/?sport=baseball` game-row, `.game-time`, `.game-opponent`, `.game-chevron` **0 px** max delta vs production at 320/390/1280 × en/es (2 rows each side). Full `/` panel-title drift remains content (demo soccer on preview), unchanged from round 1.
+
+## T06 Game page, public part — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T06-game / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 7 new under `src/` (`games/[id]/+page.server.ts`, `+page.svelte`, `+error.svelte`, `game-detail.svelte`, `matchup/context-blocks.svelte`, `matchup/signed-out-wager.svelte`, `section-tabs.svelte`) plus this log. Pieces: 6
+Ported from: `legacy/src/app/games/[id]/page.tsx` (public load, metadata, signed-out wager slot), `legacy/src/components/game-detail.tsx`, `legacy/src/components/matchup/context-blocks.tsx`, the signed-out branch of `legacy/src/components/bet-slip.tsx` and `WageringPanel`, `legacy/src/app/games/[id]/error.tsx`, `legacy/src/app/games/[id]/not-found.tsx`, `legacy/src/components/section-tabs.tsx`. Reused T04 `match-chrome`, `scorebug`, `status-ribbon`, `bet-slip-skeleton`, and `navigation-preview` (the board already passes public fields through it).
+Deviations from legacy:
+
+- Anonymous visitors see the sign-in card even when auth is unconfigured. Legacy returns null in that case (`requireAccount` reason `unconfigured`). The preview Worker has no OAuth provider, so the strict port would omit the card production shows and shift the blocks under it. The card does not call an API. A signed-in visitor still gets an empty wager slot; the slip is T08.
+- A direct document load SSR-renders the finished page. The skeleton is what client navigation shows when the board did not pass preview fields. SvelteKit does not stream a loading shell ahead of the worker HTML.
+- `section-tabs` is ported because T05 did not. Nothing routes to it until `/you`.
+
+Deviations from the plan: none beyond the unconfigured sign-in card above. Node on this machine is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha after commit; the gate below is the parent `0dad1e2`):
+
+1. `pnpm check` → `CHECK OK 0dad1e2`, `BUDGET WARN / is 67755 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`, `/games/[id] 61594` (limit 81920). `/` was 65072 after T05; the shared client manifest grew with the new route. Both are inside the 25% hard cap.
+2. `pnpm deploy:preview` → https://matchday-preview.jolyyjhon.workers.dev version `8c960c7c-360d-491e-9845-c811a40f9ed0`. Headless Chrome (`/usr/bin/google-chrome`, CDP `getBoundingClientRect`, script `/tmp/t06-parity.mjs`, not committed) vs https://plan-bet.vercel.app at 320/390/1280 × en/es. Selectors: `.topbar`, `.mp-breadcrumb`, `.mp-bug`, `.mp-tabs`, `.mp-ribbon`, `.mp-action`, `.wager-panel`, `.match-result-banner`, `.mp-block`, `.mobile-nav`.
+   - Upcoming baseball `mlb-852989-new-york-yankees` (Blue Jays at Yankees) and `mlb-852583-boston-red-sox` (Red Sox at Mariners): **0 px** max delta in every cell. Status Upcoming/Próximo. Blocks Form/Standing (Forma reciente/Posiciones). No console errors.
+   - Finished baseball `mlb-849838-new-york-yankees` (Rays at Yankees, Full time / Finalizado on production, result banner and two blocks): preview returns **404** `Matchup not found`. Preview D1 has 10 `scheduled` baseball rows and no finished or soccer rows, so `getGameDetail` has nothing to render. Not a layout delta.
+   - Soccer: preview `soc-rma-01` is the demo (Villarreal at Real Madrid). Production's board game is `football-data-575386-real-madrid` (Real Madrid CF at PAE AEK). Same structure (Upcoming, Form, Table) and different names. Largest box delta: 320 en/es **8.79 px** `.mp-tabs.y`; 390 en **6.87 px** `.mp-bug.h`; 390 es **16.36 px** `.mp-tabs.y`; 1280 en/es **16.80 px** `.mp-tabs.y`. The scorebug height moves the tabs. No console errors.
+3. `curl -s -o /dev/null -w "%{http_code}" https://matchday-preview.jolyyjhon.workers.dev/games/does-not-exist` → `404`. `wrangler tail --env preview` shows that request `outcome: ok`, response status 404, `logs: []`, `exceptions: []`. `wrangler tail` on `workers/jobs` recorded no events. `ingestion_runs` newest row stayed `4992d761-f42a-43fa-918f-f1649aec46ed` (`mlb-stats` `refresh_baseball`, `started_at` 1793772311466) across the curl.
+4. Fresh `pnpm preview:cf` on `http://localhost:8787/games/mlb-bos-01`: HTML `x-mp-cache: MISS` then `HIT`, both `cache-control: public, max-age=0, must-revalidate`. `/games/mlb-bos-01/__data.json` the same, MISS then HIT.
+5. Board → game click on the preview (`/?sport=baseball` → `mlb-852989-new-york-yankees`), time to first `[data-navigation-preview]` paint: 320 en 30.2 ms, 390 en 17.3 ms, 1280 en 8.1 ms, 320 es 15.9 ms, 390 es 16.5 ms, 1280 es 15.9 ms. Breadcrumb, scorebug, and tabs then match the real page at **0 px** at 320 and 390 in both languages. At 1280 en/es those boxes keep the same y, width, and height, and x moves **7.5 px** (252.5 → 260): the skeleton is taller than the signed-out card, so the preview document has a scrollbar and the finished page does not. Half a classic scrollbar, centered column. No console errors.
+6. No console errors on the measured game pages or the board click, in English or Spanish.
+
+Budgets touched: `/` first-load JS gzip 67755 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` first-load JS gzip 61594 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Preview D1 has no finished game and no live soccer fixture, so those parity cells wait on a jobs refresh. T08 fills the signed-in slip. T13 can look at the `/` JS growth from the shared route manifest.
