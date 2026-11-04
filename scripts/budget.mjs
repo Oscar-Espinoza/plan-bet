@@ -167,11 +167,18 @@ for (const route of routes) {
     0,
   );
   console.log(`${route.id} ${bytes}`);
-  if (bytes > route.limit) {
+  // Spec §1: a miss up to 25% over target is recorded for Oscar to decide;
+  // only a miss beyond that fails the gate.
+  const hardLimit = Math.round(route.limit * 1.25);
+  if (bytes > hardLimit) {
     console.error(
-      `${route.id} is ${bytes} bytes gzip, limit is ${route.limit}`,
+      `${route.id} is ${bytes} bytes gzip, more than 25% over the ${route.limit} target (hard limit ${hardLimit})`,
     );
     failed = true;
+  } else if (bytes > route.limit) {
+    console.warn(
+      `BUDGET WARN ${route.id} is ${bytes} bytes gzip, over the ${route.limit} target (record it in the log; fails above ${hardLimit})`,
+    );
   }
 }
 
