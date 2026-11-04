@@ -192,3 +192,59 @@ Acceptance (secrets redacted; `pnpm wrangler kv key get` needs the key before `-
 Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Set real `FOOTBALL_DATA_API_TOKEN` on preview when coordinator supplies it; T04 owns hooks and shell (not created here).
+
+## T04 App shell and edge cache — 2026-11-04 — PASS
+
+Branch / PR: cf/T04-shell / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 55 source and config files (48 new under `src/`, 6 modified, this log) plus 260 static files. The static copy is `legacy/public` plus four woff2 files and `robots.txt`; T00 treated that kind of bulk move as outside the ~40-file cap. Pieces: 7
+Ported from: `legacy/src/app/globals.css`, `legacy/src/app/games/[id]/matchup.css`, `legacy/src/app/fonts.ts` (faces and the metrics a demo build emitted), `legacy/src/app/robots.ts`, `legacy/src/app/layout.tsx`, `legacy/src/app/error.tsx`, `legacy/src/app/not-found.tsx`, `legacy/src/lib/store.ts`, `legacy/next.config.ts` redirects, and the shell components named in the plan (`app-shell`, language, clock, tour, refresh, band height, demo stamp, breadcrumb, fast links, navigation preview, route error, and the listed `ui/` primitives). Match chrome, scorebug, status ribbon, and the bet-slip skeleton came along because the navigation preview renders them.
+Deviations from legacy:
+
+- Spanish strings are passed from `+layout.server.ts` only when `locals.locale` is `es`, then registered before the first child render. Legacy loaded them with a client `import()`. A dynamic import here either raced hydration or needed Svelte's experimental async mode.
+- `refresh-visible-page` also skips 2g/3g (`effectiveType`), which the plan asks for. Legacy's refresh only checked `saveData`.
+- The `tz` cookie is kept only when `viewerZone(cookie) === cookie`, so an invalid cookie falls through to `request.cf.timezone` before UTC.
+- Button `asChild` is an `href` prop. Submit pending state follows the form's submit event, `afterNavigate`, and the page snapshot.
+- The request clock lives in `clock.svelte.ts`. A module named `request-clock.svelte.ts` resolves as the `request-clock.svelte` component.
+
+Deviations from the plan:
+
+- Cache-key segments for version, locale, zone, and sport are `encodeURIComponent`'d so an IANA zone with a slash stays one path segment. The key is still `https://cache.matchday.internal/v{version}/{locale}/{zone}/{sport}{pathname}?{sorted query}`.
+- Eligibility and the cache key use the original `request.url`. SvelteKit 3 strips `/__data.json` (and `.html__data.json`) before `handle`, so `event.url` would store the HTML and the data request on the same key.
+- A route opts out of storage with `Cache-Control` containing `private` or `no-store`, or with `x-mp-opt-out: 1`. `/api` responses are returned untouched.
+- `resolve()` only types routes that exist in this build (`/` and `/api/health`). Shell links pass the pathname through `asRoute()` and then `resolve()`, so the base path is still applied. Runtime receives the real path.
+- Generated `node_modules/$app/tsconfig.json` has empty `paths` (kit fills those from the deprecated `alias` option, not `package.json` `imports`). `tsconfig.json` maps `#lib/*` so `svelte-check` can see it.
+- Prettier rewrote the fallback `line-gap-override` from `0.0%` to `0%`.
+- Node on this machine is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+
+Acceptance:
+
+1. `pnpm check` → `CHECK OK 8bfd5d3` and `/ 54488` (limit 61440). `/games/[id]` n/a. `scripts/check-ok.mjs` prints the current HEAD short sha, so a re-run on this commit prints this commit.
+2. `pnpm preview:cf` (wrangler dev --env preview), then:
+   - `curl -sD- -o /dev/null http://localhost:8787/` → `x-mp-cache: MISS`, `x-mp-version: 0`, `cache-control: public, max-age=0, must-revalidate`.
+   - The same command again → `x-mp-cache: HIT` and the same browser `cache-control`.
+   - `curl -sD- -o /dev/null -H 'Cookie: better-auth.session_token=x' http://localhost:8787/` → `x-mp-cache: BYPASS`, `cache-control: private, no-cache`.
+   - `curl -sD- -o /dev/null -H 'Cookie: locale=es' http://localhost:8787/` after the English hit → `x-mp-cache: MISS`.
+   - `curl -sD- -o /dev/null http://localhost:8787/api/health` → `cache-control: no-store` and no `x-mp-cache`.
+   - `curl -sD- -o /dev/null 'http://localhost:8787/bets?x=1'` → `308`, `location: /you?x=1`.
+3. Code paths in `src/lib/server/edge-cache.ts`, applied from `src/hooks.server.ts`:
+   - Session cookie: `hasSessionCookie` sees `better-auth.session_token` or `__Secure-better-auth.session_token`. `isCacheableRequest` returns false, so the hook does not call `cache.match` or `cache.put` and decorates the rendered response `BYPASS` with `private, no-cache` when `signedIn`.
+   - `Set-Cookie`: `isStorableResponse` returns false, so the hook does not `cache.put`. The response is `BYPASS`.
+   - Any other path: `isAllowlisted` is false, `isCacheableRequest` returns false, and the hook returns `BYPASS` without storing. `/api` and `/api/*` are returned before that decoration, which is why health keeps `no-store` and has no `x-mp-cache`.
+4. `pnpm deploy:preview` → https://matchday-preview.jolyyjhon.workers.dev version `c0bdf982-380a-41f7-80d2-fa42b4cc4df8`. Headless Chrome (`/usr/bin/google-chrome`, CDP `getBoundingClientRect`) compared that `/` with https://plan-bet.vercel.app at 320, 390, and 1280 in English and Spanish (`locale=es`). Header, bottom nav, and footer box matched within 0 px. Shared numbers: topbar `y=0 h=73`; mobile nav at 320 and 390 `y=724 h=76` (padding `5.6px 5.6px 0px 5.6px`); nav at 1280 `display:none` and `0×0`. Footer heights: 320 en 197.48, 320 es 241.48, 390 en 179.25, 390 es 197.48, 1280 en/es 161.02. Footer padding `16px 16px 81.7812px 16px` on phones and `16px 32px 81.7812px 32px` at 1280. Footer document `y` differs because the board is not in this ticket; the footer box does not. One natural pass at 1280 English showed production width 1265 and preview 1280: the live board makes the document scroll and the placeholder does not. Forcing `overflow-y: scroll` on both made both widths 1265. The tour bar was present on both sites in every cell.
+5. No `console.error` and no runtime exception on `/` in either language, on production or the preview.
+
+Budgets touched: `/` first-load JS gzip 54488 bytes (limit 61440). `/games/[id]` n/a.
+Review: gate CHECK OK 8bfd5d3 before commit; verifier, auditor, agent review, and bugbot not run (coordinator).
+FOLLOWUPS: none
+
+Round 2 (coordinator review, one MAJOR): SvelteKit's data endpoint always sends `cache-control: private, no-store`. `isStorableResponse` treated that as an opt-out, so every `/__data.json` request was `BYPASS` and never stored. Data requests now ignore that default. A data request opts out only with `x-mp-opt-out: 1`. HTML still opts out on `private` or `no-store`. Session cookie, `Set-Cookie`, non-200, and non-allowlisted paths are unchanged.
+
+Round 2 gate: `pnpm check` → `CHECK OK 5592dfa` and `/ 54488` (limit 61440). That sha is HEAD before this commit.
+
+Round 2 acceptance, fresh `pnpm preview:cf` after the rebuild:
+
+- `curl -sD- -o /dev/null 'http://localhost:8787/__data.json?x-sveltekit-invalidated=01'` → `x-mp-cache: MISS`, `cache-control: public, max-age=0, must-revalidate`.
+- The same command again → `x-mp-cache: HIT` (and `cf-cache-status: HIT`).
+- The same URL with `-H 'Cookie: better-auth.session_token=x'` → `x-mp-cache: BYPASS`, `cache-control: private, no-cache`, no `cf-cache-status` (not served from the stored data response).
+- HTML `/` → `MISS` then `HIT`, both `public, max-age=0, must-revalidate`, with `x-mp-version: 0`. Session cookie on `/` → `BYPASS`, `private, no-cache`. `Cookie: locale=es` → `MISS`. `/api/health` → `cache-control: no-store` and no `x-mp-cache`. `/bets?x=1` → `308`, `location: /you?x=1`.

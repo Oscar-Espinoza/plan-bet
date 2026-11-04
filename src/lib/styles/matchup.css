@@ -1,0 +1,1551 @@
+/*
+ * The matchup page, and only the matchup page.
+ *
+ * This file holds this page's layout only — the visual language (colour,
+ * type, motion) lives in globals.css. A rule in this file that
+ * re-declares what a global class already says is a bug, not a page-scoped
+ * override: shared primitives (.panel, .field, .button, and the rest) are
+ * styled by their global rule alone. What's left under `.mp`/`.mp-*` is
+ * genuinely matchup-only structure — the scorebug, the context blocks, the
+ * skeleton and empty states.
+ */
+
+.mp {
+  /* Per-team club colour, set inline by scorebug.tsx. Not a palette token. */
+  --mp-club: var(--rule-strong);
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mp :is(h1, h2, h3, p, ul, ol) {
+  margin: 0;
+}
+
+/* ---------- scorebug ---------- */
+
+.mp-comp {
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--faint);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.mp-comp-stage {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+.mp-sides {
+  flex-direction: column;
+  padding: 16px 0 4px;
+}
+
+.mp-side {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  padding-left: 12px;
+  border-left: 4px solid transparent;
+}
+
+/* The stripe is the one place a club colour is taken straight from canonical
+   team data rather than the derived accent: it is a block, not text, so it
+   needs no contrast pairing. */
+.mp-side[data-tracked] {
+  border-left-color: var(--mp-club);
+}
+
+/* Name and crest sit on one line, the crest at the size it is legible and no
+   larger — this page is about the fixture, not the badge. */
+.mp-side-team {
+  grid-column: 1;
+}
+
+.mp-side-team .team-logo {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+}
+
+.mp-side-label {
+  grid-column: 1;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.mp-side-name {
+  grid-column: 1;
+  font-variation-settings: "wdth" 118;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.mp-side-score {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-family: var(--font-mono);
+  font-size: clamp(2.25rem, 13vw, 4rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The divider carries the "v" so the two names sit as one block rather than
+   three stacked rows with a word wedged between them. */
+/* The divider carries the "V" so the two names sit as one block. The rule
+   starts *after* the letter rather than running under it: the old knockout
+   painted a --slat chip over the line, which reads as a solid box now that
+   there is artwork behind the panel. */
+
+.mp-aftermath {
+  padding-left: 15px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.mp-clock-label {
+  font-weight: 700;
+}
+
+.mp-clock-figure {
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  /* The clock reserves its own height so a 1s tick never reflows the page,
+     and so the pre-hydration render leaves a hole the right shape. */
+}
+
+.mp-when {
+  padding-left: 15px;
+  font-family: var(--font-mono);
+}
+
+.mp-venue {
+  color: var(--faint);
+}
+
+/* Everything in the scorebug sits above the playing surface and its scrim;
+   .mp-bug-scrim is z-index 2 in globals.css, so this is 3. */
+
+/* ---------- ribbon ---------- */
+
+.mp-ribbon {
+  padding: 9px 16px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  background: var(--slat-raised);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.mp-ribbon[data-status="live"] {
+  background: var(--club);
+  border-color: var(--club);
+  color: var(--club-on);
+}
+
+.mp-ribbon[data-status="postponed"],
+.mp-ribbon[data-status="cancelled"] {
+  color: var(--clay);
+  border-color: var(--clay);
+}
+
+/* ---------- layout ---------- */
+
+.mp-action {
+  min-width: 0;
+}
+
+/* ---------- context blocks ---------- */
+
+.mp-blocks {
+  /* A label on the far left and a figure on the far right of a 1400px window
+     is a long trip for the eye; the block keeps a readable measure whatever
+     the window does. */
+  max-width: 46rem;
+  flex-direction: column;
+}
+
+.mp-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.mp-block-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.mp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  font-size: var(--text-sm);
+}
+
+.mp-row-vs {
+  /* The columns take what the figures need — a season record is wider than a
+     league position — and the label gives way first. */
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(4rem, max-content));
+}
+
+.mp-row-label {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.mp-row-value,
+.mp-row-home,
+.mp-row-away {
+  text-align: right;
+  color: var(--chalk);
+  overflow-wrap: anywhere;
+}
+
+.mp-row :is([data-mono]),
+.mp-row-vs :is(.mp-row-home, .mp-row-away) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-row-heads {
+  border-bottom-color: transparent;
+  padding-bottom: 2px;
+}
+
+.mp-row-heads :is(.mp-row-home, .mp-row-away) {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--faint);
+  font-family: var(--font-display);
+  /* Two long club names in 5.5rem columns: clip rather than wrap, so the
+     figures under them stay on one baseline. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-row-note {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.mp-form {
+  display: inline-flex;
+  gap: 3px;
+  justify-content: flex-end;
+}
+
+.mp-form b {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+}
+
+.mp-deeper {
+  margin-top: 4px;
+}
+
+.mp-deeper > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 0;
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.mp-deeper > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mp-deeper > summary::after {
+  content: " +";
+  font-family: var(--font-mono);
+}
+
+.mp-deeper[open] > summary::after {
+  content: " −";
+}
+
+.mp-deeper > summary:hover,
+.mp-deeper > summary:focus-visible {
+  color: var(--club-lit);
+}
+
+.mp-deeper .mp-row {
+  font-size: var(--text-xs);
+}
+
+/* Exact score, entered rather than hunted for: two figures the reader types,
+   resolved against the same 16 published selections as before. */
+.mp-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--rule);
+  background: var(--slat-raised);
+  padding: 12px;
+}
+
+.mp-score-team {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mp-score-team span {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-score input {
+  width: 100%;
+  min-height: 52px;
+  background: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-score input:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 1px;
+}
+
+.mp-score-dash {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  align-self: end;
+  padding-bottom: 14px;
+}
+
+.mp-score-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--chalk);
+  grid-column: 1 / -1;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.mp-score-price[data-unpriced] {
+  color: var(--faint);
+}
+
+/* ---------- the quiet social layer ---------- */
+
+.mp-aside {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+
+.mp-aside > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: var(--faint);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.mp-aside > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mp-aside > summary::after {
+  content: " +";
+  font-family: var(--font-mono);
+}
+
+.mp-aside[open] > summary::after {
+  content: " −";
+}
+
+.mp-aside > summary:hover,
+.mp-aside > summary:focus-visible {
+  color: var(--club-lit);
+}
+
+/* ---------- desktop ---------- */
+
+@media (min-width: 1100px) {
+  .mp-action {
+    order: 2;
+    position: sticky;
+    top: 20px;
+  }
+
+  .mp-sides {
+    padding-top: 20px;
+  }
+}
+
+/* ---------- loading, empty and error ---------- */
+
+/* The game's 404 and error states sit in the full-bleed .mp on a phone, so
+   they carry the page gutter themselves. */
+.mp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 60vh;
+  justify-content: center;
+  max-width: 34rem;
+  padding-inline: var(--gutter);
+}
+
+.mp-empty-eyebrow {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  color: var(--faint);
+}
+
+.mp-empty-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 9vw, 3.25rem);
+  font-variation-settings: "wdth" 118;
+  font-weight: 800;
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+.mp-empty-copy {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.mp-empty a:not(.button) {
+  color: var(--club-lit);
+}
+
+/* ---------- the comment form ---------- */
+
+/* No global counterpart: a bare <form> (not .side-form itself) only ever
+   appears here, nested in the aside's disclosure. Scoped to .mp-aside rather
+   than deleted outright — matchup-specific layout, not a duplicate. */
+.mp-aside form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mp-aside textarea.field {
+  min-height: 5.5rem;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.mp-aside .side-form {
+  padding-top: 12px;
+}
+
+/* Mobile reference migration ------------------------------------------------ */
+
+.mp {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  color: var(--chalk);
+}
+
+.mp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 2px 0 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.mp-bug {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 216px;
+  padding: 24px 14px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgb(7 17 26 / 48%), rgb(7 17 26 / 88%)),
+    url("/assets/night-stadium-800.webp") center 59% / cover;
+}
+
+@media (min-width: 1024px) {
+  .mp-bug {
+    background-image:
+      linear-gradient(180deg, rgb(7 17 26 / 48%), rgb(7 17 26 / 88%)),
+      url("/assets/night-stadium.webp");
+  }
+}
+
+.mp-bug-scrim {
+  display: none;
+}
+
+.mp-status-pill {
+  display: table;
+  min-width: 104px;
+  margin: 0 auto 9px;
+  padding: 4px 13px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: rgb(7 17 26 / 78%);
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mp-comp {
+  display: none;
+}
+
+.mp-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.mp-side {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+}
+
+.mp-side[data-tracked] {
+  border: 0;
+}
+
+.mp-side-label {
+  display: none;
+}
+
+.mp-side-team {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.mp-side .team-logo {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+}
+
+.mp-side .team-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mp-side-name {
+  max-width: 132px;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-size: clamp(0.86rem, 4vw, 1rem);
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mp-scoreline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
+
+.mp-scoreline strong {
+  font-size: clamp(2rem, 10vw, 3rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.mp-aftermath,
+.mp-clock {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.mp-clock {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mp-clock-label {
+  font-size: 0.72rem;
+}
+
+.mp-clock-figure {
+  font-family: var(--font-mono);
+}
+
+.mp-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px 10px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+/* Equal tabs while they fit; a Spanish or zoomed tablist scrolls sideways
+   instead of breaking a label mid-word. */
+.mp-tabs {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--rule);
+  background: var(--slat-muted);
+  scrollbar-width: none;
+}
+
+.mp-tabs button {
+  position: relative;
+  flex: 1 0 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mp-tabs button[aria-selected="true"] {
+  color: var(--club);
+  font-weight: 600;
+}
+
+.mp-tabs button[aria-selected="true"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  left: 10px;
+  height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--club);
+  content: "";
+}
+
+.mp-tab-panel {
+  padding: 14px 0 4px;
+}
+
+.mp-overview {
+  display: grid;
+  gap: 14px;
+}
+
+.mp-overview > .mp-ribbon[data-status="finished"] {
+  display: none;
+}
+
+.match-result-banner,
+.match-empty {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 74px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--slat-raised), var(--slat));
+}
+
+.match-result-banner > svg,
+.match-empty > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  flex: 0 0 34px;
+  color: var(--club);
+}
+
+.match-result-banner p,
+.match-empty p {
+  margin: 0;
+}
+
+.match-result-banner strong,
+.match-result-banner span,
+.match-empty strong,
+.match-empty p {
+  display: block;
+}
+
+.match-result-banner strong,
+.match-empty strong {
+  color: var(--chalk);
+  font-size: 0.96rem;
+}
+
+.match-result-banner span,
+.match-empty p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* `clip`, not `hidden`: it rounds the corners without making the panel a
+   scroll container, which would stop the sticky .bet-bar from sticking. */
+.wager-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  margin-inline: 0;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgb(20 33 45 / 94%), rgb(11 22 31 / 94%));
+}
+
+.wager-panel > .panel-header {
+  border: 0;
+}
+
+.wager-panel .panel-title {
+  color: var(--club);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.wager-panel .panel-purpose {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.wager-panel > .selection-grid {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+
+/* Markets sit directly on the slip; only the choices are raised surfaces. */
+.wager-panel .selection-market + .selection-market {
+  margin-top: 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.wager-panel .selection-market .field-label {
+  display: block;
+  margin-bottom: 0.65rem;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+
+.wager-panel .selection-row {
+  display: flex;
+  gap: 0.55rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.wager-panel .selection-button {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 5rem;
+  gap: 0.65rem;
+  padding: 0.75rem 0.65rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0.65rem;
+  background: linear-gradient(145deg, #1b2c3a, #12212d);
+  color: var(--chalk);
+}
+
+.wager-panel .selection-button span:first-child {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* A price is money: chalk until it is the armed selection (DESIGN.md keeps
+   lime for the selected price only). */
+.wager-panel .selection-button span:last-child {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--chalk);
+}
+
+@media (hover: hover) {
+  .wager-panel .selection-button:hover {
+    border-color: var(--club);
+    background: #21362d;
+  }
+}
+
+.wager-panel .selection-button:focus-visible,
+.wager-panel .mp-score input:focus-visible {
+  outline: 0.15rem solid var(--club);
+  outline-offset: 0.2rem;
+}
+
+.wager-panel .selection-button-active,
+.wager-panel .selection-button-active:hover {
+  border-color: var(--club);
+  background: var(--club);
+  color: var(--club-on);
+}
+
+.wager-panel .selection-button-active span {
+  color: var(--club-on);
+}
+
+.wager-panel .selection-button-active::after {
+  content: "";
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.9rem;
+  width: 0.4rem;
+  height: 0.65rem;
+  border-right: 0.12rem solid currentColor;
+  border-bottom: 0.12rem solid currentColor;
+  transform: rotate(45deg);
+}
+
+.wager-panel > .panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 1.1rem 1rem;
+}
+
+.wager-panel > .panel-header > div {
+  display: contents;
+}
+.wager-panel .panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: 0.035em;
+}
+.bet-ticket-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+.wager-panel .bet-balance {
+  grid-column: 2;
+  grid-row: 1;
+  gap: 0.25rem;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+.wager-panel .bet-balance small {
+  font-size: 0.6rem;
+}
+.wager-panel .panel-purpose {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.wager-panel .mp-score {
+  margin: 0;
+  padding: 0;
+  gap: 0.65rem;
+  border: 0;
+  background: transparent;
+  align-items: end;
+}
+
+.wager-panel .mp-score-team {
+  gap: 0.6rem;
+}
+.wager-panel .mp-score-team span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.wager-panel .mp-score input {
+  min-height: 3.5rem;
+  border-radius: 0.65rem;
+  background: var(--slat-muted);
+  font-size: 1.5rem;
+}
+.wager-panel .mp-score-dash {
+  padding-bottom: 1rem;
+}
+.wager-panel .mp-score-price {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+/* ---------- the bet bar ---------- */
+
+/* Pinned to the bottom of the scroll area while the slip is on screen, above
+   the tour bar when that is showing. Opaque, with a shadow up, so the markets
+   scrolling under it stay readable. */
+.bet-bar {
+  position: sticky;
+  bottom: var(--tour-h);
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--rule-strong);
+  background: var(--slat-muted);
+  box-shadow: 0 -12px 24px rgb(0 0 0 / 35%);
+}
+
+.bet-bar .wager-feedback:empty {
+  display: none;
+}
+
+.bet-bar-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bet-bar-pick > span {
+  display: grid;
+  min-width: 0;
+}
+
+.bet-bar-pick strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.bet-bar-pick small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.bet-bar-pick b {
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-bar-stake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 16px;
+}
+
+.bet-bar-stake > .field {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 48px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-bar-returns {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  justify-items: end;
+  align-content: end;
+}
+
+.bet-bar-returns .field-label {
+  margin-bottom: 2px;
+}
+
+.bet-bar-place {
+  min-height: 52px;
+}
+
+.bet-bar-returns small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.bet-confirmation {
+  display: grid;
+  gap: 8px;
+  outline-offset: -2px;
+}
+
+.mp-blocks {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.mp-block {
+  padding: 14px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+}
+
+.mp-block-title {
+  margin: 0 0 10px;
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mp-block-title::before {
+  display: inline-block;
+  width: 4px;
+  height: 15px;
+  margin-right: 9px;
+  background: var(--club);
+  content: "";
+  vertical-align: -2px;
+}
+
+.mp-row {
+  min-height: 42px;
+  padding: 8px 0;
+  border-top: 1px solid rgb(42 57 72 / 60%);
+}
+
+/* A draw: a raised chip with muted text (chalk on --faint was 3.4:1). */
+.mp-form b {
+  min-width: 27px;
+  min-height: 27px;
+  border-radius: 4px;
+  background: var(--slat-raised);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.mp-form b[data-result="W"] {
+  background: var(--field);
+  color: #06130d;
+}
+
+.mp-form b[data-result="L"] {
+  background: var(--clay);
+  color: #200509;
+}
+
+.match-empty {
+  margin-top: 2px;
+}
+
+@media (max-width: 639px) {
+  .mp {
+    margin-inline: calc(-1 * var(--gutter));
+    width: calc(100% + 2 * var(--gutter));
+  }
+
+  /* `.mp .mp-breadcrumb`: `.mp :is(p)` zeroes margins at higher
+     specificity. Breadcrumb, block titles and rows all start at the gutter,
+     the same line as the brand in the topbar. */
+  .mp .mp-breadcrumb,
+  .mp-tab-panel {
+    margin-inline: var(--gutter);
+  }
+
+  .mp-bug {
+    margin-inline: 0;
+    border-inline: 0;
+  }
+
+  .mp-tabs {
+    padding-inline: 2px;
+  }
+}
+
+@media (min-width: 900px) {
+  .mp-tab-panel {
+    padding-top: 20px;
+  }
+
+  .mp-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+    align-items: start;
+  }
+
+  .mp-overview .match-result-banner,
+  .mp-overview .mp-blocks {
+    grid-column: 1;
+  }
+
+  .mp-overview .mp-action {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}
+
+.mp-clock {
+  flex-direction: row;
+  margin-top: 8px;
+  padding: 0;
+  border-top: 0;
+}
+
+.mp-clock-label {
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mp-clock-figure {
+  min-height: 0;
+  color: var(--club);
+  font-size: 0.9rem;
+}
+
+.wager-panel .side-form {
+  padding: 12px 16px 16px;
+}
+
+.wager-panel .side-form .button {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--club);
+  color: var(--club-on);
+  font-weight: 700;
+}
+
+/* Discussion is a reading surface, separate from the betting controls. */
+.mp-overview > .group-discussion {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.group-discussion > h2 {
+  margin: 0.5rem 0 1rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--chalk);
+}
+.discussion-group {
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--slat-muted);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+.discussion-group-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.discussion-group-heading h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.discussion-group-heading > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.discussion-thread + .discussion-thread {
+  border-top: 1px solid var(--rule);
+}
+.discussion-comment {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.7rem;
+  padding: 1rem;
+}
+.discussion-avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--slat-raised);
+  border: 1px solid var(--rule-strong);
+  color: var(--club);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.discussion-message {
+  min-width: 0;
+}
+.discussion-author {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+}
+.discussion-author strong {
+  color: var(--chalk);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.discussion-author time {
+  font-family: var(--font-body);
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+.discussion-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+.discussion-phase {
+  border: 1px solid var(--rule);
+  border-radius: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  color: var(--muted);
+}
+.discussion-phase[data-phase="after"] {
+  color: var(--field);
+}
+.discussion-group .discussion-body {
+  margin: 0.65rem 0 0.25rem;
+  font-family: var(--font-body);
+  color: var(--chalk);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.discussion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+}
+.discussion-actions button,
+.discussion-expand,
+.discussion-reply-target button {
+  min-height: 2.75rem;
+  border: 0;
+  padding: 0.3rem 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+}
+.discussion-actions button:hover:not(:disabled),
+.discussion-reply-target button {
+  color: var(--club);
+}
+.discussion-actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.discussion-pin {
+  color: var(--club);
+  font-size: 0.7rem;
+}
+.discussion-expand {
+  margin-inline: 1rem;
+  color: var(--club);
+  font-weight: 600;
+}
+.discussion-replies {
+  margin: 0 0.75rem 0.75rem 1.25rem;
+  border-inline-start: 0.15rem solid var(--rule-strong);
+  background: var(--slat);
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.discussion-replies .discussion-comment {
+  padding: 0.85rem 0.65rem;
+  grid-template-columns: 1.65rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+.discussion-replies .discussion-avatar {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 0.65rem;
+}
+.discussion-replies > div + div {
+  border-top: 1px solid var(--rule);
+}
+.discussion-composer {
+  border-top: 1px solid var(--rule);
+  padding: 1rem;
+}
+.discussion-group .discussion-rule,
+.discussion-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: left;
+  margin: 0 0 0.85rem;
+}
+.discussion-empty {
+  padding: 1rem;
+  margin: 0;
+}
+.discussion-composer > p[role="status"] {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.discussion-composer form {
+  display: grid;
+  gap: 0.75rem;
+}
+.discussion-composer-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.discussion-composer-heading > span {
+  font-size: 0.75rem;
+  color: var(--club);
+}
+.discussion-composer textarea.field {
+  min-height: 7rem;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.discussion-reply-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.discussion-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+.discussion-compose-actions > span {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.personal-wager {
+  display: grid;
+  gap: 0.6rem;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.personal-wager-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+.personal-wager-heading strong {
+  overflow-wrap: anywhere;
+}
+.personal-wager-heading .status-tag {
+  flex-shrink: 0;
+}
+.personal-wager dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+.personal-wager dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.personal-wager dd {
+  margin: 0.25rem 0 0;
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+.personal-wager > time {
+  color: var(--faint);
+  font-size: 0.7rem;
+}
+.mp-tabs button {
+  padding: 0.8rem 0.3rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  min-height: 3rem;
+}
+.wager-panel > .mp-aside {
+  order: 6;
+  margin: 0 1rem 1rem;
+}
+@media (max-width: 639px) {
+  .mp-overview {
+    gap: 1rem;
+  }
+  .mp-overview > * {
+    min-width: 0;
+  }
+  .mp-breadcrumb {
+    padding-block: 0.75rem;
+  }
+}
+
+/* Market filters keep the expanded catalogue usable on a phone. */
+.market-filters {
+  display: flex;
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+.market-filters button {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 2rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.market-filters button[aria-pressed="true"] {
+  background: var(--club);
+  color: var(--club-on);
+  border-color: var(--club);
+  font-weight: 700;
+}
+.market-filters button:focus-visible {
+  outline: 0.15rem solid var(--club);
+  outline-offset: 0.15rem;
+}
+.wager-panel .selection-market[hidden] {
+  display: none;
+}
+
+/* Skeletons retain the real card's typography, grid and spacing. Only the
+   values are covered, so loading does not resize the header or market rows. */
+.match-placeholder {
+  display: inline-block;
+  border-radius: 0.25rem;
+  background: var(--rule-strong);
+  color: transparent;
+}
+.wager-panel .selection-button span.match-placeholder {
+  color: transparent;
+}
+.match-placeholder > span {
+  visibility: hidden;
+}
+.mp-tabs button:disabled,
+.market-filters button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.match-header-skeleton .mp-side-name {
+  min-width: 7rem;
+  min-height: 2.1em;
+}
+.match-context-skeleton {
+  padding: 1rem;
+}
+.match-context-row {
+  display: flex;
+  justify-content: space-between;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--rule);
+}

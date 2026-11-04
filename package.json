@@ -26,6 +26,7 @@
     "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.66.0",
     "clsx": "2.1.1",
     "csv-parse": "7.0.3",
     "drizzle-orm": "0.45.4",
