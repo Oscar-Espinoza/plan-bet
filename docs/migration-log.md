@@ -1088,3 +1088,46 @@ Preview deltas: home FCP −0.45 s, home LCP −0.96 s, game FCP −1.49 s, game
 Budgets touched: `/` first-load JS gzip 60,706 bytes (limit 61,440). `/games/[id]` 73,032 bytes (limit 81,920).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Production Lighthouse after this deploys to the custom domain. Simulated preview FCP is still above 0.95 s; the kept change is the before/after delta above. Inlining the stylesheet gets home FCP to 0.94 s and raises home LCP, so it is not in the branch.
+
+### Round 2
+
+The coordinator asked for the inlined stylesheet to be kept, with no second CSS download, and for the script and hero-image options to be measured. Preview before is the round 1 build still on `matchday-preview` at the start of this round. Preview after is the kept build. Same Lighthouse 12 mobile command as round 1, three runs, median. Game page: `/games/football-data-575386-real-madrid`. No production deploy.
+
+`inlineStyleThreshold: 200_000` (the file is 78,795 bytes raw, 15.72 KB gzip). The service worker's precache list drops paths ending in `.css`, so install does not fetch `0.*.css`. Early Hints are still only the two stadium images. There is no stylesheet in that `Link` header.
+
+Removing the disabled `<link rel="stylesheet" disabled media="(max-width: 0)">` was measured and not kept. Vite's preload helper treats a `rel="stylesheet"` with that href as already loaded. Without the marker it injects a real stylesheet and waits for it. That run still transferred 18,417 bytes of CSS (home median FCP 0.96 s, LCP 1.61 s; game FCP 0.99 s, LCP 2.99 s). A local Chrome load of a disabled stylesheet with `media="(max-width: 0)"` did not request the file. With the marker left in place, Lighthouse stylesheet transfer is 0 on every kept run.
+
+| Page | Metric       | Old site | Preview before | Preview after |
+| ---- | ------------ | -------: | -------------: | ------------: |
+| `/`  | Score        |       93 |            100 |           100 |
+| `/`  | FCP          |   0.95 s |         1.08 s |        0.95 s |
+| `/`  | LCP          |   3.20 s |         1.60 s |        1.52 s |
+| `/`  | TBT          |          |           3 ms |          4 ms |
+| `/`  | JS transfer  |   262 KB |      105,489 B |     104,461 B |
+| `/`  | CSS transfer |          |       18,419 B |           0 B |
+| `/`  | Total bytes  |   505 KB |      294,425 B |     291,373 B |
+| `/`  | TTFB         |   307 ms |          79 ms |        142 ms |
+| `/`  | CLS          |          |         0.0007 |        0.0009 |
+| game | Score        |       93 |             97 |            98 |
+| game | FCP          |   0.95 s |         1.10 s |        0.96 s |
+| game | LCP          |   3.20 s |         2.60 s |        2.30 s |
+| game | TBT          |          |           0 ms |          0 ms |
+| game | JS transfer  |   262 KB |       99,313 B |      99,269 B |
+| game | CSS transfer |          |       18,410 B |           0 B |
+| game | Total bytes  |   505 KB |      270,980 B |     270,306 B |
+| game | TTFB         |   307 ms |         113 ms |        415 ms |
+| game | CLS          |          |         0.0014 |        0.0013 |
+
+Home runs before: FCP 1.11 / 1.08 / 1.07, LCP 1.26 / 1.62 / 1.60. Home runs after: FCP 1.01 / 0.95 / 0.95, LCP 1.41 / 1.99 / 1.52. Game runs before: FCP 1.10 / 1.08 / 1.12, LCP 2.17 / 2.60 / 2.74. Game runs after: FCP 0.96 / 0.97 / 0.96, LCP 2.30 / 3.25 / 1.92. One game LCP run is 3.25 s. The median is 2.30 s. Observed, unthrottled FCP on the kept home runs was 378 / 219 / 171 ms (median 219). Game observed FCP was 499 / 153 / 700 ms.
+
+The 0.90 s preview target was not met. Kept medians are 0.95 s and 0.96 s. Home matches the old site's 0.95 s and does not beat it. Game is 0.01 s above it. LCP stays under 3.20 s on the median. CLS stays at the same thousandths as round 1. TBT stays at a few milliseconds. There is no render-blocking request left. The critical chain is the document itself (about 23.6 KB on the wire, the inlined CSS included).
+
+Options that were measured and not kept:
+
+- Dropping every `modulepreload` on `/` and the game page. The entry script still loaded its imports. Home median FCP 0.97 s (worse than 0.95 s), LCP 1.46 s, TBT 8 ms. Game FCP 0.96 s, LCP 1.76 s, TBT 0 ms. FCP did not fall, so the low-priority hints stay. Game LCP was better without them. Both LCPs are under 3.20 s.
+- Hero AVIF preload removed, on that no-modulepreload build. The 11 KB `night-stadium-800.avif` still downloaded, because it is the CSS background of `section.next-up`, and it started after the document finished. Home FCP 1.01 s, LCP 1.53 s. Game FCP 0.96 s, LCP 1.37 s. Home LCP and FCP were both worse than with the preload, so the preload stays.
+- The 39 KB chunk is `MtBGoXOY.js` (101.32 KB, gzip 37.34 KB). The manifest calls it `navigation`. The file is the Svelte client runtime, and every route node imports it. `build.rolldownOptions.output.codeSplitting.minSize: 6000` does nothing: Vite warns that `minSize` without `groups` is ignored. Splitting the runtime would not take it off the hydration import graph. It was not split.
+
+Kept preview version `801b6ad3-b464-4261-960f-f674f5c63bbc` (the measured document was `02a2d920-3487-4bd0-833f-f3309fe7d55f`, same HTML: one `<style>`, the disabled stylesheet link, six modulepreloads on `/`, stadium preload, no font preload). `pnpm check` → `CHECK OK 882a0e9`. Budgets unchanged: `/` 60,706 gzip (limit 61,440), `/games/[id]` 73,032 (limit 81,920).
+
+Files this round: `vite.config.ts`, `src/service-worker.ts`, `src/lib/server/optimize-head.ts`, and this log.

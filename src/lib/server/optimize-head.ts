@@ -1,4 +1,9 @@
-/** Reorder `<head>` so CSS is discovered before modulepreload hints; trim `/` modulepreloads. */
+/**
+ * Reorder `<head>` so the inlined stylesheet is discovered first, and
+ * drop font preloads. `/` keeps a short modulepreload list at low
+ * priority. Dropping every modulepreload on `/` and the game page was
+ * measured and did not lower simulated FCP.
+ */
 export function optimizePageHtml(html: string, pathname: string): string {
   const headMatch = html.match(/<head([^>]*)>([\s\S]*?)<\/head>/i);
   if (!headMatch) return html;
@@ -42,9 +47,10 @@ export function optimizePageHtml(html: string, pathname: string): string {
     }
   }
 
-  // Fonts use font-display: swap, so a preload only competes with the
-  // stylesheet. Modulepreloads stay after CSS and at low priority: hydration
-  // can wait, first paint cannot.
+  // Fonts use font-display: swap, so a preload only competes with first
+  // paint. The disabled stylesheet link stays: Vite treats it as already
+  // loaded and does not inject a second, blocking request. This Chrome
+  // does not download a disabled stylesheet.
   const ordered = [
     withoutLinks.trim(),
     ...stylesheets,

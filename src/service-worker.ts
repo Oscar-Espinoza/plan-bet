@@ -21,7 +21,7 @@ function immutablePath(relative: string) {
 const IMMUTABLE: string[] = [
   ...immutable.map((entry) => immutablePath(entry.path)),
   ...assets.map((entry) => asset(entry.path)),
-];
+].filter((path) => !path.endsWith(".css"));
 
 function hasSessionCookie(request: Request) {
   const cookie = request.headers.get("cookie") ?? "";
