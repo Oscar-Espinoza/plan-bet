@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": "node .cursor/hooks/guard.mjs", "failClosed": true }
+    ],
+    "stop": [
+      { "command": "node .cursor/hooks/gate.mjs", "loop_limit": 3 }
+    ]
+  }
+}

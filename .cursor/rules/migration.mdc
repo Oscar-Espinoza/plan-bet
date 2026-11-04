@@ -1,0 +1,17 @@
+---
+description: Matchday Plan Cloudflare migration — architecture, invariants, workflow
+alwaysApply: true
+---
+- The spec is docs/cloudflare-migration-spec.md. Read the section for your ticket before planning. legacy/ is the behaviour reference and is read-only.
+- Stack: SvelteKit 3 + Svelte 5 runes on Cloudflare Workers (adapter-cloudflare 8), D1 via Drizzle sqlite, KV `PUBLIC`, Cache API, Better Auth, jobs Worker in workers/jobs. Never write Next.js, React, Vercel or Postgres code outside legacy/.
+- Layering: providers → src/lib/server/data services → routes. UI never imports provider raw types. Everything crossing a layer goes through src/lib/server/domain/contracts.ts.
+- src/lib/server/{domain,db,providers,data} must not import @sveltejs/kit, $app/*, or .svelte files (the jobs Worker bundles them).
+- Money: wagers and credit_entries are append-only; balance = ledger sum; every placement/reset/accept/quota rule is a SQL predicate inside one db.batch(), never a read before it; settlement pays once via ON CONFLICT (wager_id) WHERE kind='return' DO NOTHING; prices come from the house table server-side.
+- Fallback chain: fresh live → stale last-known-good → demo. A failed refresh never overwrites last-known-good. Missing data renders "Not provided".
+- The request path never calls a provider; it reads KV, then D1, then the seed, and asks env.JOBS to refresh in waitUntil.
+- Edge cache only for anonymous GETs on the allowlist with no Set-Cookie (spec §3.4). Never no-store on HTML.
+- Secrets live in server modules only. Missing provider/OpenAI/Resend keys must not break build or pages.
+- No zod, no server modules, no provider types in client code. Pass components only the fields they render.
+- Ticket size cap ~40 files / ~8 pieces; split at plan time. Do not add features. Do not add test frameworks; migration checks live in scripts/verify/.
+- Finish each ticket with `pnpm check` printing CHECK OK and an entry in docs/migration-log.md. Stop and log BLOCKED on any conflict with AGENTS.md product/data/money rules.
+- Never deploy without --env preview, never touch production D1/KV/secrets, never push to main or cf/main.

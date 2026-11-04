@@ -1,0 +1,14 @@
+---
+description: SvelteKit 3 / Svelte 5 conventions and design rules for routes and components
+globs: src/routes/**,src/lib/components/**,src/lib/state/**,src/**/*.svelte
+alwaysApply: false
+---
+- SvelteKit 3, not 2: `#lib` (not `$lib`); config lives in vite.config.ts's sveltekit() plugin (no svelte.config.js); `$app/env` (not `$app/environment`); `$app/state` (no `$app/stores`); `refreshAll` (not `invalidateAll`); prefer `Response.json(...)` over the deprecated `json` helper. Check https://svelte.dev/docs/kit/migrating-to-sveltekit-3/llms.txt when unsure.
+- Svelte 5 runes only: $state, $derived, $effect, $props; snippets instead of slots; onclick= attributes, not on:click.
+- DESIGN.md is the authority: one lime accent (--club) for primary action/active nav/filters/armed price; money (balances, stakes, prices, returns) is never the accent and stays chalk + DM Mono tabular. No shadows, glows or accent edges on cards/rows/buttons.
+- Edit the existing CSS rule for a selector; never append an override further down. Breakpoints 430/640/1024 only (900/1100 inside the matchup grid). --gutter and --tap tokens.
+- Keep legacy class names so globals.css/matchup.css port unchanged.
+- Check each UI change at 320–430 px and 1280 px, in English and Spanish, console clean.
+- Times: server-render in the request zone, switch to browser zone after hydration; never blank, never suppress hydration warnings.
+- Images: sized to max rendered size, row crests lazy, only hero crests eager, LCP image preloaded with fetchpriority=high.
+- Dialogs: native <dialog>, focus moves in on open and returns to the trigger on close; keyboard focus is visible after every redraw.

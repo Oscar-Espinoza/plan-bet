@@ -1,0 +1,13 @@
+version: 1
+triggers:
+  drafts: false
+  frequency: everyPush
+review:
+  effort: smart
+  smartPrompt: "Use High when the diff touches src/lib/server/data/(wagers|credits|settlement|groups|buddy-repository), src/lib/server/db, drizzle/, src/hooks.server.ts, src/lib/server/edge-cache.ts, src/lib/server/auth.ts, or scripts/migrate. Use Default otherwise."
+  incremental: true
+prSummary:
+  mode: comment
+  riskScore: true
+autofix:
+  mode: disabled

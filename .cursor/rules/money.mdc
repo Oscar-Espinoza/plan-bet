@@ -1,0 +1,14 @@
+---
+description: Ledger, wager, settlement, group-membership and quota rules
+globs: src/lib/server/data/wagers*,src/lib/server/data/credits*,src/lib/server/data/settlement*,src/lib/server/data/groups*,src/lib/server/data/buddy-repository*,src/lib/server/db/**,drizzle/**,src/routes/api/bets/**,src/routes/api/groups/**,scripts/migrate/**
+alwaysApply: false
+---
+Read docs/wagers.md and spec §3.6–3.7 before editing these files.
+- No UPDATE or DELETE on wagers or credit_entries anywhere. A reset inserts a row, even at delta 0.
+- Balance = SUM(credit_entries.amount) for the user; never stored.
+- Placement: one db.batch(); the wager INSERT…SELECT carries the balance, game availability and group membership predicates; the stake INSERT only happens if that wager id exists; ON CONFLICT (user_id, idempotency_key) DO NOTHING makes retries return the original wager with no second debit or email.
+- Price and potential return are computed server-side from the house table and frozen into the wager.
+- Settlement: terminal games only; grade with gradeSelection from the stored result alone; won → potential_return, void → stake, lost → 0; ON CONFLICT (wager_id) WHERE kind='return' DO NOTHING; one failing wager never rolls back the run; the lease closes in finally.
+- Starting grant: trigger user_starting_grant + partial unique index; never insert grants from application code.
+- Buddy quota: the claim is one conditional INSERT; no OpenAI call unless meta.changes === 1; fail closed.
+- Money sums are INTEGER; keep MAX_STAKE/INT4_MAX semantics from legacy/src/lib/markets.ts.
