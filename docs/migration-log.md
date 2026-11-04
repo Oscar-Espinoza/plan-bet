@@ -864,3 +864,20 @@ Inlined CSS **not kept**; preview redeployed without threshold.
 All samples HTTP 200/200, console errors 0/0. **Data-caused (not fixed):** game page card/scorebug stack height at 1280 (preview demo fixture / market panel content vs production); minor Spanish tab/card wrapping on `/` and sign-in card width at desktop. No port fixes applied in round 2.
 
 **5. Comments verify:** gitignored `.dev.vars` (`BETTER_AUTH_SECRET`, dummy GitHub OAuth pair, `PUBLIC_SITE_URL=http://localhost:8780`); `wrangler dev --env preview --port 8780` (stopped PID 284954) → `pnpm verify:comments` → **COMMENTS SCENARIO OK**.
+
+### Round 3 (LCP/FCP vs production) — 2026-11-04
+
+Changes (`79db5db`, preview `1a230557-6db3-4e85-b8f5-5bc8a7cb9e1e`):
+
+- `optimizePageHtml()` in `hooks.server.ts`: stylesheet before modulepreloads; `/` modulepreloads capped to 6 (entry start/app/payload, nodes 0+4, one runtime chunk). Was ~27 modulepreloads.
+- `build.rolldownOptions.output.codeSplitting.minSize: 6000` to merge tiny chunks (`/` JS gzip 60573 B, still ≤ 61440).
+- Early Hints + `<head>`: stadium **AVIF only**, with `media="(max-width: 1023px)"` / `(min-width: 1024px)` (no desktop WebP on phones).
+
+**Lighthouse 12 mobile ×3** (same command on one machine: `npx -y lighthouse@12 --chrome-path=/usr/bin/google-chrome --chrome-flags='--headless=new --no-sandbox' --only-categories=performance --form-factor=mobile`), median:
+
+| Site           | Perf | FCP (s) | LCP (s) | JS transfer (B) |
+| -------------- | ---: | ------: | ------: | --------------: |
+| Preview `/`    |   91 |    1.51 |    2.56 |          104181 |
+| Production `/` |   93 |    0.95 |    3.20 |          262074 |
+
+Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview **LCP beats production** (2.56 < 3.20). **FCP** median **1.51 s** is still above production **0.95 s** (variance: one preview run hit FCP 1.10 / LCP 1.85). `pnpm check` → **CHECK OK 79db5db**.
