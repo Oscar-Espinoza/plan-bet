@@ -10,18 +10,19 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 
 ## Builder scorecard
 
-| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome        | Wall time                                                           | Cost     |
-| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | -------------- | ------------------------------------------------------------------- | -------- |
-| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS           | 21.5 min                                                            | included |
-| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 2.8 min                                                             | included |
-| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 19.8 min                                                            | included |
-| T03    | B    | Composer 2.5 | yes           | 0          | 2             | 1 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2) | 25.4 min                                                            | included |
-| T04    | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 1 / 0               | 0                | 0                 | 0             | clean   | PASS (round 2) | 43 min (process hung after committing both rounds; killed at limit) | included |
-| T05    | C    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 1 (layering)     | 0                 | 0             | clean   | PASS (round 2) | 11.2 min                                                            | included |
-| T07    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 3               | 0                | 0                 | 0             | clean   | PASS           | 10.7 min                                                            | included |
-| T06    | C    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 26.5 min (exited cleanly)                                           | included |
-| T08a   | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 3 / 4               | 0                | 0                 | 0             | clean   | PASS (round 2) | 42 min                                                              | included |
-| T09    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 5.7 min                                                             | included |
+| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome        | Wall time                                                                      | Cost     |
+| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | -------------- | ------------------------------------------------------------------------------ | -------- |
+| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS           | 21.5 min                                                                       | included |
+| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 2.8 min                                                                        | included |
+| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 19.8 min                                                                       | included |
+| T03    | B    | Composer 2.5 | yes           | 0          | 2             | 1 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2) | 25.4 min                                                                       | included |
+| T04    | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 1 / 0               | 0                | 0                 | 0             | clean   | PASS (round 2) | 43 min (process hung after committing both rounds; killed at limit)            | included |
+| T05    | C    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 1 (layering)     | 0                 | 0             | clean   | PASS (round 2) | 11.2 min                                                                       | included |
+| T07    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 3               | 0                | 0                 | 0             | clean   | PASS           | 10.7 min                                                                       | included |
+| T06    | C    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 26.5 min (exited cleanly)                                                      | included |
+| T08a   | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 3 / 4               | 0                | 0                 | 0             | clean   | PASS (round 2) | 42 min                                                                         | included |
+| T09    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 5.7 min                                                                        | included |
+| T08b   | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 65.5 min (overran the 60-min cap mid-acceptance; finished in the same session) | included |
 
 ## Coordinator notes
 
@@ -46,6 +47,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T08a review (Opus + independent Opus audit): round 1 money logic passed the audit (no ledger-corrupting sequence; every legacy lock check is a predicate in the write batch) but 3 MAJOR + 4 MINOR: the scenario never exercised the batch's game/membership predicates; a failed batch fell back to insufficient_balance with a full balance; a retry could report a rejection for a placed wager; ledger SQL blind to orphan stakes; step 8 vacuous on 0 successes; step 10 order-dependent; no totals-line round-trip. Round 2 fixed all seven, exported `commitPlacement`, and showed the script fails with the games predicate removed. Re-verified on a fresh DB: 18 PASS lines, MONEY SCENARIO OK, LEDGER INVARIANTS OK, `CHECK OK e81a5ab`. Docs follow-up for T15: `docs/wagers.md` still describes Postgres advisory locks.
 
 - T09 review (Opus): gate `CHECK OK 7221142`. Re-ran the settlement scenario on a fresh DB: run 1 settles won 19 / lost 0 / void 10 (stake back), run 2 pays nothing, the live game's wager stays open, LEDGER INVARIANTS OK. Preview: authorized `POST /api/cron/settle` 200, `/system` 200 in en and es, health `schema: current`, `pendingMigrations: 0`, `publish.version` present; overall `degraded` only because football-data has no token on the preview. Minor: the scenario's documented command (`node --experimental-strip-types`) fails on TypeScript parameter properties; it runs with `pnpm dlx tsx` — needs a `verify:settle` package script (assigned to T11). Minor: the builder wrote its own scorecard row; removed (the coordinator owns the scorecard).
+
+- T08b review (Opus): gate `CHECK OK e0e3c08`. Server changes are read-only (`listGroupsForUser`, `slip-wager.ts` reads). The slip derives potential return for display only and sends stake + price (compared server-side) with a stable idempotency key; the anonymous sign-in card now renders only when auth is configured (T06 carry-over). Builder evidence: place 10 → chip 990 and /you lists it; second Place replays (201 then 200); over-balance stake disables Place without rewriting; reset back to 1,000; money scenario + ledger OK; signed-out game page MISS→HIT with no user data in the HTML. Minor: the fixed tour bar overlaps the lower slip column (Place stays clear). Minor: `/` 69,046 B and `/games/[id]` 69,285 B gzip — `/` keeps creeping (BUDGET WARN).
 
 ## Tickets
 
@@ -558,3 +561,34 @@ curl -s https://matchday-preview.jolyyjhon.workers.dev/api/health | jq '.data.ch
 Budgets touched: `/` 68116 bytes gzip (warn). `/games/[id]` 62013.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Coordinator can POST settle on preview with the deployed secret. T10 adds invite mail; `/you` and bet slip remain T08b in another worktree.
+
+## T08b Bet slip, wagering panel and /you — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T08b-slip / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 19 under `src/` plus this log. Pieces: 5
+Ported from: `legacy/src/app/games/[id]/page.tsx` (`loadWagering`), `legacy/src/components/bet-slip.tsx`, `legacy/src/components/matchup/score-entry.tsx`, `legacy/src/app/you/page.tsx`, `legacy/src/components/bets-history.tsx`, `legacy/src/components/reset-bankroll.tsx`, `legacy/src/components/reset-bankroll-dialog.tsx`, `listGroupsForUser` in `legacy/src/data/groups-repository.ts`.
+Deviations from legacy:
+
+- The idempotency key stays after a confirmed place until the selection, price, stake, or group changes, or the user presses Done. Legacy clears the key and the armed selection on success, which hides Place. The acceptance asks for a second Place of the same intent. The API envelope is unchanged: a replay is HTTP 200 and a new place is HTTP 201. The body has no `replayed` field.
+- `listGroupsForUser` returns `{ id, name, role }` only. The slip renders id and name. T10 ports the rest of groups.
+- The placed confirmation is `position: absolute` above `.bet-bar`. In flow it grew the bar under the fixed tour, so a click on Place landed on the tour. The bar stays `position: sticky; bottom: var(--tour-h)` and `.wager-panel` stays `overflow: clip`.
+- `/you` tabs mirror `?tab=` with `history.replaceState`, as legacy does. A `goto` shallow sync looped (`effect_update_depth_exceeded`) and replaced the page with the error screen.
+- Unconfigured game pages render no sign-in card (legacy, and the T06 carry-over). T06 rendered the card anyway. The signed-out card for a configured auth setup is the T06 card. The anonymous document is not raw-byte-identical to T06 because the client bundle hash changed. It contains no balance and no wager.
+- Local preview used port 8790 (`pnpm preview:cf` and `pnpm verify:money` are hardcoded to 8787). Node is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is the parent `7a14ac3`):
+
+1. `pnpm check` → `CHECK OK 7a14ac3`. `BUDGET WARN / is 69046 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 69285` (limit 81920). A re-run after this commit prints the new sha.
+2. `pnpm exec wrangler dev --env preview --port 8790` with `.dev.vars` (`PUBLIC_SITE_URL=http://localhost:8790`). Headless Chrome (`/usr/bin/google-chrome`, puppeteer-core, script not committed) on `/games/t08b-open-yankees`, signed in with a T07-style session cookie:
+   - Place 10 on Home: confirmation `Placed 10 on Home → returns 19. New balance: 990. Done`. Chip `990`. `/you` open wager `Boston Red Sox at New York Yankees`, standing `990 credits`.
+   - Second Place, same intent: idempotency key `3ab0e2ca-6ce1-4360-9bb1-1ee278fcd23a` on both posts. Worker log: `POST /api/bets` 201 then 200. Body has no `replayed` field (status is the signal).
+   - Stake typed to `5000`: input stays `5000`, Place disabled, bar contains `Stake exceeds`.
+   - Reset from `/you` Settings: dialog focus `DIALOG`, then the trigger reads `Reset bankroll`. Chip `1,000`. Page contains `Times reset:`. D1 for `33333333-3333-4333-8333-333333333333`: `grant 1000`, `stake -10`, `reset 10`, balance `1000`. Worker log: `POST /api/bets/reset` 200.
+3. `node --experimental-strip-types scripts/verify/money-scenario.ts --base http://127.0.0.1:8790` → `MONEY SCENARIO OK` and `LEDGER INVARIANTS OK`.
+4. Signed-out `GET /games/t08b-open-yankees`: `x-mp-cache: MISS` then `HIT`, both `cache-control: public, max-age=0, must-revalidate`, bodies identical (17549 bytes). HTML has `Sign in` and `Make a bet`. It does not contain `33333333-3333-4333-8333-333333333333`, `1,000`, `990`, or `selection-button`.
+5. Local screenshots at 390 and 1280 in en and es (slip and `/you`). Spanish renders (`Haz una apuesta`, `Apuestas abiertas`, `1.000`). Production `https://plan-bet.vercel.app` has no signed-in session here, so the signed-in slip and `/you` were not compared to production. At 1280×900 and 390×844 the fixed tour bar still covers the lower part of the slip column; the Place control itself sits above the tour (hit target was `button.bet-bar-place`).
+
+Budgets touched: `/` first-load JS gzip 69046 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` first-load JS gzip 69285 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Signed-in visual parity against production waits on a session there. The tour bar still overlaps the lower slip column on a short viewport.

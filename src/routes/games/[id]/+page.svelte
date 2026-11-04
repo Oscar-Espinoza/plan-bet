@@ -1,6 +1,7 @@
 <script lang="ts">
   import GameDetail from "#lib/components/game-detail.svelte";
   import SignedOutWager from "#lib/components/matchup/signed-out-wager.svelte";
+  import WageringPanel from "#lib/components/matchup/wagering-panel.svelte";
   import StadiumPreload from "#lib/components/stadium-preload.svelte";
   import type { PageData } from "./$types";
 
@@ -18,6 +19,14 @@
     {#snippet wageringPanel()}
       {#if data.signedOut}
         <SignedOutWager routeId={data.routeId} finished={data.finished} />
+      {:else if data.wagering}
+        <WageringPanel
+          wagering={data.wagering}
+          sport={data.sport}
+          finished={data.finished}
+          home={data.home}
+          away={data.away}
+        />
       {/if}
     {/snippet}
   </GameDetail>

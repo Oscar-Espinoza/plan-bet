@@ -968,6 +968,9 @@
 .bet-bar {
   position: sticky;
   bottom: var(--tour-h);
+  /* Click and focus scroll the bar into view. Without this, that scroll
+     parks the place button under the fixed tour bar. */
+  scroll-margin-bottom: var(--tour-h);
   z-index: 2;
   display: grid;
   gap: 10px;
@@ -1044,6 +1047,7 @@
 
 .bet-bar-place {
   min-height: 52px;
+  scroll-margin-bottom: var(--tour-h);
 }
 
 .bet-bar-returns small {
@@ -1053,6 +1057,14 @@
 }
 
 .bet-confirmation {
+  /* Sits above the bar instead of growing it. Growing the bar pushes Place
+     under the fixed tour; this keeps the button where the sticky offset
+     already cleared it. */
+  position: absolute;
+  z-index: 3;
+  right: 16px;
+  bottom: calc(100% + 8px);
+  left: 16px;
   display: grid;
   gap: 8px;
   outline-offset: -2px;

@@ -1,9 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { asRoute } from "./href";
   import { useTranslation } from "./language.svelte";
   import type { Message } from "#lib/shared/locale";
 
@@ -37,30 +34,32 @@
   let active = $state(seed());
   let seenParam = $state<string | null | undefined>(undefined);
 
+  // Back/forward updates `page.url`. A click does not: the URL is mirrored
+  // with history.replaceState, same as legacy, so a tab switch never refetches.
   $effect.pre(() => {
     const param = page.url.searchParams.get("tab");
     if (seenParam === undefined) {
       seenParam = param;
       return;
     }
-    if (param !== seenParam) {
-      seenParam = param;
-      if (param && keys.includes(param)) active = param;
-    }
+    if (param === seenParam) return;
+    seenParam = param;
+    const next = param && keys.includes(param) ? param : firstKey;
+    if (active !== next) active = next;
   });
 
   $effect(() => {
-    if (seenParam === undefined) return;
-    const url = new URL(page.url.href);
-    if ((url.searchParams.get("tab") ?? firstKey) === active) return;
-    if (active === firstKey) url.searchParams.delete("tab");
-    else url.searchParams.set("tab", active);
-    seenParam = url.searchParams.get("tab");
-    void goto(resolve(asRoute(`${url.pathname}${url.search}${url.hash}`)), {
-      replace: true,
-      shallow: true,
-      state: page.state,
-    });
+    const key = active;
+    const first = firstKey;
+    const url = new URL(window.location.href);
+    if ((url.searchParams.get("tab") ?? first) === key) return;
+    if (key === first) url.searchParams.delete("tab");
+    else url.searchParams.set("tab", key);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   });
 
   function onKeydown(event: KeyboardEvent, index: number) {

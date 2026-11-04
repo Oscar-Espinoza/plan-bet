@@ -1473,7 +1473,8 @@ a {
   }
 }
 
-.alert-overlay {
+.alert-overlay,
+dialog.alert-content::backdrop {
   position: fixed;
   z-index: 80;
   inset: 0;
@@ -1486,11 +1487,13 @@ a {
   top: 50%;
   left: 50%;
   width: min(calc(100vw - 2rem), 28rem);
+  margin: 0;
   transform: translate(-50%, -50%);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-md);
   background: var(--slat-raised);
   padding: 1.25rem;
+  color: var(--chalk);
   /* Floats above the page, unlike every in-flow .panel/.mp-bug/.mp-block,
      which stay flat with a hairline border. A hairline alone doesn't read
      as "above" on a near-black ground — do not remove this for

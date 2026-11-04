@@ -1,5 +1,6 @@
 <script lang="ts">
   import Coins from "@lucide/svelte/icons/coins";
+  import { accountChip } from "#lib/state/account-chip.svelte";
   import NavigationLink from "./fast-link/navigation-link.svelte";
   import Button from "./ui/button.svelte";
   import { useTranslation } from "./language.svelte";
@@ -23,7 +24,28 @@
   }: Props = $props();
 
   const i18n = useTranslation();
-  const formattedBalance = $derived(i18n.formatNumber(balance));
+  // A placement writes here before the layout load refreshes. Once the
+  // server balance moves, drop the local number and show the ledger again.
+  let syncedServer = $state<number | undefined>(undefined);
+  $effect(() => {
+    const local = accountChip.balance;
+    if (!signedIn) {
+      if (local !== undefined) accountChip.clear();
+      return;
+    }
+    if (local === undefined) {
+      syncedServer = balance;
+      return;
+    }
+    if (balance !== syncedServer) {
+      accountChip.clear();
+      syncedServer = balance;
+    }
+  });
+  const shownBalance = $derived(
+    signedIn ? (accountChip.balance ?? balance) : balance,
+  );
+  const formattedBalance = $derived(i18n.formatNumber(shownBalance));
   const record = $derived(`${won}-${lost}`);
   const openSuffix = $derived(
     openCount > 0 ? ` · ${i18n.t("{p0} open", { p0: openCount })}` : "",
