@@ -60,6 +60,12 @@ export const GET: RequestHandler = async ({ params, url }) => {
   const headers = new Headers();
   headers.set("content-type", type);
   headers.set("cache-control", "public, max-age=2592000");
+  // Third-party SVG on our origin: never let it run script if opened directly.
+  headers.set(
+    "content-security-policy",
+    "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+  );
+  headers.set("x-content-type-options", "nosniff");
   const response = new Response(bytes, { status: 200, headers });
   if (cache) {
     const stored = response.clone();
