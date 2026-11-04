@@ -19,6 +19,7 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T04    | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 1 / 0               | 0                | 0                 | 0             | clean   | PASS (round 2) | 43 min (process hung after committing both rounds; killed at limit) | included |
 | T05    | C    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 1 (layering)     | 0                 | 0             | clean   | PASS (round 2) | 11.2 min                                                            | included |
 | T07    | A    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 3               | 0                | 0                 | 0             | clean   | PASS           | 10.7 min                                                            | included |
+| T06    | C    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 26.5 min (exited cleanly)                                           | included |
 
 ## Coordinator notes
 
@@ -37,6 +38,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T05 review (Opus): round 1 one MAJOR — the home page loader merged KV and D1 itself with a hard-coded team list (layering rule); round 2 moved it into `getCachedDashboardData()`, which now returns every configured team (KV, then D1, then seed). Minor: sport-chip no-network unverified in round 1; round 2 measured 0 requests. Baseball row geometry 0 px vs production at 320/390/1280 × en/es. `/` JS 65,072 B gzip vs 61,440 target (BUDGET WARN, decision for Oscar). Coordinator fixes made during this review: guard narrowed to the Vercel CLI (it blocked requests to plan-bet.vercel.app); budget gate warns up to 25% over and fails beyond, per spec §1.
 
 - T07 review (Opus): gate `CHECK OK 2223aa1`. Verified in Better Auth 1.7.5 source that `user.validateUserInfo` exists and that the OAuth callback passes the raw Google profile, so the `email_verified` refusal works (not an invented API). Signed-in requests bypass the edge cache; the chip reads balance, W–L and open count in one `db.batch()`. Minor: the Google check runs on account creation/linking, not on every sign-in as legacy did; during maintenance an in-flight OAuth callback (GET) can still complete; `getSession` runs on every request (cheap with the cookie cache). `requireAccount(event)` now takes the request event.
+
+- T06 review (Opus): gate `CHECK OK c1a5f27`; unknown id 404 with no provider call; upcoming baseball game pages 0 px vs production at 320/390/1280 × en/es; preview paints 8–30 ms after the board click; page and data request MISS→HIT. Minor (deferred to T08b, which owns the panel): the anonymous sign-in card renders even when auth is unconfigured, where legacy renders nothing. Not verifiable on the preview: finished games (no finished rows in preview D1). `/` JS crept to 67,755 B (BUDGET WARN); `/games/[id]` 61,594 B.
 
 ## Tickets
 
