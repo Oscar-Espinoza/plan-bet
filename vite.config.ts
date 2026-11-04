@@ -17,6 +17,11 @@ export default defineConfig({
     tailwindcss(),
     sveltekit({
       adapter: adapter(),
+      // One stylesheet, about 16 KB gzip / 79 KB raw. Inlining puts it in
+      // the document. SvelteKit still emits a disabled link so Vite does
+      // not add a second, blocking one; this Chrome does not download a
+      // disabled stylesheet. The service worker does not precache the file.
+      inlineStyleThreshold: 200_000,
       serviceWorker: {
         register: true,
       },
