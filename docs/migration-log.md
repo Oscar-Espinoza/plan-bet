@@ -341,3 +341,72 @@ Round 2 acceptance:
 
 - Headless Chrome `/tmp/t05-chip-network.mjs` on preview `/`: **0** network requests during a Baseball chip click (`replaceState` only).
 - Headless Chrome `/tmp/t05-baseball-parity.mjs`: `/?sport=baseball` game-row, `.game-time`, `.game-opponent`, `.game-chevron` **0 px** max delta vs production at 320/390/1280 × en/es (2 rows each side). Full `/` panel-title drift remains content (demo soccer on preview), unchanged from round 1.
+
+## T08a Wager placement, bankroll reset and credit reads — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T08a-money / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: `src/lib/server/data/credits.ts` (extended), `wagers.ts`, `wagers-repository.ts` (full port plus T07 open-count helpers), `groups-repository.ts` (subset), `group-notifications.ts` (`notifyGroupWagerPlaced` only), `src/routes/api/bets/+server.ts`, `src/routes/api/bets/reset/+server.ts`, `scripts/verify/money-scenario.ts`, `scripts/verify/ledger-invariants.sql`, `package.json` (`verify:money`), this log. Pieces: 5
+Ported from: `legacy/src/data/credits.ts`, `legacy/src/data/wagers.ts`, `legacy/src/data/wagers-repository.ts`, `legacy/src/app/api/bets/route.ts`, `legacy/src/app/api/bets/reset/route.ts`, `notifyGroupWagerPlaced` from `legacy/src/data/group-notifications.ts` (plus `isGroupMember`, `listNotifiableMembers`, `listGroupsByIds`)
+Deviations from legacy (planned rewrites):
+
+- No advisory lock. Every placement and reset rule that must hold at write time is a SQL predicate inside one `db.batch()`. A pre-read only chooses the message.
+- `readBalance` is the display read. `readLockedBalance` and `lockAccountBalance` are not ported. Balance is not used to accept or reject a write.
+- No React `cache()` on the summary, the open count, or record slices.
+- List order is `(created_at DESC, id DESC)`. Legacy often ordered by `created_at` only, and group activity used `id ASC`.
+- Starting grant stays the T02 trigger (`reason` `signup`). App code does not insert grants.
+- Conditional inserts use `db.insert(table).select(sql\`…\`)`. A raw `db.run` inside `db.batch()` does not bind parameters on D1. `ON CONFLICT` names bare `user_id, idempotency_key` so SQLite matches `wagers_user_idempotency_uidx`. Price, line and timestamps go through `param` so the custom types and epoch columns encode them. Import-time column-order asserts throw if the schema order drifts.
+- Group mail is `waitUntil(notifyGroupWagerPlaced(...))` from `cloudflare:workers`, only after a fresh success with a `groupId`. Replays do not send. Resend stays the existing fetch helper. Opt-out is `notify_on_activity`. Settlement and invite mail stay for T09 and T10.
+
+Where each legacy check lives:
+
+| Check | Pre-read (message) | Batch predicate (guarantee) |
+| --- | --- | --- |
+| Idempotency replay | Select the wager by `(user_id, idempotency_key)` before the batch. An existing row returns `replayed: true`. | `ON CONFLICT (user_id, idempotency_key) DO NOTHING`, then read back by the new id or by that key. A different id is `replayed: true`: no second stake, no email. NULL keys do not conflict. |
+| Group membership | `isGroupMember` → `not_a_group_member`. | `group_id` is null, or a `group_members` row exists for that user. |
+| Game exists | `readGameForWager` → `unavailable`. | The insert matches the canonical id from that read. If the row is gone after a failed insert, the post-read returns `unavailable`. |
+| Selection | `resolveSelection` → `invalid_selection`. | The house table is code. Stored market, selection, labels and price are the resolved house values. |
+| Availability | `evaluateWagerAvailability` → `closed` with the status. | `games.status = 'scheduled'` and `scheduled_at > now` and `json_extract(games.summary, '$.result')` is null. |
+| Price | Client price ≠ house price → `price_moved` with the house price. | The insert stores `param(selection.price, wagers.price)`, never the client number. |
+| Balance | Not used to accept or reject. | `coalesce(sum(amount), 0) >= stake` on the wager insert. Otherwise the post-read returns `insufficient_balance`. |
+| Stake row | — | Stake insert runs only `WHERE EXISTS` the new wager id. Amount is `-stake`, reason `wager placed`. |
+| Reset cap | None. | Count of `kind = 'reset'` rows in the last hour `< 5`. `meta.changes === 0` is `rate_limited`. |
+| Reset delta | — | Amount is `clamp(STARTING_CREDITS - balance, ±INT4_MAX)`. A reset inserts even at delta 0. |
+
+Post-batch, when nothing was inserted: membership, then a missing game (`unavailable`), then availability (`closed`), else `insufficient_balance`.
+
+Deviations from the plan:
+
+- Local SQLite allows five terms in a compound `SELECT`. `ledger-invariants.sql` is two statements of three unions each. The scenario flattens every wrangler result set.
+- Port 8787 was already held by the T06 worktree's workerd, so this run used `pnpm exec wrangler dev --env preview --port 8788` and `--base http://localhost:8788`. `pnpm verify:money` still targets `http://localhost:8787`. `.dev.vars` is present locally and gitignored (`BETTER_AUTH_SECRET`, a dummy OAuth pair, `PUBLIC_SITE_URL=http://localhost:8787`). The secret is not recorded here.
+- The scenario also checks `GET /api/bets`, a same-key race (one 201 and one 200, one stake), two placements with no idempotency key (both 201), and a member-group place (201, `groupId` set).
+
+Acceptance (`scripts/check-ok.mjs` prints HEAD short sha; a re-run after this commit prints the new sha):
+
+1. `pnpm check` → `CHECK OK 0dad1e2`. `/games/[id]` n/a. `BUDGET WARN / is 66226 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. No client route or component in this ticket; the warn is the branch after T05 and T07.
+2. Fresh `.wrangler/state`, `pnpm db:migrate:local`, then wrangler on port 8788 (see the port deviation). `node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8788` exited 0:
+
+```
+PASS 1 place
+PASS 1 list
+PASS 2 replay
+PASS 3 second key
+PASS 4 overdraw
+PASS 5 closed
+PASS 6 non-member
+PASS 7 price
+PASS 8 concurrent (10 placed, stake 98, balance 0)
+PASS 9 reset cap
+PASS 10 delta 0
+PASS same-key race
+PASS missing key
+PASS member place
+MONEY SCENARIO OK
+LEDGER INVARIANTS OK
+```
+
+3. `grep -rnE "\.update\(|\.delete\(|UPDATE |DELETE " src/lib/server/data/wagers.ts src/lib/server/data/credits.ts src/lib/server/data/wagers-repository.ts` prints nothing.
+
+Budgets touched: `/` first-load JS gzip 66226 bytes (limit 61440, hard fail 76800). `/games/[id]` n/a.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: T08b ports the bet slip and `/you`. T10 extends `groups-repository.ts`. T09 owns settlement mail and the single `return` payout. Coordinator can re-run `pnpm verify:money` on port 8787 when that port is free.
