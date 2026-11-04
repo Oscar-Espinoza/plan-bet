@@ -12,5 +12,5 @@
     "src/**/*.svelte",
     "vite.config.ts"
   ],
-  "exclude": ["legacy", "src/service-worker"]
+  "exclude": ["legacy", "src/service-worker.ts", "src/service-worker"]
 }

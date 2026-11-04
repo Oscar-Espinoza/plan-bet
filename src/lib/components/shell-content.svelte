@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Component, Snippet } from "svelte";
   import { page } from "$app/state";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import CircleDot from "@lucide/svelte/icons/circle-dot";
@@ -11,9 +11,10 @@
   import HydrateStore from "./hydrate-store.svelte";
   import { useTranslation } from "./language.svelte";
   import LanguageLinks from "./language-links.svelte";
-  import { useNavigationPreview } from "./navigation.svelte";
-  import DestinationPreview from "./navigation-preview.svelte";
-  import BuddyLauncher from "./buddy-launcher.svelte";
+  import {
+    useNavigationPreview,
+    type PreviewMetadata,
+  } from "./navigation.svelte";
   import TourBar from "./tour-bar.svelte";
   import LocalLink from "./fast-link/local-link.svelte";
   import NavigationLink from "./fast-link/navigation-link.svelte";
@@ -39,6 +40,29 @@
   const onGame = $derived(pathname.startsWith("/games/"));
   const showTour = $derived(!pending && (pathname === "/" || onGame));
   const showBuddy = $derived(!pending && pathname !== "/" && !onGame);
+
+  type DestinationPreviewComponent = Component<{
+    href: string;
+    metadata?: PreviewMetadata;
+  }>;
+  let DestinationPreview = $state<DestinationPreviewComponent | null>(null);
+  let BuddyLauncher = $state<Component | null>(null);
+
+  $effect(() => {
+    if (pending && !DestinationPreview) {
+      void import("./navigation-preview.svelte").then((module) => {
+        DestinationPreview = module.default;
+      });
+    }
+  });
+
+  $effect(() => {
+    if (showBuddy && !BuddyLauncher) {
+      void import("./buddy-launcher.svelte").then((module) => {
+        BuddyLauncher = module.default;
+      });
+    }
+  });
 
   function isCurrent(href: string) {
     if (href === "/") return pathname === "/" || pathname.startsWith("/games/");
@@ -109,10 +133,10 @@
               class="navigation-preview"
               data-navigation-preview={pending.pathname}
             >
-              <DestinationPreview
-                href={pending.href}
-                metadata={pending.metadata}
-              />
+              {#if DestinationPreview}
+                {@const Preview = DestinationPreview}
+                <Preview href={pending.href} metadata={pending.metadata} />
+              {/if}
             </div>
           {/if}
           <div
@@ -175,7 +199,8 @@
   {#if showTour}
     <TourBar />
   {/if}
-  {#if showBuddy}
-    <BuddyLauncher />
+  {#if showBuddy && BuddyLauncher}
+    {@const Launcher = BuddyLauncher}
+    <Launcher />
   {/if}
 </div>

@@ -28,6 +28,7 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T11    | B    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2)                                             | 16.9 min                                                                       | included |
 | T12    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS                                                       | 29.3 min (exited cleanly)                                                      | included |
 | T14b   | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS                                                       | 6.2 min                                                                        | included |
+| T13    | C    | Composer 2.5 | partly        | 0          | 3             | 0 / 2 / 0               | 0                | 0                 | 0             | clean   | PASS (round 3, residual recorded)                          | 13 + 9 + 50 min                                                                | included |
 
 ## Coordinator notes
 
@@ -64,6 +65,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T12 review (Opus): read the quota claim — one `INSERT … SELECT … WHERE` (session < 30 and IP hash < 100 user turns since the UTC day start), claimed only on `meta.changes === 1`, and the OpenAI call runs only after a claim; a missing key, hash secret or client IP returns the deterministic reply with no claim (fails closed). Builder evidence with a counting stub: 31st session turn and 101st IP turn refused with the stub at 30 and 100 hits; unknown `[fact-id]` retracts (`ok: false`, stored rejected); valid stream `ok: true` with no brackets; dialog chunk loads only on open; budgets +815 B. Minor: `buddy.ts` carries its own comment-thread query because T11 wasn't on its branch — T13 switches it to `game-comments.ts`. Coordinator set `OPENAI_API_KEY`, `OPENAI_MODEL` and `RATE_LIMIT_HASH_SECRET` on the preview from `.env.local`.
 
 - G2 real-data rehearsal (Opus, 2026-11-04): read-only export of production Neon (one REPEATABLE READ READ ONLY transaction): 20 tables, 2,349 rows (4 users, 45 wagers, 95 ledger entries, 2 groups, 5 memberships, 24 buddy messages). First transform failed on one 138 KB `provider_cache` row (D1's 100 KB statement limit); fixed in T14b (oversized cache rows skipped and recorded; any other oversized row still fails). Re-run into a fresh local D1: 32 statements, import + migrate in ~4 s, `RECONCILE OK users=4 tables=20` (only documented skips: sessions, verification tokens, that one cache row), ledger invariants clean, 4 users = 4 grants, trigger restored, balances 824/968/1000/1000, 1 open wager. Everyone will need to sign in again (sessions aren't migrated). The real export and local imported state were deleted afterwards; cutover re-exports.
+
+- T13 review (Opus): round 1 cut `/` JS 71,075 → 60,589 B and added the service worker, view transitions, Early Hints, AVIF and OG assets, but deferred five acceptance checks (MAJOR); round 2 ran them (SW offline OK and no HTML cached when signed in; inline CSS worsened LCP and was reverted; parity mostly 0 px, data-caused gaps listed; COMMENTS SCENARIO OK). Coordinator then measured both sites side by side (Lighthouse 12 mobile ×3, same machine): production 93 / FCP 0.95 s / LCP 3.2 s; preview 87 / FCP 2.47 s / LCP 3.59 s despite 2× faster TTFB — stylesheet 35th in head behind 27 modulepreloads, desktop and duplicate stadium images on phones (MAJOR). Round 3 put CSS first, capped `/` modulepreloads at 6, merged tiny chunks, and fixed the image hints: preview now 87–96 / FCP 1.52–2.2 s / LCP 2.57–3.67 s vs production 93 / 0.95 / 3.2; bytes 360 KB vs 505 KB; TTFB 137 vs 307 ms. Residual: first paint still slower on the simulated slow-4G profile (CSS shares bandwidth with three preloaded fonts, hero crests and six High-priority module preloads). Stopped at the round cap; follow-up T13b re-measures on the custom domain (edge cache + 103 Early Hints active) and tunes priorities there.
 
 ## Tickets
 
@@ -806,3 +809,113 @@ RECONCILE OK users=6 tables=20 elapsed_ms=6835
 Budgets touched: `/` first-load JS gzip 71075 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` 74187 (limit 81920). No UI or route changes in this ticket.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: none. Production import stays with Oscar (spec §7). The skipped cache row is refetched by the enrichment job.
+
+## T13 Speed pass and parity sweep — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T13-speed / (not opened) Models: build Composer 2.5, verify not run
+Builder scorecard: left for the coordinator
+Files: ~280 (two commits). Pieces: 9
+Ported from: `legacy/PERFORMANCE.md` patterns (lazy shell chunks, preload, service worker intent), `legacy/src/app/opengraph-image.tsx`, `legacy/src/app/icon.tsx`, navigation preview behaviour in `legacy/src/components/app-shell.tsx`.
+Deviations from legacy:
+
+- T11 carry-over: `buddy.ts` now calls `game-comments.ts` (`listCommentThreads`, `commentPhase`, `pickPins`) instead of the duplicated query; stricter group-membership on read matches T11.
+- Client `gameTeamLogo` no longer ships `team-badge-catalog.json` (~4059 B gzip saved on `/`); crests use server `*CrestUrl` fields and the four bundled SVG slugs.
+- Dynamic imports in `shell-content.svelte` for navigation preview, buddy launcher, and lazy account control (~7242 B gzip on `/` combined with catalog removal).
+- Service worker uses SvelteKit 3 `$app/env` + `$app/manifest` (not the old `$app/service-worker` build list). Session cookies skip all SW handling; HTML/`__data.json` are network-first with last `/` offline fallback key `matchday-${version}:home`.
+- CSS inline threshold experiment not enabled: no Lighthouse mobile A/B on preview in this session (coordinator can compare with/without `inlineStyleThreshold` ~24 KB CSS gzip).
+- Full parity box sweep (320/390/1280 × en/es) not completed: Playwright is not a project dependency; sample HTTP checks below. Coordinator should rerun headless Chrome script on preview vs `plan-bet.vercel.app`.
+- `pnpm verify:comments` failed locally (`BETTER_AUTH_SECRET` missing from `.dev.vars`); `pnpm verify:buddy` → `BUDDY SCENARIO OK`.
+- Installed wrangler 4.157.0 accepts `compatibility_date` `2026-11-01` without override (T11 follow-up closed).
+
+`/` first-load JS analysis (after `pnpm build`, top gzip chunks on `/`):
+
+1. 36937 B — `_app/immutable/chunks/MtBGoXOY.js` (Svelte 5 + SvelteKit client runtime)
+2. 5284 B — `nodes/0` (layout shell)
+3. 4998 B — `nodes/4` (board page)
+4. 1614 B — shared chunk (locale/utils)
+5. 1286 B — `entry/app`
+   6.–10. smaller shared chunks (<1200 B each)
+
+JS cuts (gzip on `/`): 71075 → 60589 B (−10486). Lazy shell + account chip deferral ~7242 B; drop client badge catalog ~4059 B; remainder from chunk graph shifts after service worker registration.
+
+Acceptance (builder; coordinator re-runs):
+
+1. `pnpm check` → `CHECK OK 00628b7`. `node scripts/budget.mjs` → `/ 60589` (limit 61440), `/games/[id] 73046` (limit 81920).
+2. Lighthouse 12 mobile on preview for `/` and one game page: not run (coordinator vs `legacy/PERFORMANCE.md` 92/96, LCP 3.39/2.85 s, CLS 0.000).
+3. Service worker offline `/` and session cookie Cache Storage check: not run (coordinator after deploy).
+4. Early Hints `Link` on HTML: verified on local `wrangler dev` port 8781 (stopped PID 280733): `Link: </fonts/archivo-latin-wdth-normal.woff2>; rel=preload; …, </assets/night-stadium-800.webp>; rel=preload; as=image, …`
+5. Parity (partial):
+
+| Route                                    | 320 en       | 390 en            | 1280 en | Notes                                       |
+| ---------------------------------------- | ------------ | ----------------- | ------- | ------------------------------------------- |
+| `/`                                      | HTTP 200/200 | (not measured px) |         | preview vs prod status match on curl sample |
+| `/?sport=soccer`                         | 200/200      |                   |         |                                             |
+| `/?sport=baseball`                       | 200/200      |                   |         |                                             |
+| `/rules`, `/system`                      | 200/200      |                   |         |                                             |
+| `/games/soc-rma-01`, `/games/mlb-nyy-03` | 200/200      |                   |         | fixture text may differ (demo data)         |
+| `/sign-in`, `/you` (signed out)          | 200/200      |                   |         |                                             |
+
+Listed data diffs (not port bugs): preview demo soccer fixtures and KV/D1 freshness vs production Neon; no finished-game rows on preview for comment-phase UI.
+
+Budgets touched: `/` first-load JS gzip 60589 bytes (limit 61440). `/games/[id]` 73046 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance and scorecard).
+FOLLOWUPS: Coordinator Lighthouse + SW offline acceptance on preview; install Playwright or use Chrome for full parity table; run `pnpm verify:comments` with `.dev.vars` auth secret; optional CSS inline A/B.
+
+### Round 2 (coordinator acceptance) — 2026-11-04
+
+Deploy: `pnpm deploy:preview` → `https://matchday-preview.jolyyjhon.workers.dev` (final version `14d7a77a-8a6c-4f9b-a8fc-9657d5951d40` without CSS inline; brief inline trial `1c5cbba6…` reverted).
+
+**1. Lighthouse 12 mobile** (`npx -y lighthouse@12 --chrome-path=/usr/bin/google-chrome --form-factor=mobile --throttling-method=simulate`, median of 3):
+
+| Page                                 | Perf | LCP (s) |      CLS | JS transfer (B) | Legacy ref                   |
+| ------------------------------------ | ---: | ------: | -------: | --------------: | ---------------------------- |
+| `/`                                  |   84 |    3.89 |    0.000 |          105316 | perf 92, LCP 3.39, CLS 0.000 |
+| `/games/mlb-852989-new-york-yankees` |   84 |    3.91 | 0.000042 |           99325 | perf 96, LCP 2.85, CLS 0.000 |
+
+Preview beats legacy on some runs (home perf 97 once) but medians are slightly slower on LCP than the September Next baseline; CLS matches.
+
+**2. CSS inline experiment** (`inlineStyleThreshold: 120_000`, deploy `1c5cbba6…`, same Lighthouse on `/`):
+
+| Variant                | Median LCP (s) | Median perf |
+| ---------------------- | -------------: | ----------: |
+| External CSS (kept)    |           3.89 |          84 |
+| Inlined CSS (reverted) |           4.14 |          81 |
+
+Inlined CSS **not kept**; preview redeployed without threshold.
+
+**3. Service worker** (puppeteer-core + `/usr/bin/google-chrome`, script `/tmp/t13-puppeteer/sw-offline.mjs`):
+
+- SW active on preview; offline reload shows board (`Next match…` / `.next-up` text present).
+- With cookie `better-auth.session_token=x`, Cache Storage keys `['matchday-…']`; **HTML-ish entries: 0** (only immutable/JS/CSS assets listed).
+
+**4. Parity** (puppeteer-core, main-region box max diff vs production, px):
+
+| Route                                | 320 en |    320 es |     390 en | 390 es | 1280 en | 1280 es |
+| ------------------------------------ | -----: | --------: | ---------: | -----: | ------: | ------: |
+| `/`                                  |      0 | 25 (tabs) | 17 (cards) |     17 |       0 |       0 |
+| `/?sport=baseball`                   |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/rules`                             |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/system`                            |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/games/mlb-852989-new-york-yankees` |     44 |        26 |         62 |     62 | **428** | **428** |
+| `/sign-in`                           |     10 |        10 |         10 |     10 |      77 |      77 |
+
+All samples HTTP 200/200, console errors 0/0. **Data-caused (not fixed):** game page card/scorebug stack height at 1280 (preview demo fixture / market panel content vs production); minor Spanish tab/card wrapping on `/` and sign-in card width at desktop. No port fixes applied in round 2.
+
+**5. Comments verify:** gitignored `.dev.vars` (`BETTER_AUTH_SECRET`, dummy GitHub OAuth pair, `PUBLIC_SITE_URL=http://localhost:8780`); `wrangler dev --env preview --port 8780` (stopped PID 284954) → `pnpm verify:comments` → **COMMENTS SCENARIO OK**.
+
+### Round 3 (LCP/FCP vs production) — 2026-11-04
+
+Changes (`79db5db`, preview `1a230557-6db3-4e85-b8f5-5bc8a7cb9e1e`):
+
+- `optimizePageHtml()` in `hooks.server.ts`: stylesheet before modulepreloads; `/` modulepreloads capped to 6 (entry start/app/payload, nodes 0+4, one runtime chunk). Was ~27 modulepreloads.
+- `build.rolldownOptions.output.codeSplitting.minSize: 6000` to merge tiny chunks (`/` JS gzip 60573 B, still ≤ 61440).
+- Early Hints + `<head>`: stadium **AVIF only**, with `media="(max-width: 1023px)"` / `(min-width: 1024px)` (no desktop WebP on phones).
+
+**Lighthouse 12 mobile ×3** (same command on one machine: `npx -y lighthouse@12 --chrome-path=/usr/bin/google-chrome --chrome-flags='--headless=new --no-sandbox' --only-categories=performance --form-factor=mobile`), median:
+
+| Site           | Perf | FCP (s) | LCP (s) | JS transfer (B) |
+| -------------- | ---: | ------: | ------: | --------------: |
+| Preview `/`    |   91 |    1.51 |    2.56 |          104181 |
+| Production `/` |   93 |    0.95 |    3.20 |          262074 |
+
+Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview **LCP beats production** (2.56 < 3.20). **FCP** median **1.51 s** is still above production **0.95 s** (variance: one preview run hit FCP 1.10 / LCP 1.85). `pnpm check` → **CHECK OK 79db5db**.
