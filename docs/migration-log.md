@@ -592,3 +592,39 @@ Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is 
 Budgets touched: `/` first-load JS gzip 69046 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` first-load JS gzip 69285 bytes (limit 81920).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Signed-in visual parity against production waits on a session there. The tour bar still overlaps the lower slip column on a short viewport.
+
+## T10 Groups — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T10-groups / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 35 (34 plus this log). Pieces: 6
+Ported from: `legacy/src/data/groups.ts`, `legacy/src/data/groups-repository.ts`, `notifyGroupInvite` in `legacy/src/data/group-notifications.ts`, `legacy/src/app/api/groups/**`, `legacy/src/app/groups/**`, `legacy/src/components/{group-list,group-tabs,group-activity,create-group-form,invite-member-form,join-link,accept-invite,revoke-invite-button,notify-toggle}.tsx`. `notifyGroupWagerPlaced` and `notifyGroupSettlements` were already ported (T08a / T09) and were left in place. `listGroupsForUser` now returns the full group plus `role`.
+Deviations from legacy:
+
+- D1 has no advisory locks. Create, invite, join-link, revoke, and accept are SQL predicates inside one `db.batch()`. Pre-reads only choose the error message.
+- `createGroup` relies on the unique slug index and `ON CONFLICT DO NOTHING`, then retries with a short suffix (five attempts). The owner row is inserted in the same batch, and only when that group id exists.
+- `createJoinLink` does not use Drizzle `onConflictDoNothing({ where })`. Drizzle emits that WHERE after `DO NOTHING`, and SQLite rejects it (`near "where"`). The partial unique index `group_invites_one_pending_link_uidx` (migration `0002_pending_join_link`, 0000 untouched) still rejects a second pending link. That error is caught and both callers read the one pending row. Expired pending links are marked expired in the same batch.
+- Accept marks the invite accepted only while it is pending and unexpired (and the email matches when the invite has one). The member insert in that batch requires `changes() = 1`. If the claim wrote a row and the insert wrote zero, a repair insert runs outside the batch.
+- A non-member on a group API gets `404` `not_found` / "That group does not exist." Legacy returned `403` "You are not a member of that group." The plan and spec §5 T10 require 404 so membership is not disclosed. Email mismatch stays `403` with the legacy message. Expired and missing invites stay `404` with the legacy messages.
+- Invite `emailed` is true when `RESEND_API_KEY` and `EMAIL_FROM` are both set. The send is `waitUntil(notifyGroupInvite)` and is not the Resend result. An unset key skips the send. Legacy awaited the send and returned `result.sent`.
+- Standings, upcoming games, and the activity feed are one `group-activity.svelte`. Svelte allows one component per file. Order and class names follow the three legacy exports.
+- `groups/+error.svelte` uses the global "Matchup not found" copy for 404, so a nested error page does not replace the global 404. Other errors use "Groups hit an error".
+- `legacy/src/app/groups/loading.tsx` was not ported. SvelteKit has no matching loading file, and it is not in the acceptance.
+- Local preview used port 8790. `pnpm verify:money` stays pointed at 8787; the money script was run with `--base http://localhost:8790`. Node is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+- `join-link.svelte` and `notify-toggle.svelte` warn `state_referenced_locally` because `$state` copies the initial prop, matching the legacy `useState` initial value. The gate still prints CHECK OK.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `46ccc6e`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 46ccc6e`. `BUDGET WARN / is 70183 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 70611` (limit 81920). A re-run after this commit prints the new sha.
+2. `node --experimental-strip-types scripts/verify/groups-scenario.ts --base http://localhost:8790` → `GROUPS SCENARIO OK`. Steps: create owner is a member; one pending link; accept page does not join; non-member 404; email mismatch; expired invite; accept or revoke wins; member places a group wager; removed and non-member cannot place.
+3. `node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8790` → `MONEY SCENARIO OK` and `LEDGER INVARIANTS OK`.
+4. Headless Chrome (`/usr/bin/google-chrome`, script not committed) signed in with a session cookie, at 1280×900 and 390×844, en and es. No console errors and no horizontal overflow.
+   - `/groups`: group name `UI Night Group`, `New group` / `Nuevo grupo`.
+   - `/groups/new`: `Create a group` / `Crear un grupo`.
+   - `/groups/t10-ui-2544f54c`: `Leaderboard` / `Clasificación`, `Upcoming games` / `Próximos partidos`, `Recent activity` / `Actividad reciente`, `Invite` / `Invitar`. `?tab=members` shows `Members` and `Email me group activity:`.
+   - Signed-out `GET /groups` is `303` to `/sign-in?callbackUrl=/groups`.
+   - Production `https://plan-bet.vercel.app/groups` returns 200 HTML whose payload is `NEXT_REDIRECT` `307` to `/sign-in?callbackUrl=/groups`. There is no signed-in production session here, so the signed-in list, the new-group form, and a group page were not compared to production. The production shell still shows Games, You, Groups, and Sign in.
+
+Budgets touched: `/` first-load JS gzip 70183 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` first-load JS gzip 70611 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Signed-in visual parity against production waits on a session there.
