@@ -709,3 +709,30 @@ Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Signed-in visual parity against production waits on a session there.
 
 Round 2 (coordinator): the plan's "non-member group APIs return 404, as legacy does" was wrong. Legacy returns `403` `forbidden` / "You are not a member of this group." on invite, link, revoke, and notifications when the group exists and the caller is not a member. Missing groups stay `404` `not_found` / "That group does not exist." The page `/groups/[slug]` stays `404`. Email mismatch stays `403`. Accept reasons are unchanged. `groups-scenario.ts` step (f) now expects page 404 and `PATCH /api/groups/[slug]/notifications` 403 with that message. Re-ran on port 8790: `GROUPS SCENARIO OK` (step f: page 404, API 403), `MONEY SCENARIO OK`, `LEDGER INVARIANTS OK`. `pnpm check` printed `CHECK OK a69c2dc` (HEAD before this round-2 commit; a re-run prints the new sha). Budgets unchanged: `/` 70183, `/games/[id]` 70611.
+
+## T11 Comments and votes — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T11-comments / (not opened) Models: plan Claude Opus 5.5, build Composer 2.5, verify not run
+Builder scorecard: left for the coordinator
+Files: 13 (12 plus this log). Pieces: 4
+Ported from: `legacy/src/data/game-comments.ts`, `legacy/src/components/game-thread.tsx`, `legacy/src/app/api/games/[gameId]/comments/route.ts`, `legacy/src/app/api/comments/[commentId]/votes/route.ts`, `SocialPanel` in `legacy/src/app/games/[id]/page.tsx`.
+Deviations from legacy:
+
+- `listCommentThreads` inner-joins `group_members` so removed members no longer read threads; writes use `INSERT … SELECT … WHERE EXISTS (group_members …)` for comments and votes (T08a/T10 pattern), not wager-only checks.
+- `loadSocialDiscussion` returns nothing unless the viewer belongs to at least one group, then streams thread data only when they have a group wager on the game (same as legacy panel visibility, plus the membership gate).
+- Client types live in `src/lib/shared/comment-view.ts` so the thread component avoids server contracts/zod in the client bundle.
+- Local `wrangler dev` on this machine needs `--compatibility-date 2026-10-26` because workerd 4.157.0 tops out at 2026-10-26 while the repo pins 2026-11-01. Preview deploys are unchanged.
+- Headless vote-rollback check (acceptance 3) was not finished: scenario games use minimal snapshots and `GET /games/t11-open-*` is 404, so Puppeteer never reached `#group-discussion`. Optimistic vote rollback matches legacy in `game-thread.svelte` (`optimisticVotes` cleared on failed POST).
+
+Acceptance:
+
+1. `pnpm check` → `CHECK OK 71b4056` (re-run after the follow-up commit below prints a newer sha). `BUDGET WARN / is 70267 bytes gzip`. `/games/[id]` 73379 (limit 81920).
+2. `pnpm db:migrate:local` then `wrangler dev --env preview --port 8780 --compatibility-date 2026-10-26` with a local gitignored `.dev.vars` (`BETTER_AUTH_SECRET`, dummy GitHub OAuth pair, `PUBLIC_SITE_URL=http://localhost:8780`). `pnpm verify:comments` → `COMMENTS SCENARIO OK` (steps a–f as listed in the script).
+3. Headless Chrome vote rollback with request interception → not completed (see Deviations).
+4. Signed-out `GET /games/mlb-bos-01`: first response `x-mp-cache: MISS`, second `x-mp-cache: HIT` and `CF-Cache-Status: HIT`; HTML has no `Group discussion` (`grep` count 0).
+
+Also: `pnpm verify:settle` runs `tsx scripts/verify/settlement-scenario.ts`; header comment fixed. `tsx` added as a dev dependency.
+
+Budgets touched: `/` first-load JS gzip 70267 bytes (limit 61440, warn). `/games/[id]` first-load JS gzip 73379 bytes (limit 81920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Coordinator scorecard row; headless vote rollback on a full snapshot game with a cross-side session; re-run comments scenario without the compatibility-date override once workerd supports 2026-11-01.

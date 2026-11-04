@@ -12,7 +12,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const HOUSE_PRICE = 1.85;
 const STAKE = 10;
 const MARKET_ID = "baseball-moneyline";
 
@@ -205,11 +204,12 @@ function voteCount(commentId, kind) {
 }
 
 function placeBody(routeId, selectionId, groupId) {
+  const price = selectionId === "home" ? 1.85 : 1.95;
   return {
     routeId,
     marketId: MARKET_ID,
     selectionId,
-    price: HOUSE_PRICE,
+    price,
     stake: STAKE,
     groupId,
     idempotencyKey: randomUUID(),
