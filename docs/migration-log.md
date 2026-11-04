@@ -269,8 +269,8 @@ Deviations from legacy:
 
 Deviations from the plan:
 
-- Partial KV board payloads (`board:v1` with only some team slugs) made the first deploy return HTTP 500 on `/` because freshness stamps read `data["real-madrid"]` unconditionally. `+page.server.ts` now merges all four tracked slugs, filling missing keys from `getDashboardData()` once per request when needed. Not in the plan; required for live preview data.
-- `pnpm check` fails the gate on budget (see below). Per coordinator note, features were not cut to fit.
+- Partial KV board payloads (`board:v1` with only some team slugs) made the first deploy return HTTP 500 on `/` because freshness stamps read `data["real-madrid"]` unconditionally. Round 2 moved the fix into `getCachedDashboardData()` (see below); round 1 had briefly merged in `+page.server.ts`.
+- `pnpm check` initially failed the gate on budget (see below). Coordinator merged cf/main: `scripts/budget.mjs` now emits `BUDGET WARN` for ≤25% over target; round 2 gate passes with warn.
 
 Acceptance:
 
@@ -283,5 +283,13 @@ Acceptance:
 
 Budgets touched: `/` first-load JS gzip 65072 bytes (limit 61440). `/games/[id]` n/a.
 Review: not run (builder ticket; coordinator re-runs acceptance).
-FOLLOWUPS: T13 speed pass may need to shrink `/` client JS or defer board code; consider making KV board publish always include all four slugs so the merge fallback is rare.
+FOLLOWUPS: T13 speed pass may need to shrink `/` client JS or defer board code; consider making KV board publish always include all four slugs so per-team fallback is rare.
 
+Round 2 (coordinator review, one MAJOR + one MINOR): Partial `board:v1` must not 500 the page and must not be merged in the route. `getCachedDashboardData()` now walks `getConfiguredTeams()` and resolves each slug from KV (when present) else D1 via `storedSchedule` else `demoSchedule`, with `applyScheduleMode` and stale refresh as before. `+page.server.ts` only maps `{ team, games, freshness }` like legacy `page.tsx`.
+
+Round 2 gate: `pnpm check` → `CHECK OK <sha>` and `BUDGET WARN / is 65072 bytes gzip, over the 61440 target`.
+
+Round 2 acceptance:
+
+- Headless Chrome `/tmp/t05-chip-network.mjs` on preview `/`: **0** network requests during a Baseball chip click (`replaceState` only).
+- Headless Chrome `/tmp/t05-baseball-parity.mjs`: `/?sport=baseball` game-row, `.game-time`, `.game-opponent`, `.game-chevron` **0 px** max delta vs production at 320/390/1280 × en/es (2 rows each side). Full `/` panel-title drift remains content (demo soccer on preview), unchanged from round 1.

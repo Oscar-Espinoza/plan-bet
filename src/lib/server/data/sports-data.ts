@@ -324,14 +324,39 @@ export async function getDashboardData(
   return Object.fromEntries(entries) as DashboardData;
 }
 
-async function dashboardFromD1(now: Date) {
+async function boardScheduleForTeam(
+  slug: TeamSlug,
+  now: Date,
+  requestId: string,
+  fromKv?: GameSchedule,
+): Promise<GameSchedule> {
+  if (fromKv) return fromKv;
+  const stored = await storedSchedule(slug, now);
+  if (stored) return applyScheduleMode(stored, now);
+  const team = getTeam(slug)!;
+  scheduleRefresh(team.sport, requestId);
+  return demoSchedule(slug, now);
+}
+
+async function completeDashboard(
+  now: Date,
+  requestId: string,
+  kvBoard?: Partial<Record<TeamSlug, GameSchedule>>,
+) {
+  const stale = new Set<Sport>();
   const entries = await Promise.all(
-    teams.map(async (team) => {
-      const schedule = await readStoredSchedule(team.slug, now);
-      if (!schedule) throw new Error("Schedule not stored");
-      return [team.slug, { ...schedule, games: schedule.games.slice(0, 1) }];
+    getConfiguredTeams().map(async (team) => {
+      const schedule = await boardScheduleForTeam(
+        team.slug,
+        now,
+        requestId,
+        kvBoard?.[team.slug],
+      );
+      if (schedule.freshness.mode === "stale") stale.add(team.sport);
+      return [team.slug, schedule] as const;
     }),
   );
+  for (const sport of stale) scheduleRefresh(sport, requestId);
   return Object.fromEntries(entries) as DashboardData;
 }
 
@@ -340,37 +365,15 @@ export async function getCachedDashboardData() {
     return getDashboardData();
   }
   const now = new Date();
+  const requestId = crypto.randomUUID();
   try {
     if (Date.now() - boardMemo.at < MEMO_MS && boardMemo.data) {
       return boardMemo.data;
     }
     const fromKv = await readBoardFromKv(now);
-    if (fromKv) {
-      const stale = new Set<Sport>();
-      const entries = Object.entries(fromKv).map(([slug, schedule]) => {
-        const current = applyScheduleMode(
-          gameScheduleSchema.parse(schedule),
-          now,
-        );
-        if (current.freshness.mode === "stale") stale.add(current.team.sport);
-        return [slug, current];
-      });
-      for (const sport of stale) scheduleRefresh(sport, crypto.randomUUID());
-      const data = Object.fromEntries(entries) as DashboardData;
-      boardMemo = { at: Date.now(), data };
-      return data;
-    }
-    const data = await dashboardFromD1(now);
-    const stale = new Set<Sport>();
-    const entries = Object.entries(data).map(([slug, schedule]) => {
-      const current = applyScheduleMode(schedule, now);
-      if (current.freshness.mode === "stale") stale.add(current.team.sport);
-      return [slug, current];
-    });
-    for (const sport of stale) scheduleRefresh(sport, crypto.randomUUID());
-    const resolved = Object.fromEntries(entries) as DashboardData;
-    boardMemo = { at: Date.now(), data: resolved };
-    return resolved;
+    const data = await completeDashboard(now, requestId, fromKv ?? undefined);
+    boardMemo = { at: Date.now(), data };
+    return data;
   } catch {
     return getDashboardData();
   }
