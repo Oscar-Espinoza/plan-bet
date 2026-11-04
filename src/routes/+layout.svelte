@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { onNavigate } from "$app/navigation";
+  import { fullCssReady } from "#lib/components/full-css";
   import "../app.css";
   import "#lib/styles/matchup.css";
   import AppShell from "#lib/components/app-shell.svelte";
@@ -14,8 +15,11 @@
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
   const image = $derived(`${data.siteUrl}/og.png`);
 
-  onNavigate((navigation) => {
+  onNavigate(async (navigation) => {
     if (typeof document === "undefined") return;
+    // Critical CSS is this document's rules. Wait for the full sheet so the
+    // next page does not paint before those rules exist.
+    await fullCssReady();
     if (!document.startViewTransition) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 

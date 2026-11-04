@@ -1246,3 +1246,71 @@ The 0.88 s preview FCP target was not met. Kept medians are 0.96 s and 0.94 s. H
 Budgets touched: none. `/` first-load JS gzip 60,705 bytes (limit 61,440). `/games/[id]` 73,031 bytes (limit 81,920).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Production check that `no-transform` plus this gzip removes the Cloudflare beacon and keeps the HTML compressed. Simulated preview FCP is 0.96 s and 0.94 s, still above 0.88 s.
+
+## T13d Critical CSS — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T13d-critical-css / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 9 (`src/lib/server/critical-css.ts`, `src/lib/server/optimize-head.ts`, `src/hooks.server.ts`, `src/lib/components/full-css.ts`, `src/lib/components/navigation-provider.svelte`, `src/routes/+layout.svelte`, `src/service-worker.ts`, `vite.config.ts`, this log). Pieces: 4
+Ported from: none. No new dependency. The pruner is a small parser over the Lightning CSS output.
+Deviations from the plan:
+
+- The full sheet is a `rel=preload` `as=style` link created in the after-first-paint callback. `load` switches it to `rel=stylesheet`. A stylesheet link with `media=print` was measured and replaced, because a request paused before its headers can still sit on the render path. The preload starts only after a first-contentful-paint entry exists. The disabled marker link stays, so Vite does not inject a second blocking stylesheet.
+- The service worker still drops `.css` from its precache list. `cache.addAll` uses cache mode `reload`, and the worker registers on `load`, so precaching the file would download it again at install without helping first paint. The browser keeps the immutable response from the post-paint preload.
+- Preview auth is not configured. `/sign-in` is the "Sign-in unavailable" page, and a selection cannot be armed, so there is no open signed-in slip. The upcoming game `/games/football-data-564741-real-madrid` renders the slip chrome (filters, selection placeholders, balance). The final used for Lighthouse does not.
+- `x-mp-critical-ms` is `0.00` on every MISS. `performance.now()` and `Date.now()` both stay put through this synchronous turn on the Workers runtime. Local Node times are below.
+
+No production deploy. Preview version `51c0251a-c55e-4ffe-a2bf-b78375b51563`. Game page: `/games/football-data-575386-real-madrid`. Queries `?t13d=before` and `?t13d=fonts`.
+
+The inlined sheet on a home MISS is 26,802 B, down from the 78,993 B file. The game page, which has no wager panel while auth is off, inlines 25,254 B. `@font-face`, `:root`, `:root.fonts`, `@layer properties`, `@property`, and keyframes referenced by a kept rule stay. A selector is kept when it is not understood. `fonts` and `is-*` classes are treated as present, and a state suffix (`-active`, `-open`, `-selected`, `-current`) is kept when its base class is on the page. State attributes (`aria-*`, `data-*`, `open`, and the other boolean ones) pass. The product tour classes are always included. The bet-slip classes are included when `wager-panel` is in the document. If the pruned text is under 5% of the input, the original sheet is returned.
+
+`curl -H 'accept-encoding: gzip'` against the kept preview, `wc -c`: home 11,994 B (before 20,932), game 11,305 B (before 20,346). Both are under 14,000 B. `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`.
+
+Pruner CPU. On Node, a cold parse of the 78,993 B sheet against the home document is 7.33 ms and a warm index hit is 1.00 ms median (20 runs). The game's already-inlined sheet is 2.21 ms cold and 0.53 ms warm. The edge header cannot resolve a sub-millisecond synchronous turn, so it reports 0.00.
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `0cace71`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 0cace71`. `node scripts/budget.mjs` → `/ 60757` (limit 61440), `/games/[id] 73083` (limit 81920). No budget warning.
+
+2. Lighthouse 12 mobile ×5, median of each metric, same command as T13c. Simulated metrics except the observed-FCP row. Document is the Worker gzip body (`curl | wc -c`), not the Lighthouse transfer size. Preview before is the build that was live at the start of this ticket. Preview after is `51c0251a-c55e-4ffe-a2bf-b78375b51563`.
+
+| Page | Metric       | Old site | Preview before | Preview after |
+| ---- | ------------ | -------: | -------------: | ------------: |
+| `/`  | Score        |       93 |            100 |           100 |
+| `/`  | FCP          |   0.95 s |         0.94 s |        0.80 s |
+| `/`  | LCP          |   3.20 s |         1.52 s |        1.30 s |
+| `/`  | TBT          |          |         2.5 ms |        5.5 ms |
+| `/`  | JS transfer  |   262 KB |       92,424 B |      92,383 B |
+| `/`  | CSS transfer |          |            0 B |      18,464 B |
+| `/`  | Total bytes  |   505 KB |      278,599 B |     288,099 B |
+| `/`  | TTFB         |   307 ms |         100 ms |         80 ms |
+| `/`  | CLS          |          |         0.0008 |        0.0008 |
+| `/`  | Observed FCP |          |         182 ms |        148 ms |
+| `/`  | Document     |          |       20,932 B |      11,994 B |
+| game | Score        |       93 |            100 |           100 |
+| game | FCP          |   0.95 s |         0.94 s |        0.79 s |
+| game | LCP          |   3.20 s |         1.37 s |        1.22 s |
+| game | TBT          |          |           0 ms |          0 ms |
+| game | JS transfer  |   262 KB |       97,821 B |      97,963 B |
+| game | CSS transfer |          |            0 B |      18,427 B |
+| game | Total bytes  |   505 KB |      266,886 B |     276,421 B |
+| game | TTFB         |   307 ms |         105 ms |        122 ms |
+| game | CLS          |          |         0.0009 |        0.0009 |
+| game | Observed FCP |          |         175 ms |        221 ms |
+| game | Document     |          |       20,346 B |      11,305 B |
+
+Home runs before: FCP 0.94 / 0.95 / 0.94 / 0.95 / 0.94, LCP 1.59 / 1.37 / 1.44 / 1.52 / 1.52, TBT 2.5 / 2.5 / 2 / 2 / 2.5. Home runs after: FCP 0.84 / 0.79 / 0.80 / 0.79 / 0.80, LCP 0.95 / 1.29 / 1.30 / 1.38 / 1.46, TBT 4 / 5.5 / 5.5 / 6.5 / 4.5. Game runs before: FCP 0.94 / 0.94 / 0.94 / 0.94 / 0.94, LCP 1.37 / 1.43 / 1.37 / 1.66 / 1.37, TBT 0 / 0 / 0 / 0 / 0. Game runs after: FCP 0.79 / 0.79 / 0.78 / 0.79 / 0.78, LCP 1.22 / 1.22 / 0.92 / 1.30 / 0.78, TBT 0 / 0 / 0 / 0 / 0.
+
+The 0.85 s preview FCP target is met on both pages (0.80 s and 0.79 s), down from 0.94 s. Home LCP is 1.30 s against 1.52 s before. Game LCP is 1.22 s against 1.37 s. Home TBT is 5.5 ms against 2.5 ms; the five runs are 4–6.5 ms and the score stays 100. Game TBT stays 0 ms. CLS stays 0.0008 and 0.0009. CSS transfer is the post-paint full sheet, about 18 KB, which is why the total is higher. It is a preload until `load`, so it is not in the render-blocking graph. Lighthouse document transfer is about 12,743 B home and 12,054 B game; the curl sizes above are the Worker body.
+
+Webfonts were gated because home LCP still trailed T13b's 1.13 s. With the class still tied to first contentful paint, home LCP median was 1.37 s and game CLS median rose to 0.0016 on `.mp-side`. Moving `fonts` to the first `largest-contentful-paint` entry (with `load` as the fallback) brought home LCP to 1.30 s and game CLS back to 0.0009. On an unthrottled cold load the four woff2 requests started 34 ms after observed FCP (1,026 vs 992), so the swap is not late. CLS stays under 0.002. The gate is kept. Home LCP is still above 1.13 s.
+
+3. Headless Chrome on the kept build:
+
+- Screenshots at 390×844 and 1280×800, both after `document.fonts.ready`. Pairs: `/`, `/games/football-data-575386-real-madrid`, `/sign-in`, and `/` with `locale=es`. Luminance delta of 8 or more: 0 px on every pair. The Spanish mobile pair has 28 px of any difference, all under that threshold. Spanish `aria-pressed` was true and the nav label was "Partidos" at both widths.
+- Client navigation with the CSS request paused in CDP. Observed FCP was 172 ms, and one stylesheet request was already paused before the click, so the preload did not start before first paint. While it stayed paused the URL remained `/`, the h1 remained "Upcoming games", and no navigation preview was mounted. After the request continued, the click landed on `/games/football-data-564741-real-madrid` with the webfont stack, the matchup header, and the slip chrome styled.
+- The product tour is on the home screenshots, styled, including while the stylesheet request was held.
+
+Budgets touched: `/` first-load JS gzip 60,757 bytes (limit 61,440), was 60,705. `/games/[id]` 73,083 bytes (limit 81,920), was 73,031. The layout chunk grew by the full-sheet wait.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Home simulated LCP is 1.30 s, still above T13b's 1.13 s. The edge pruner header reads 0.00 because neither clock moves during the synchronous turn. A signed-in preview would be needed to open a real slip.

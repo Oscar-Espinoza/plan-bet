@@ -18,6 +18,11 @@ function immutablePath(relative: string) {
   return relative.startsWith("/") ? relative : `/${relative}`;
 }
 
+// The document inlines critical CSS and requests the full sheet after
+// first paint. cache.addAll uses cache mode "reload", so precaching the
+// file would download it a second time at install without moving that
+// request earlier than first paint. The browser keeps the immutable
+// response from the post-paint link.
 const IMMUTABLE: string[] = [
   ...immutable.map((entry) => immutablePath(entry.path)),
   ...assets.map((entry) => asset(entry.path)),
