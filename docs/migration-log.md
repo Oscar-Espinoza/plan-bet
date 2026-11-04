@@ -709,3 +709,31 @@ Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Signed-in visual parity against production waits on a session there.
 
 Round 2 (coordinator): the plan's "non-member group APIs return 404, as legacy does" was wrong. Legacy returns `403` `forbidden` / "You are not a member of this group." on invite, link, revoke, and notifications when the group exists and the caller is not a member. Missing groups stay `404` `not_found` / "That group does not exist." The page `/groups/[slug]` stays `404`. Email mismatch stays `403`. Accept reasons are unchanged. `groups-scenario.ts` step (f) now expects page 404 and `PATCH /api/groups/[slug]/notifications` 403 with that message. Re-ran on port 8790: `GROUPS SCENARIO OK` (step f: page 404, API 403), `MONEY SCENARIO OK`, `LEDGER INVARIANTS OK`. `pnpm check` printed `CHECK OK a69c2dc` (HEAD before this round-2 commit; a re-run prints the new sha). Budgets unchanged: `/` 70183, `/games/[id]` 70611.
+
+## T12 Buddy — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T12-buddy / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 13 (12 plus this log). Pieces: 4
+Ported from: `legacy/src/data/buddy.ts`, `legacy/src/data/buddy-repository.ts`, `legacy/src/lib/buddy-prompt.ts`, `legacy/src/lib/buddy-validation.ts`, `legacy/src/app/api/buddy/route.ts`, `legacy/src/components/buddy.tsx`, `legacy/src/components/buddy-launcher.tsx`. The OpenAI client was already in `src/lib/server/providers/openai/client.ts` (T03); this ticket only reads `OPENAI_BASE_URL` there. `listBoardContext` is T03's `fixture-context-repository.ts`.
+Deviations from legacy:
+
+- D1 has no advisory locks. The quota claim is one `INSERT INTO buddy_messages … SELECT … WHERE` session count `< 30` and IP-hash count `< 100`. Claimed means `meta.changes === 1`. A count for the displayed remainder runs after that insert and does not gate the call.
+- `RATE_LIMIT_HASH_SECRET` is required. If it is missing, or `CF-Connecting-IP` is missing, the turn returns the deterministic `metering_unavailable` reply and writes no claim. There is no per-process fallback salt, and a raw IP is never stored. The address is `CF-Connecting-IP` only.
+- The reader's zone is the client `Intl` zone, else `request.cf.timezone`, else UTC.
+- `OPENAI_BASE_URL` overrides the responses URL so `scripts/verify/buddy-scenario.ts` can point at a local stub. Unset, the URL stays `https://api.openai.com/v1/responses`.
+- Comment threads are read inside `buddy.ts` (`commentPhase`, `pickPins`, `listCommentThreads`). T11 owns `game-comments.ts`, the game-thread component, the game page social panel, and the comment/vote routes, and those files are not in this worktree. Vote tallies are counted in JS. A database error still drops the thread and keeps the turn.
+- The dialog is a native `<dialog class="buddy-panel">` with `dialog.buddy-panel::backdrop` sharing the `.buddy-overlay` rule. Legacy used Radix. The launcher still sits in the shell slot beside the tour bar, on every page except `/` and `/games/*`, and the dialog chunk is a dynamic import.
+- A fallback reply row is skipped when there is no IP hash, because `ip_hash` is NOT NULL.
+- `.dev.vars` was not in the worktree, so preview `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` were not set. The scenario wrote a temporary `.dev.vars` and deleted it. Node is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+- `buddy.svelte` warns `state_referenced_locally` on `initiallyOpen`, the same pattern as `join-link.svelte` and `notify-toggle.svelte`. The gate still prints CHECK OK.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `2deec20`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 2deec20`. `BUDGET WARN / is 70998 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 71426` (limit 81920). Growth from the T10 numbers (`/` 70183, `/games/[id]` 70611) is 815 bytes gzip on each route. The dialog chunk `DDIf90Iz.js` is a dynamic import of `buddy.svelte`, not a static import of the layout.
+2. `pnpm verify:buddy` → `BUDDY SCENARIO OK`. Ports chosen: worker 8790, stub 8791. Both stopped by PID. Steps: (a) key unset, per-fact reply, no user claim, stub hits 0; (b) key `invalid`, claim `created_at` before the stub saw the request, terminal `ok: false`; (c) 31st session turn `429` `quota_exceeded` with stub hits staying at 30; (d) 101st IP-hash turn `429` with stub hits staying at 100; (e) unknown `[fact-id]` terminal `ok: false` `unknown_fact`, buddy row `rejected`; (f) valid stub stream, terminal `ok: true`, prose has no `[`; (g) `DELETE /api/buddy` clears notes.
+3. Headless Chrome (`/usr/bin/google-chrome`, script not committed) on the preview with the stub streaming `[f1]` in its own delta. `/rules` at 1280×900 in English: the dialog chunk was absent before the click and loaded on open (`/_app/immutable/chunks/DDIf90Iz.js`); focus moved to `#buddy-question`; no horizontal overflow; no console errors. Visible transcript samples were `Look `, then `Look closely.`, then the retraction (that page has no `f1`). No sample contained `[`. At 390×844 in Spanish the launcher and dialog title read `Asistente`, the launcher's bottom (756) sits above the mobile nav (768), and there is no horizontal overflow.
+
+Budgets touched: `/` first-load JS gzip 70998 bytes (limit 61440, warn, hard limit 76800; +815 from T10). `/games/[id]` first-load JS gzip 71426 bytes (limit 81920; +815 from T10).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` on preview (they were not in `.dev.vars`). When T11 lands, buddy can call `game-comments.ts` instead of the copy in `buddy.ts`.
