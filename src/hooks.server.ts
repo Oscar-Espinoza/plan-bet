@@ -97,6 +97,58 @@ function browserCacheControl(signedIn: boolean): string {
   return signedIn ? PRIVATE_CACHE : ANONYMOUS_CACHE;
 }
 
+function acceptsGzip(request: Request): boolean {
+  return /\bgzip\b/i.test(request.headers.get("accept-encoding") ?? "");
+}
+
+/**
+ * HTML leaves with `no-transform` so the zone does not inject the
+ * analytics beacon or recompress the body. The Worker gzips when the
+ * client accepts it. `encodeBody: "manual"` keeps the runtime from
+ * encoding that body a second time. The edge cache stores the
+ * uncompressed response and this runs on the way out, including a HIT.
+ */
+function deliverHtml(request: Request, response: Response): Response {
+  const type = response.headers.get("content-type") ?? "";
+  if (!type.includes("text/html")) return response;
+  const headers = new Headers(response.headers);
+  const cacheControl = headers.get("cache-control") ?? "";
+  if (!/\bno-transform\b/i.test(cacheControl)) {
+    headers.set(
+      "cache-control",
+      cacheControl ? `${cacheControl}, no-transform` : "no-transform",
+    );
+  }
+  const vary = headers.get("vary");
+  if (!vary) headers.set("vary", "Accept-Encoding");
+  else if (!/\baccept-encoding\b/i.test(vary)) {
+    headers.set("vary", `${vary}, Accept-Encoding`);
+  }
+  if (
+    !response.body ||
+    headers.has("content-encoding") ||
+    !acceptsGzip(request)
+  ) {
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+  headers.set("content-encoding", "gzip");
+  headers.delete("content-length");
+  const init: ResponseInit & { encodeBody?: "manual" } = {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+    encodeBody: "manual",
+  };
+  return new Response(
+    response.body.pipeThrough(new CompressionStream("gzip")),
+    init,
+  );
+}
+
 function decorate(
   response: Response,
   result: "HIT" | "MISS" | "BYPASS",
@@ -119,6 +171,8 @@ async function store(key: string, response: Response) {
   headers.set("cache-control", STORED_CACHE);
   headers.delete("set-cookie");
   headers.delete("x-mp-opt-out");
+  // The stored body is the uncompressed render. Encoding happens on the way out.
+  headers.delete("content-encoding");
   await cache.put(
     cacheRequest(key),
     new Response(response.body, {
@@ -164,9 +218,9 @@ async function resolveWithEdgeCache(
         const html = (hit.headers.get("content-type") ?? "").includes(
           "text/html",
         );
-        return withEarlyHints(
-          decorate(hit, "HIT", published, html, false),
-          html,
+        return deliverHtml(
+          event.request,
+          withEarlyHints(decorate(hit, "HIT", published, html, false), html),
         );
       }
     } catch {
@@ -199,14 +253,17 @@ async function resolveWithEdgeCache(
   const published = version ?? (await publishVersion());
   if (cacheable && key && isStorableResponse(response, data)) {
     defer(store(key, response.clone()));
-    return withEarlyHints(
-      decorate(response, "MISS", published, html, false),
-      html,
+    return deliverHtml(
+      event.request,
+      withEarlyHints(decorate(response, "MISS", published, html, false), html),
     );
   }
-  return withEarlyHints(
-    decorate(response, "BYPASS", published, html, signedIn),
-    html,
+  return deliverHtml(
+    event.request,
+    withEarlyHints(
+      decorate(response, "BYPASS", published, html, signedIn),
+      html,
+    ),
   );
 }
 
