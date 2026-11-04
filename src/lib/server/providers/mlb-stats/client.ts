@@ -6,7 +6,7 @@ import {
   mlbTeamsResponseSchema,
 } from "./schemas";
 import { ProviderError } from "../provider-error";
-import { abortSignalTimeout, defaultFetch } from "../abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 
 const BASE_URL = "https://statsapi.mlb.com/api/v1";
 const DEFAULT_TIMEOUT_MS = 8_000;
@@ -39,11 +39,15 @@ export class MlbStatsClient {
 
     let response: Response;
     try {
-      response = await this.fetcher(url.toString(), {
-        headers: { "User-Agent": "Matchday Plan/0.1" },
-        signal: abortSignalTimeout(this.timeoutMs),
-        cache: "no-store",
-      });
+      response = await fetchWithTimeout(
+        this.fetcher,
+        url,
+        {
+          headers: { "User-Agent": "Matchday Plan/0.1" },
+          cache: "no-store",
+        },
+        this.timeoutMs,
+      );
     } catch (error) {
       const timedOut =
         error instanceof DOMException &&

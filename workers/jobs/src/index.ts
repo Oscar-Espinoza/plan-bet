@@ -57,9 +57,6 @@ export class Jobs extends WorkerEntrypoint {
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
     const result = await enrichDueFixtures({ requestId });
-    if (result.ok) {
-      await publishReadModels();
-    }
     return {
       requestId,
       startedAt: new Date(startedAt).toISOString(),

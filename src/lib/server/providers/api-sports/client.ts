@@ -15,7 +15,7 @@ import {
   type ApiSportsTeamMatch,
 } from "./schemas";
 import { ProviderError } from "../provider-error";
-import { abortSignalTimeout, defaultFetch } from "../abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 import { providerEnv } from "../worker-env";
 
 /** Hosts that never change are constants, not configuration. */
@@ -132,11 +132,15 @@ export class ApiSportsClient {
 
     const response = await this.schedule(async () => {
       try {
-        return await this.fetcher(url, {
-          headers: { "x-apisports-key": this.key },
-          signal: abortSignalTimeout(this.timeoutMs),
-          cache: "no-store",
-        });
+        return await fetchWithTimeout(
+          this.fetcher,
+          url,
+          {
+            headers: { "x-apisports-key": this.key },
+            cache: "no-store",
+          },
+          this.timeoutMs,
+        );
       } catch (error) {
         const timedOut =
           error instanceof DOMException &&

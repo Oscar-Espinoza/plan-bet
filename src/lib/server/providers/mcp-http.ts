@@ -1,4 +1,4 @@
-import { abortSignalTimeout, defaultFetch } from "./abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "./abort-timeout";
 import { ProviderError } from "./provider-error";
 import { providerEnv } from "./worker-env";
 
@@ -110,18 +110,23 @@ async function send(
 ) {
   const fetcher = options.fetch ?? defaultFetch();
   const sessionId = sessions.get(server.url);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   try {
-    return await fetcher(server.url, {
-      method: "POST",
-      signal: abortSignalTimeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-      headers: {
-        authorization: `Bearer ${server.token}`,
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        ...(sessionId ? { "mcp-session-id": sessionId } : {}),
+    return await fetchWithTimeout(
+      fetcher,
+      server.url,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${server.token}`,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          ...(sessionId ? { "mcp-session-id": sessionId } : {}),
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      timeoutMs,
+    );
   } catch (error) {
     const timedOut = error instanceof Error && error.name === "TimeoutError";
     throw new ProviderError(
@@ -189,12 +194,13 @@ async function openSession(
     );
   }
   sessions.set(server.url, sessionId);
-  await send(
+  const initialized = await send(
     server,
     { jsonrpc: "2.0", method: "notifications/initialized" },
     options,
     operation,
   );
+  await readBody(initialized, operation);
 }
 
 export async function callMcpTool(

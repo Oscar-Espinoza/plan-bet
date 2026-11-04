@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lt, or } from "drizzle-orm";
 import { getDatabase } from "../db/client";
 import {
   fixtureContext,
@@ -100,8 +100,6 @@ export async function upsertFixtureContext(input: {
       target: fixtureContext.gameId,
       set: { facts: input.facts, summary: input.summary, builtAt },
     });
-  const { publishReadModels } = await import("./publish");
-  await publishReadModels(input.now);
 }
 
 export type DueGame = {
@@ -151,7 +149,10 @@ export async function dueWork(input: {
       and(
         gt(games.scheduledAt, now),
         lt(games.scheduledAt, horizon),
-        sql`(${fixtureContext.builtAt} is null or ${fixtureContext.builtAt} < ${rebuildBefore})`,
+        or(
+          isNull(fixtureContext.builtAt),
+          lt(fixtureContext.builtAt, rebuildBefore),
+        ),
       ),
     )
     .orderBy(asc(games.scheduledAt))

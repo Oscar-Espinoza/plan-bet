@@ -141,7 +141,7 @@ Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]`
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: T03 implements `scheduleRefresh`, the fixture-context merge on `getGameDetail`, and the provider refresh that calls `persistSportsTeamData`. The spec's Sessions API bookmark helper was not in this plan's client.ts list.
 
-## T03 Providers and the jobs Worker — 2026-11-04 — PASS
+## T03 Providers and the jobs Worker — 2026-11-04 — PASS (round 2)
 
 Branch / PR: cf/T03-jobs / (not opened) Models: plan Claude Opus 5.5, build Composer 2.5, verify not run
 Builder scorecard: left for the coordinator
@@ -159,25 +159,33 @@ Deviations from legacy (planned rewrites):
 Deviations from legacy (Workers runtime):
 
 - `defaultFetch()` binds `globalThis.fetch` (unbound fetch throws in Workers).
-- `abortSignalTimeout()` polyfill and `providerEnv()` read secrets from `cloudflare:workers` `env` with `process.env` fallback.
+- Timed provider/MCP fetches use `fetchWithTimeout()` (`clearTimeout` in `finally`) instead of `AbortSignal.timeout` / the old `abortSignalTimeout()` helper (uncleared timers kept RPC isolates alive after refresh).
+- `providerEnv()` reads secrets from `cloudflare:workers` `env` with `process.env` fallback.
 - `publishReadModels()` builds a partial `board:v1` when only some teams have stored schedules (baseball-only preview before soccer tokens).
+- `dueWork()` uses `or(isNull(builtAt), lt(builtAt, …))` instead of a raw `sql` template on a left-joined column — the template made D1 reject the enrich query.
+- `enrichDueFixtures()` returns `{ ok: false, reason: "failed" }` instead of throwing after a run error so the jobs RPC does not trip workerd’s false “hung Worker” report on rejected RPC.
 
 Deviations from the plan:
 
-- Cron POST from curl without SvelteKit origin headers returns 403 (`Cross-site POST form submissions are forbidden`); GET with `Authorization: Bearer` matches production cron callers and was used in acceptance.
+- SvelteKit 3 rejects POST with no `Content-Type` from clients without an `Origin` header (`Cross-site POST form submissions are forbidden`). Bearer-authorized POSTs with `Content-Type: application/json` work; CSRF settings unchanged.
+- Round-1 acceptance used GET cron with Bearer; round-2 enrich uses POST + JSON as production schedulers should.
 
 Packages: `csv-parse` 7.0.3.
 
-Preview: applied remote migrations `0000` + `0001` to `matchday-preview`; deployed `matchday-jobs-preview` then `matchday-preview`; `CRON_SECRET` set on both preview Workers and written to gitignored `.dev.vars`.
+Preview: `matchday-jobs-preview` and `matchday-preview` redeployed after round-2 fixes; `CRON_SECRET` and enrichment MCP secrets on jobs preview; **`FOOTBALL_DATA_API_TOKEN` is not set on preview** (coordinator removed the placeholder) — soccer refresh reports `skipped` / `unconfigured`, expected.
+
+Round 1 coordinator blockers fixed:
+
+1. Enrich RPC hang → root cause was `dueWork` query failure plus throw across RPC; fixed as above. `POST /api/cron/enrich` with Bearer + JSON → 200 and legacy summary `{ ok, runId, built, skipped, failed, … }`; jobs tail `Jobs.enrich - Ok` and `fixture_context` `info` with zero counts (no due fixtures inside horizon on preview).
+2. App `/api/cron/*` catches RPC failures, logs `api_request` at `error` with `requestId`, returns `{ error: { code: "internal_error", … } }` (not a raw 500 body).
 
 Acceptance (secrets redacted; `pnpm wrangler kv key get` needs the key before `--remote`):
 
-1. `pnpm check` → `CHECK OK` (short sha on this commit). `pnpm exec wrangler deploy --dry-run --config workers/jobs/wrangler.jsonc --env preview` → Total Upload ~1307 KiB, exit 0.
-2. `curl -s -H "Authorization: Bearer $CRON_SECRET" https://matchday-preview.jolyyjhon.workers.dev/api/cron/refresh` → 200, baseball `succeeded` (`refreshed: 2`), soccer `skipped` (`unconfigured`) before token; with deliberate `FOOTBALL_DATA_API_TOKEN=bad-token` on jobs, soccer `failed` (`errorCode: unauthorized`) and baseball still `succeeded`. Without header → 401 `{ "error": { "code": "unauthorized", ... } }`.
-3. After refresh, `pnpm wrangler kv key get board:v1 --remote --env preview --binding PUBLIC` → JSON with keys `new-york-yankees` and `boston-red-sox`; `publish:version` → `4` (≥ 1).
-4. Last-known-good: no soccer rows in D1/KV on preview yet; baseball `teams.schedule_payload_hash` unchanged across refreshes; failed soccer run logged `ingestion_runs` `football-data` / `failed` / `unauthorized` and jobs tail `sports_ingestion` `warn` when team persist fails.
-5. `curl -s https://matchday-preview.jolyyjhon.workers.dev/api/health` → `database.status` `healthy`.
+1. `pnpm check` → `CHECK OK` on branch tip (`5a85956` at round-2 close). Jobs dry-run upload ~1307 KiB, exit 0.
+2. `curl -s -H "Authorization: Bearer $CRON_SECRET" https://matchday-preview.jolyyjhon.workers.dev/api/cron/refresh` → 200, baseball `succeeded`, soccer `skipped` (`unconfigured` without `FOOTBALL_DATA_API_TOKEN`).
+3. `curl -s -X POST -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" https://matchday-preview.jolyyjhon.workers.dev/api/cron/enrich` → 200, `data.ok: true`, `built/skipped/failed: 0`; `wrangler tail matchday-jobs-preview` → `Jobs.enrich - Ok`, no hung cancellation.
+4. KV `board:v1` still populated for baseball teams after refresh; health `database.status` `healthy`.
 
-Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a. Cron refresh route bundles provider registry for RPC failure fallback only.
+Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a.
 Review: not run (builder ticket; coordinator re-runs acceptance).
-FOLLOWUPS: Remove invalid preview `FOOTBALL_DATA_API_TOKEN` or replace when coordinator sets the real token; T04 owns hooks and shell (not created here).
+FOLLOWUPS: Set real `FOOTBALL_DATA_API_TOKEN` on preview when coordinator supplies it; T04 owns hooks and shell (not created here).

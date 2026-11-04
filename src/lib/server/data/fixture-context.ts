@@ -7,6 +7,7 @@ import {
   type DueGame,
 } from "./fixture-context-repository";
 import { buildFacts, buildSummary } from "./fixture-facts";
+import { publishReadModels } from "./publish";
 import { acquireRefreshLease, completeRefreshLease } from "./sports-repository";
 import {
   evidenceFactSchema,
@@ -244,7 +245,7 @@ async function loadInjuries(
 
 export type EnrichResult =
   | { ok: true; runId: string; built: number; skipped: number; failed: number }
-  | { ok: false; reason: "locked" | "unconfigured" };
+  | { ok: false; reason: "locked" | "unconfigured" | "failed" };
 
 /**
  * Builds the stored context for every upcoming game that has none, or whose
@@ -373,6 +374,7 @@ export async function enrichDueFixtures(input: {
             ),
             now,
           });
+          await publishReadModels(now);
           counts.built += 1;
           continue;
         }
@@ -459,6 +461,7 @@ export async function enrichDueFixtures(input: {
           summary: buildSummary(bundle, facts),
           now,
         });
+        await publishReadModels(now);
         counts.built += 1;
       } catch {
         // One fixture's failure must never stop the rest of the run.
@@ -489,7 +492,9 @@ export async function enrichDueFixtures(input: {
     ...counts,
   });
 
-  if (runError) throw runError;
+  if (runError) {
+    return { ok: false, reason: "failed" };
+  }
 
   return { ok: true, runId: lease.id, ...counts };
 }

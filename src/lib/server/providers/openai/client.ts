@@ -1,5 +1,5 @@
 import { ProviderError } from "../provider-error";
-import { abortSignalTimeout, defaultFetch } from "../abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 import { providerEnv } from "../worker-env";
 
 const BASE_URL = "https://api.openai.com/v1/responses";
@@ -83,27 +83,31 @@ export class OpenAiClient {
 
     let response: Response;
     try {
-      response = await this.fetcher(BASE_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+      response = await fetchWithTimeout(
+        this.fetcher,
+        BASE_URL,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          cache: "no-store",
+          body: JSON.stringify({
+            model: this.model,
+            instructions: request.instructions,
+            input: request.input,
+            tools: [],
+            store: false,
+            stream: true,
+            max_output_tokens:
+              request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+            reasoning: { effort: request.reasoningEffort ?? "low" },
+            text: { verbosity: request.verbosity ?? "low" },
+          }),
         },
-        signal: abortSignalTimeout(this.timeoutMs),
-        cache: "no-store",
-        body: JSON.stringify({
-          model: this.model,
-          instructions: request.instructions,
-          input: request.input,
-          tools: [],
-          store: false,
-          stream: true,
-          max_output_tokens:
-            request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-          reasoning: { effort: request.reasoningEffort ?? "low" },
-          text: { verbosity: request.verbosity ?? "low" },
-        }),
-      });
+        this.timeoutMs,
+      );
     } catch (error) {
       throw new ProviderError(
         isTimeout(error) ? "timeout" : "unavailable",

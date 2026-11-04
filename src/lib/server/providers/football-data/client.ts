@@ -5,7 +5,7 @@ import {
   footballDataTeamSchema,
 } from "./schemas";
 import { ProviderError } from "../provider-error";
-import { abortSignalTimeout, defaultFetch } from "../abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 import { providerEnv } from "../worker-env";
 
 const BASE_URL = "https://api.football-data.org/v4";
@@ -50,11 +50,15 @@ export class FootballDataClient {
 
     let response: Response;
     try {
-      response = await this.fetcher(url, {
-        headers: { "X-Auth-Token": this.token },
-        signal: abortSignalTimeout(this.timeoutMs),
-        cache: "no-store",
-      });
+      response = await fetchWithTimeout(
+        this.fetcher,
+        url,
+        {
+          headers: { "X-Auth-Token": this.token },
+          cache: "no-store",
+        },
+        this.timeoutMs,
+      );
     } catch (error) {
       const timedOut =
         error instanceof DOMException &&

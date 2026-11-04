@@ -6,6 +6,8 @@ import {
   createRouteContext,
 } from "#lib/server/api-response";
 import { isAuthorized } from "#lib/server/cron-auth";
+import { logEvent } from "#lib/server/logger";
+import { providerErrorCode } from "#lib/server/providers/provider-error";
 
 export const GET: RequestHandler = async ({ request }) => {
   const context = createRouteContext("POST /api/cron/settle");
@@ -27,19 +29,40 @@ export const GET: RequestHandler = async ({ request }) => {
   }
 
   const startedAt = Date.now();
-  const result = env.JOBS?.settle
-    ? await env.JOBS.settle()
-    : { skipped: "settlement arrives in T09" as const };
+  if (!env.JOBS?.settle) {
+    return apiFailure(
+      "service_unavailable",
+      "Scheduled settlement is not configured.",
+      context,
+    );
+  }
 
-  return apiSuccess(
-    {
+  try {
+    const result = await env.JOBS.settle();
+    return apiSuccess(
+      {
+        requestId: context.requestId,
+        startedAt: new Date(startedAt).toISOString(),
+        durationMs: Date.now() - startedAt,
+        ...result,
+      },
+      context,
+    );
+  } catch (error) {
+    logEvent("error", "api_request", {
       requestId: context.requestId,
-      startedAt: new Date(startedAt).toISOString(),
+      route: context.route,
+      status: 500,
+      code: "internal_error",
+      errorCode: providerErrorCode(error),
       durationMs: Date.now() - startedAt,
-      ...result,
-    },
-    context,
-  );
+    });
+    return apiFailure(
+      "internal_error",
+      "The scheduled settlement request could not complete.",
+      context,
+    );
+  }
 };
 
 export const POST = GET;

@@ -6,12 +6,8 @@ import {
   createRouteContext,
 } from "#lib/server/api-response";
 import { isAuthorized } from "#lib/server/cron-auth";
-import type { Sport } from "#lib/server/domain/contracts";
-import type { RefreshOutcome } from "#lib/server/data/sports-data";
-import { getSportsProvider } from "#lib/server/providers/registry";
+import { logEvent } from "#lib/server/logger";
 import { providerErrorCode } from "#lib/server/providers/provider-error";
-
-const SPORTS: Sport[] = ["soccer", "baseball"];
 
 export const GET: RequestHandler = async ({ request }) => {
   const context = createRouteContext("POST /api/cron/refresh");
@@ -45,22 +41,17 @@ export const GET: RequestHandler = async ({ request }) => {
     const body = await env.JOBS.refreshAll();
     return apiSuccess(body, context);
   } catch (error) {
-    const operations: RefreshOutcome[] = SPORTS.map((sport) => ({
-      sport,
-      provider: getSportsProvider(sport).provider,
-      status: "failed",
+    logEvent("error", "api_request", {
+      requestId: context.requestId,
+      route: context.route,
+      status: 500,
+      code: "internal_error",
       errorCode: providerErrorCode(error),
-      refreshed: 0,
       durationMs: Date.now() - startedAt,
-    }));
-    return apiSuccess(
-      {
-        requestId: context.requestId,
-        startedAt: new Date(startedAt).toISOString(),
-        durationMs: Date.now() - startedAt,
-        operations,
-        summary: { succeeded: 0, failed: SPORTS.length, skipped: 0 },
-      },
+    });
+    return apiFailure(
+      "internal_error",
+      "The scheduled refresh request could not complete.",
       context,
     );
   }

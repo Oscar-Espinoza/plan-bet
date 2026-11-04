@@ -5,7 +5,7 @@ import {
   type SavantExpectedTeamRow,
 } from "../mlb-stats/schemas";
 import { ProviderError } from "../provider-error";
-import { abortSignalTimeout, defaultFetch } from "../abort-timeout";
+import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 
 const BASE_URL =
   "https://baseballsavant.mlb.com/leaderboard/expected_statistics";
@@ -38,11 +38,15 @@ export class BaseballSavantClient {
 
     let response: Response;
     try {
-      response = await this.fetcher(url, {
-        headers: { "User-Agent": "Matchday Plan/0.1" },
-        signal: abortSignalTimeout(this.timeoutMs),
-        cache: "no-store",
-      });
+      response = await fetchWithTimeout(
+        this.fetcher,
+        url,
+        {
+          headers: { "User-Agent": "Matchday Plan/0.1" },
+          cache: "no-store",
+        },
+        this.timeoutMs,
+      );
     } catch (error) {
       const timedOut =
         error instanceof DOMException &&

@@ -10,6 +10,7 @@ export default defineConfig(
       "legacy/**",
       ".svelte-kit/**",
       ".wrangler/**",
+      "**/.wrangler/**",
       "drizzle/meta/**",
       ".cursor/**",
       ".codex/**",
