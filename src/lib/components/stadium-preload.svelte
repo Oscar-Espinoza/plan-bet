@@ -10,24 +10,8 @@
   <link
     rel="preload"
     as="image"
-    href="/assets/night-stadium-800.webp"
-    type="image/webp"
-    media="(max-width: 1023px)"
-    fetchpriority="high"
-  />
-  <link
-    rel="preload"
-    as="image"
     href="/assets/night-stadium.avif"
     type="image/avif"
-    media="(min-width: 1024px)"
-    fetchpriority="high"
-  />
-  <link
-    rel="preload"
-    as="image"
-    href="/assets/night-stadium.webp"
-    type="image/webp"
     media="(min-width: 1024px)"
     fetchpriority="high"
   />

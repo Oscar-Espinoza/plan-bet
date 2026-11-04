@@ -19,6 +19,7 @@ import {
   publishVersion,
   resolvedSport,
 } from "#lib/server/edge-cache";
+import { optimizePageHtml } from "#lib/server/optimize-head";
 
 const ANONYMOUS_CACHE = "public, max-age=0, must-revalidate";
 const PRIVATE_CACHE = "private, no-cache";
@@ -28,8 +29,8 @@ const EARLY_HINT_LINK = [
   "</fonts/archivo-latin-wdth-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
   "</fonts/ibm-plex-sans-latin-wght-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
   "</fonts/dm-mono-latin-400-normal.woff2>; rel=preload; as=font; type=font/woff2; crossorigin",
-  "</assets/night-stadium-800.webp>; rel=preload; as=image",
-  "</assets/night-stadium.webp>; rel=preload; as=image",
+  '</assets/night-stadium-800.avif>; rel=preload; as=image; type=image/avif; media="(max-width: 1023px)"',
+  '</assets/night-stadium.avif>; rel=preload; as=image; type=image/avif; media="(min-width: 1024px)"',
 ].join(", ");
 
 function withEarlyHints(response: Response, html: boolean): Response {
@@ -177,8 +178,13 @@ async function resolveWithEdgeCache(
   }
 
   const response = await resolve(event, {
-    transformPageChunk: ({ html }) =>
-      html.replaceAll("%lang%", event.locals.locale),
+    transformPageChunk: ({ html, done }) => {
+      let chunk = html.replaceAll("%lang%", event.locals.locale);
+      if (done) {
+        chunk = optimizePageHtml(chunk, requestUrl.pathname);
+      }
+      return chunk;
+    },
   });
 
   if (
