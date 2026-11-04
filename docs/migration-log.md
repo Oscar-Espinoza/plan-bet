@@ -14,12 +14,15 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | ------- | --------- | -------- |
 | T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS    | 21.5 min  | included |
 | T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS    | 2.8 min   | included |
+| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS    | 19.8 min  | included |
 
 ## Coordinator notes
 
 - T00 review (Opus): gate re-run `CHECK OK 5015ec1`; legacy demo build passes; preview health healthy (D1 `select 1` 172 ms from the São Paulo edge to the ENAM primary). Grok's note is correct: adapter-cloudflare 8 passes no `platform` to `server.respond`, so bindings come from `import { env } from "cloudflare:workers"` (and `waitUntil` from the same module). Later plans use that instead of `platform.env`/`platform.ctx`.
 
 - T01 review (Opus): gate `CHECK OK 05a8e61`; every verbatim port diffs clean against legacy except the planned `PUBLIC_SITE_URL` line in `email.ts`; both JSON files byte-identical; no runtime zod/node/server import in `src/lib/shared`. Minor: `api-response.ts` dropped the `ApiSuccess`/`ApiFailure` body types when moving to `Response` (no behaviour change).
+
+- T02 review (Opus): gate `CHECK OK d11226d`; fresh local migrate applies 0000 + 0001; schema dump matches legacy tables, onDelete rules and enum CHECKs; independently confirmed with SQL: one `grant 1000 signup` per user via trigger, second grant rejected, second `return` rejected and `ON CONFLICT (wager_id) WHERE kind='return'` is a no-op, duplicate `running` lease rejected, duplicate idempotency key rejected. Good catch by Grok: legacy grant reason is `signup`. Minor: Better Auth's `user.name`/`user.email` are NOT NULL while legacy allowed null; T14's transform must default them. Minor: fixture-context merge in `getGameDetail` deferred; added to T03's plan.
 
 ## Tickets
 
