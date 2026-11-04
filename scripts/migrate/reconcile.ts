@@ -130,8 +130,10 @@ for (const id of [...userIdsSeen].sort()) {
 }
 
 const counts = new Map<string, number>();
-for (const row of d1(tableCountSql()) as Record<string, unknown>[]) {
-  counts.set(String(row.table_name), asNum(row.n));
+for (const statement of tableCountSql()) {
+  for (const row of d1(statement) as Record<string, unknown>[]) {
+    counts.set(String(row.table_name), asNum(row.n));
+  }
 }
 for (const name of RECONCILE_TABLES) {
   const expected = plan.counts[name]?.imported ?? 0;
@@ -184,11 +186,19 @@ function userMetricsSql(): string {
   `;
 }
 
-function tableCountSql(): string {
-  return RECONCILE_TABLES.map(
-    (name, index) =>
-      `${index === 0 ? "" : "union all "}select '${name}' as table_name, count(*) as n from ${quoteIdent(name)}`,
-  ).join("\n");
+function tableCountSql(): string[] {
+  const queries: string[] = [];
+  for (let start = 0; start < RECONCILE_TABLES.length; start += 5) {
+    queries.push(
+      RECONCILE_TABLES.slice(start, start + 5)
+        .map(
+          (name, index) =>
+            `${index === 0 ? "" : "union all "}select '${name}' as table_name, count(*) as n from ${quoteIdent(name)}`,
+        )
+        .join("\n"),
+    );
+  }
+  return queries;
 }
 
 function d1(command: string): unknown[] {
