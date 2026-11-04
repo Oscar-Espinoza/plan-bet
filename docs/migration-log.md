@@ -1131,3 +1131,55 @@ Options that were measured and not kept:
 Kept preview version `801b6ad3-b464-4261-960f-f674f5c63bbc` (the measured document was `02a2d920-3487-4bd0-833f-f3309fe7d55f`, same HTML: one `<style>`, the disabled stylesheet link, six modulepreloads on `/`, stadium preload, no font preload). `pnpm check` → `CHECK OK 882a0e9`. Budgets unchanged: `/` 60,706 gzip (limit 61,440), `/games/[id]` 73,032 (limit 81,920).
 
 Files this round: `vite.config.ts`, `src/service-worker.ts`, `src/lib/server/optimize-head.ts`, and this log.
+
+### Round 3
+
+The bootstrap now waits one frame and then a macrotask before `import()` / `kit.start`. `document.currentScript` is still read while the inline script runs, and the service-worker registration stays on `load`, outside that wait. Every `modulepreload` is dropped on HTML pages. The stadium image preload (head and Early Hints) stays. No production deploy. Preview before is the round 2 build, still live at the start of this round. Preview after is the kept build. Lighthouse 12 mobile, five runs, median of each metric. Game page: `/games/football-data-575386-real-madrid`. Queries `?r3=before` and `?r3=after` so the edge cache does not reuse the previous document.
+
+| Page | Metric       | Old site | Preview before | Preview after |
+| ---- | ------------ | -------: | -------------: | ------------: |
+| `/`  | Score        |       93 |            100 |           100 |
+| `/`  | FCP          |   0.95 s |         0.97 s |        0.97 s |
+| `/`  | LCP          |   3.20 s |         1.82 s |        1.08 s |
+| `/`  | TBT          |          |           4 ms |          3 ms |
+| `/`  | JS transfer  |   262 KB |      105,427 B |      92,360 B |
+| `/`  | CSS transfer |          |            0 B |           0 B |
+| `/`  | Total bytes  |   505 KB |      293,786 B |     280,669 B |
+| `/`  | TTFB         |   307 ms |          88 ms |         84 ms |
+| `/`  | CLS          |          |         0.0009 |        0.0009 |
+| game | Score        |       93 |             93 |           100 |
+| game | FCP          |   0.95 s |         0.98 s |        0.96 s |
+| game | LCP          |   3.20 s |         3.28 s |        1.53 s |
+| game | TBT          |          |           0 ms |          0 ms |
+| game | JS transfer  |   262 KB |       99,240 B |      97,892 B |
+| game | CSS transfer |          |            0 B |           0 B |
+| game | Total bytes  |   505 KB |      270,292 B |     268,597 B |
+| game | TTFB         |   307 ms |         283 ms |         90 ms |
+| game | CLS          |          |         0.0013 |        0.0013 |
+
+Game LCP before this change was 1.74 / 3.28 / 3.28 / 3.33 / 2.02 s. Three of those runs are over 3.20 s, so the median is 3.28 s. Round 2's kept game LCP, the bar this round must not miss, is 2.30 s. The after median is 1.53 s.
+
+Home runs before: FCP 1.02 / 0.98 / 0.95 / 0.97 / 0.95, LCP 1.19 / 1.61 / 2.65 / 1.82 / 1.90, TBT 2 / 4 / 4 / 7 / 4. Home runs after: FCP 0.96 / 0.95 / 0.97 / 0.97 / 0.97, LCP 1.37 / 0.95 / 1.08 / 1.08 / 2.52, TBT 5 / 3 / 3 / 4 / 3. Game runs before: FCP 0.97 / 0.99 / 0.98 / 0.98 / 0.99, LCP 1.74 / 3.28 / 3.28 / 3.33 / 2.02, TBT 0 / 0 / 16 / 2 / 0. Game runs after: FCP 0.97 / 0.96 / 0.96 / 0.94 / 0.96, LCP 0.97 / 1.53 / 1.39 / 1.89 / 1.97, TBT 0 on every run.
+
+The 0.85 s preview FCP target was not met. Kept medians are 0.97 s and 0.96 s. Home FCP is unchanged from this round's before. Game FCP is 0.02 s lower. LCP is better than round 2 on both pages (1.08 s vs 1.52 s, 1.53 s vs 2.30 s). TBT is 3 ms and 0 ms. CLS is unchanged at 0.0009 and 0.0013. `start.*.js` still begins within about 3 ms of observed FCP (home observed medians around 162 ms, game around 166 ms), so Lantern's pessimistic graph still includes the script requests and the simulated FCP stays near 1.0 s.
+
+Headless Chrome on the measured after build (`fc2dad75-2124-4036-9b30-3860b617080f`), with focus emulation and `prefers-reduced-motion: no-preference`:
+
+- Hydration and client navigation. A click from `/` to the game page changed the URL with `performance.getEntriesByType('navigation')` still at 1. The app module loaded. No window errors.
+- Service worker. `navigator.serviceWorker.getRegistration()` returned `https://matchday-preview.jolyyjhon.workers.dev/service-worker.js`. Registration is on `load`, outside the delayed import.
+- View transitions. After a click, `document.startViewTransition` ran once. `prefers-reduced-motion: reduce` was false.
+- Sign-in. `/sign-in` renders "Sign-in unavailable" and no forms, because this preview has no auth providers. No console errors. The provider forms are in the page when `data.providers` is non-empty.
+- Preload. Navigation links use `data-sveltekit-preload-code="tap"` and `data-sveltekit-preload-data="tap"`, not hover. A mousedown fetched the route node, its chunks, and `__data.json`.
+- Buddy. The launcher is hidden on `/` and on a game page. On `/rules`, clicking `.buddy-launcher` opened `dialog.buddy-panel`. No errors.
+- Game query. `/games/football-data-575386-real-madrid?r3=query` kept the search string, showed h1 "PAE AEK vs Real Madrid CF", and hydrated with no errors.
+- Spanish. `button[lang=es]` set `locale=es`, `aria-label` "Idioma", and `aria-pressed` true. No errors.
+
+Measured and not kept:
+
+- A double `requestAnimationFrame` instead of one frame plus `setTimeout(0)`. `start.*.js` still began within 1–2 ms of observed FCP. Home median FCP 0.97 s, LCP 1.45 s, TBT 5 ms. Game FCP 0.96 s, LCP 1.67 s, TBT 0 ms. FCP did not move, and home TBT was worse than round 2's 4 ms, so the macrotask wait is the one in the branch. Deploy `7a3e817f-d6b8-438a-ad08-58d9a06a3df8`.
+- Stadium preload removed (head links and the Early Hints `Link` header), on the macrotask build. The 11 KB `night-stadium-800.avif` still downloaded, because it is the CSS background of `section.next-up`. Home median FCP 0.97 s, LCP 1.38 s, TBT 8 ms. Game FCP 0.96 s, LCP 1.97 s, TBT 0 ms. Both LCPs are worse than with the preload (1.08 s and 1.53 s), so the preload stays. Deploy `0c625204-ff36-4521-a81b-753f06c19705`.
+- Trimming the inlined CSS was not clean, so it was not kept. The root layout imports `src/app.css` (71,225 bytes) and `src/lib/styles/matchup.css` (31,493 bytes) on every route. The built sheet is 78.79 KB raw. A cut limited to `/` and the game page would drop styles other routes render. Lighthouse `unused-css-rules` on the inlined sheet scored 1 with 0 items.
+
+Kept preview version `9993027d-51a7-4563-b584-8f9d6d8eaa7d`. The ×5 after table was measured on `fc2dad75-2124-4036-9b30-3860b617080f`, the same HTML: the delayed import, no modulepreload, the disabled stylesheet link, the stadium preload, and Early Hints. `pnpm check` → `CHECK OK a297554`. Budgets unchanged: `/` 60,706 gzip (limit 61,440), `/games/[id]` 73,032 (limit 81,920).
+
+Files this round: `src/lib/server/optimize-head.ts` and this log.
