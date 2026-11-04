@@ -536,24 +536,24 @@ wrangler.jsonc
 
 ### 6.2 Model roles
 
-This migration doubles as a trial of two non-Anthropic builders. **DeepSeek and GLM build; Claude Opus 5.5 plans, checks and reviews.** Opus never writes product code unless Oscar says so for a specific ticket.
+This migration doubles as a trial of two non-Anthropic builders. **Grok 4.7 and Composer 2.5 build; Claude Opus 5.5 plans, checks and reviews.** (The first choice was GLM and DeepSeek, but Oscar's Cursor plan does not include them; Oscar chose the included models on 2026-11-03.) Opus never writes product code unless Oscar says so for a specific ticket.
 
-Model IDs follow Cursor's `id[option=value]` form. Confirm the exact IDs in the model picker. In Cursor Settings → Models, turn on **DeepSeek V4.1 Flash 1017** and **GLM 5.2**; both are hidden by default. Claude Opus 5.5 needs Max Mode on legacy request plans.
+Model IDs follow Cursor's `id[option=value]` form. Confirm the exact IDs in the model picker. Claude Opus 5.5 needs Max Mode on legacy request plans.
 
 | Role | Model | Why |
 | --- | --- | --- |
 | Planner (Plan Mode, one plan per ticket) | Claude Opus 5.5 | A precise plan is what makes a cheaper builder succeed |
-| Builder, even-numbered tickets (T00, T02 … T14) | GLM 5.2 (`glm-5.2-max`) | Builder under trial (GLM 5.3 is not available in the Cursor CLI) |
-| Builder, odd-numbered tickets (T01, T03 … T15) | DeepSeek V4.1 Flash 1017 (`deepseek-v41-flash-1017-max`) | Builder under trial |
+| Builder, even-numbered tickets (T00, T02 … T14) | Grok 4.7 (`grok-4.7-high`) | Builder under trial |
+| Builder, odd-numbered tickets (T01, T03 … T15) | Composer 2.5 (`composer-2.5`) | Builder under trial |
 | `verifier` subagent (read-only) | Claude Opus 5.5 | A different vendor from both builders, so its check is independent |
 | `money-auditor` subagent (read-only, Tier A only) | Claude Opus 5.5 | Invariant and race checks on money, auth and cache code |
 | Codebase search | built-in Explore subagent | Keeps search output out of the main context |
 
-Alternating by ticket number gives each builder money, logic and UI tickets: GLM 5.2 gets T02, T04, T08, T10 and T14; DeepSeek gets T07, T09 and T15.
+Alternating by ticket number gives each builder money, logic and UI tickets: Grok gets T02, T04, T08, T10 and T14; Composer gets T07, T09 and T15.
 
 **When a builder is stuck.** A builder is stuck when the gate fails 3 times on the same cause, or when review round 2 still blocks on scope. Record it in the scorecard, then hand the ticket to the **other** trial builder with the review findings attached. If both get stuck, mark the ticket `BLOCKED` and ask Oscar. Don't hand it to Opus.
 
-**Sandbox.** In an earlier bake-off (lessons ledger C-2026-10-26-b), a DeepSeek agent edited Oscar's main checkout from a different folder. So builders run only in Cursor worktrees. After each ticket, the verifier confirms that `git -C /home/oscar/Projects/plan-bet status --porcelain` matches the snapshot taken before the ticket started. Any change outside the worktree is a BLOCK and goes on the scorecard.
+**Sandbox.** In an earlier bake-off (lessons ledger C-2026-10-26-b), a third-party agent edited Oscar's main checkout from a different folder. So builders run only in Cursor worktrees. After each ticket, the verifier confirms that `git -C /home/oscar/Projects/plan-bet status --porcelain` matches the snapshot taken before the ticket started. Any change outside the worktree is a BLOCK and goes on the scorecard.
 
 ### 6.3 The ticket loop
 
@@ -561,7 +561,7 @@ Alternating by ticket number gives each builder money, logic and UI tickets: GLM
    > "Plan ticket Txx from docs/cloudflare-migration-spec.md §5. Read the legacy files it names. List each file to create or change, the build pieces, the legacy behaviours being ported, and the acceptance commands. Stop and split if it exceeds 40 files or 8 pieces."
 
    Save the plan to the workspace as `.cursor/plans/Txx.md`.
-2. **Build.** Click Build, switching to the ticket's builder (GLM 5.2 for even tickets, DeepSeek V4.1 Flash for odd ones). Don't fix the builder's code yourself from the Opus chat: findings go back to the builder, so the scorecard measures the builder. Run it in a **worktree** on branch `cf/Txx-<slug>` off `cf/main`. When a build goes wrong, revert and refine the plan rather than patching through follow-up prompts (Cursor's own guidance).
+2. **Build.** Click Build, switching to the ticket's builder (Grok 4.7 for even tickets, Composer 2.5 for odd ones). Don't fix the builder's code yourself from the Opus chat: findings go back to the builder, so the scorecard measures the builder. Run it in a **worktree** on branch `cf/Txx-<slug>` off `cf/main`. When a build goes wrong, revert and refine the plan rather than patching through follow-up prompts (Cursor's own guidance).
 3. **Gate.** The `stop` hook (Appendix F) runs `pnpm check` whenever source changed, and sends failures back to the agent automatically (up to 3 loops). A ticket can't finish with a red gate.
 4. **Verify:**
    > "Use the verifier subagent on ticket Txx."
@@ -616,13 +616,13 @@ Review: gate CHECK OK <sha>; verifier <PASS/BLOCK + round>; auditor <…>; agent
 FOLLOWUPS: <items> | none
 ```
 
-### 6.6 Builder scorecard (DeepSeek vs GLM)
+### 6.6 Builder scorecard (Grok vs Composer)
 
 The top of `docs/migration-log.md` holds one table with a row per ticket attempt. Opus fills it in after the verifier and auditor finish, using counts from the hook loops, review reports, Bugbot and Cursor's usage dashboard. It records facts only; the comparison happens at the end.
 
 | Column | What to record |
 | --- | --- |
-| Ticket, tier, builder | e.g. `T08, A, GLM 5.2` |
+| Ticket, tier, builder | e.g. `T08, A, Grok 4.7` |
 | Plan followed | yes / partly / no; note where it went off plan |
 | Gate loops | stop-hook follow-ups before `CHECK OK` (0–3) |
 | Review rounds | full rounds until PASS (verifier + auditor + Agent Review) |
@@ -983,4 +983,4 @@ Do not flag: files under legacy/; behaviour assigned to a later ticket in spec �
 
 ## Appendix J: Hand-off prompt (paste into the first Cursor chat, Plan Mode, Claude Opus 5.5)
 
-> You are executing `docs/cloudflare-migration-spec.md` in this repo. Read it end to end, including the appendices. Then read `AGENTS.md`, `DESIGN.md`, `docs/data.md`, `docs/wagers.md` and `docs/buddy.md`. Plan ticket **T00** only, following §5 and the loop in §6.3. You (Opus 5.5) plan and review; GLM 5.2 builds T00, as set out in §6.2. In T00, create the Cursor config files exactly as given in Appendices A–G. Don't start T01 until Oscar passes gate G1. If anything in the spec conflicts with the repo or with a §2 rule, stop and tell me before planning around it.
+> You are executing `docs/cloudflare-migration-spec.md` in this repo. Read it end to end, including the appendices. Then read `AGENTS.md`, `DESIGN.md`, `docs/data.md`, `docs/wagers.md` and `docs/buddy.md`. Plan ticket **T00** only, following §5 and the loop in §6.3. You (Opus 5.5) plan and review; Grok 4.7 builds T00, as set out in §6.2. In T00, create the Cursor config files exactly as given in Appendices A–G. Don't start T01 until Oscar passes gate G1. If anything in the spec conflicts with the repo or with a §2 rule, stop and tell me before planning around it.
