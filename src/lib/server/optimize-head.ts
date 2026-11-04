@@ -123,7 +123,7 @@ const FULL_CSS = `(() => { const marker = document.querySelector('link[rel="styl
  * is the fallback when that entry never arrives. Faces already in this
  * document are applied by `FONTS_IF_READY` and this returns immediately.
  */
-const FONTS_ON_LCP = `(() => { if (document.documentElement.classList.contains("fonts")) return; const add = () => document.documentElement.classList.add("fonts"); if (performance.getEntriesByType("largest-contentful-paint").length) { add(); return; } let added = false; const once = () => { if (added) return; added = true; add(); }; try { new PerformanceObserver((list, obs) => { if (list.getEntries().length) { once(); obs.disconnect(); } }).observe({ type: "largest-contentful-paint", buffered: true }); } catch (e) { once(); } addEventListener("load", once, { once: true }); })();\n\t\t\t\t\t\t`;
+const FONTS_ON_LCP = `(() => { if (document.documentElement.classList.contains("fonts")) return; const add = () => document.documentElement.classList.add("fonts"); if (performance.getEntriesByType("largest-contentful-paint").length) { add(); return; } let added = false; const once = () => { if (added) return; added = true; add(); }; try { new PerformanceObserver((list, obs) => { if (list.getEntries().length) { once(); obs.disconnect(); } }).observe({ type: "largest-contentful-paint", buffered: true }); } catch (e) { once(); } if (document.readyState === "complete") once(); else addEventListener("load", once, { once: true }); })();\n\t\t\t\t\t\t`;
 
 /**
  * `document.currentScript` is only set while this inline script runs, so
