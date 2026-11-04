@@ -10,11 +10,12 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 
 ## Builder scorecard
 
-| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome | Wall time | Cost     |
-| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | ------- | --------- | -------- |
-| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS    | 21.5 min  | included |
-| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS    | 2.8 min   | included |
-| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS    | 19.8 min  | included |
+| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome        | Wall time | Cost     |
+| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | -------------- | --------- | -------- |
+| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS           | 21.5 min  | included |
+| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 2.8 min   | included |
+| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 19.8 min  | included |
+| T03    | B    | Composer 2.5 | yes           | 0          | 2             | 1 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2) | 25.4 min  | included |
 
 ## Coordinator notes
 
@@ -23,6 +24,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T01 review (Opus): gate `CHECK OK 05a8e61`; every verbatim port diffs clean against legacy except the planned `PUBLIC_SITE_URL` line in `email.ts`; both JSON files byte-identical; no runtime zod/node/server import in `src/lib/shared`. Minor: `api-response.ts` dropped the `ApiSuccess`/`ApiFailure` body types when moving to `Response` (no behaviour change).
 
 - T02 review (Opus): gate `CHECK OK d11226d`; fresh local migrate applies 0000 + 0001; schema dump matches legacy tables, onDelete rules and enum CHECKs; independently confirmed with SQL: one `grant 1000 signup` per user via trigger, second grant rejected, second `return` rejected and `ON CONFLICT (wager_id) WHERE kind='return'` is a no-op, duplicate `running` lease rejected, duplicate idempotency key rejected. Good catch by Grok: legacy grant reason is `signup`. Minor: Better Auth's `user.name`/`user.email` are NOT NULL while legacy allowed null; T14's transform must default them. Minor: fixture-context merge in `getGameDetail` deferred; added to T03's plan.
+
+- T03 review (Opus): round 1 BLOCK — the enrich RPC failed and surfaced as a hung Worker (500 from the cron route). Composer's round 2 found the cause: a Drizzle `sql` fragment in `dueWork` that D1 rejected (fixed with `or(isNull, lt)`, same semantics as legacy) plus a throw across the RPC boundary; it also cleared abort timers and made the cron routes return the legacy error envelope. Re-verified: enrich 200 twice, refresh 200 (baseball succeeded, soccer skipped: no football token on the preview), `board:v1` published. Minor: bearer cron POSTs need `Content-Type: application/json` under SvelteKit 3 CSRF; Workers cron uses RPC so nothing depends on it.
 
 ## Tickets
 
