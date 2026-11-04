@@ -117,3 +117,30 @@ export async function notifyGroupSettlements(
     });
   }
 }
+
+/**
+ * Invite mail is best-effort. The route schedules it with waitUntil so the
+ * HTTP response does not wait on Resend. Returns whether the provider accepted
+ * the message; callers that only need "is mail configured" check that first.
+ */
+export async function notifyGroupInvite(input: {
+  email: string;
+  token: string;
+  groupName: string;
+  invitedByName: string | null;
+}): Promise<boolean> {
+  const who = input.invitedByName ?? "Someone";
+  const result = await sendEmail({
+    to: input.email,
+    subject: `${who} invited you to ${input.groupName} on Matchday Plan`,
+    text: [
+      `${who} invited you to place free-to-play wagers with ${input.groupName}.`,
+      "",
+      `Accept the invite: ${appBaseUrl()}/groups/accept/${input.token}`,
+      "",
+      "The link expires in 7 days and only works for this email address.",
+      "Credits are fictional and cannot be withdrawn — no real money is involved.",
+    ].join("\n"),
+  });
+  return result.sent;
+}

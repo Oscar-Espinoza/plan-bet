@@ -29,6 +29,12 @@ export function appBaseUrl(): string {
  * one endpoint, one shape. Swap in the SDK only if batching or webhooks are
  * ever needed.
  */
+export function isEmailConfigured(): boolean {
+  return Boolean(
+    process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim(),
+  );
+}
+
 export async function sendEmail(input: {
   to: string;
   subject: string;
@@ -36,7 +42,7 @@ export async function sendEmail(input: {
 }): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
-  if (!apiKey || !from) {
+  if (!isEmailConfigured() || !apiKey || !from) {
     logEvent("info", "email_skipped", { reason: "unconfigured" });
     return { sent: false, reason: "unconfigured" };
   }
