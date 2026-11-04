@@ -796,7 +796,7 @@ Deviations from legacy:
 3. 4998 B — `nodes/4` (board page)
 4. 1614 B — shared chunk (locale/utils)
 5. 1286 B — `entry/app`
-6.–10. smaller shared chunks (<1200 B each)
+   6.–10. smaller shared chunks (<1200 B each)
 
 JS cuts (gzip on `/`): 71075 → 60589 B (−10486). Lazy shell + account chip deferral ~7242 B; drop client badge catalog ~4059 B; remainder from chunk graph shifts after service worker registration.
 
@@ -808,14 +808,14 @@ Acceptance (builder; coordinator re-runs):
 4. Early Hints `Link` on HTML: verified on local `wrangler dev` port 8781 (stopped PID 280733): `Link: </fonts/archivo-latin-wdth-normal.woff2>; rel=preload; …, </assets/night-stadium-800.webp>; rel=preload; as=image, …`
 5. Parity (partial):
 
-| Route | 320 en | 390 en | 1280 en | Notes |
-| --- | --- | --- | --- | --- |
-| `/` | HTTP 200/200 | (not measured px) | | preview vs prod status match on curl sample |
-| `/?sport=soccer` | 200/200 | | | |
-| `/?sport=baseball` | 200/200 | | | |
-| `/rules`, `/system` | 200/200 | | | |
-| `/games/soc-rma-01`, `/games/mlb-nyy-03` | 200/200 | | | fixture text may differ (demo data) |
-| `/sign-in`, `/you` (signed out) | 200/200 | | | |
+| Route                                    | 320 en       | 390 en            | 1280 en | Notes                                       |
+| ---------------------------------------- | ------------ | ----------------- | ------- | ------------------------------------------- |
+| `/`                                      | HTTP 200/200 | (not measured px) |         | preview vs prod status match on curl sample |
+| `/?sport=soccer`                         | 200/200      |                   |         |                                             |
+| `/?sport=baseball`                       | 200/200      |                   |         |                                             |
+| `/rules`, `/system`                      | 200/200      |                   |         |                                             |
+| `/games/soc-rma-01`, `/games/mlb-nyy-03` | 200/200      |                   |         | fixture text may differ (demo data)         |
+| `/sign-in`, `/you` (signed out)          | 200/200      |                   |         |                                             |
 
 Listed data diffs (not port bugs): preview demo soccer fixtures and KV/D1 freshness vs production Neon; no finished-game rows on preview for comment-phase UI.
 
@@ -829,19 +829,19 @@ Deploy: `pnpm deploy:preview` → `https://matchday-preview.jolyyjhon.workers.de
 
 **1. Lighthouse 12 mobile** (`npx -y lighthouse@12 --chrome-path=/usr/bin/google-chrome --form-factor=mobile --throttling-method=simulate`, median of 3):
 
-| Page | Perf | LCP (s) | CLS | JS transfer (B) | Legacy ref |
-| --- | ---: | ---: | ---: | ---: | --- |
-| `/` | 84 | 3.89 | 0.000 | 105316 | perf 92, LCP 3.39, CLS 0.000 |
-| `/games/mlb-852989-new-york-yankees` | 84 | 3.91 | 0.000042 | 99325 | perf 96, LCP 2.85, CLS 0.000 |
+| Page                                 | Perf | LCP (s) |      CLS | JS transfer (B) | Legacy ref                   |
+| ------------------------------------ | ---: | ------: | -------: | --------------: | ---------------------------- |
+| `/`                                  |   84 |    3.89 |    0.000 |          105316 | perf 92, LCP 3.39, CLS 0.000 |
+| `/games/mlb-852989-new-york-yankees` |   84 |    3.91 | 0.000042 |           99325 | perf 96, LCP 2.85, CLS 0.000 |
 
 Preview beats legacy on some runs (home perf 97 once) but medians are slightly slower on LCP than the September Next baseline; CLS matches.
 
 **2. CSS inline experiment** (`inlineStyleThreshold: 120_000`, deploy `1c5cbba6…`, same Lighthouse on `/`):
 
-| Variant | Median LCP (s) | Median perf |
-| --- | ---: | ---: |
-| External CSS (kept) | 3.89 | 84 |
-| Inlined CSS (reverted) | 4.14 | 81 |
+| Variant                | Median LCP (s) | Median perf |
+| ---------------------- | -------------: | ----------: |
+| External CSS (kept)    |           3.89 |          84 |
+| Inlined CSS (reverted) |           4.14 |          81 |
 
 Inlined CSS **not kept**; preview redeployed without threshold.
 
@@ -852,14 +852,14 @@ Inlined CSS **not kept**; preview redeployed without threshold.
 
 **4. Parity** (puppeteer-core, main-region box max diff vs production, px):
 
-| Route | 320 en | 320 es | 390 en | 390 es | 1280 en | 1280 es |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `/` | 0 | 25 (tabs) | 17 (cards) | 17 | 0 | 0 |
-| `/?sport=baseball` | 0 | 0 | 0 | 0 | 0 | 0 |
-| `/rules` | 0 | 0 | 0 | 0 | 0 | 0 |
-| `/system` | 0 | 0 | 0 | 0 | 0 | 0 |
-| `/games/mlb-852989-new-york-yankees` | 44 | 26 | 62 | 62 | **428** | **428** |
-| `/sign-in` | 10 | 10 | 10 | 10 | 77 | 77 |
+| Route                                | 320 en |    320 es |     390 en | 390 es | 1280 en | 1280 es |
+| ------------------------------------ | -----: | --------: | ---------: | -----: | ------: | ------: |
+| `/`                                  |      0 | 25 (tabs) | 17 (cards) |     17 |       0 |       0 |
+| `/?sport=baseball`                   |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/rules`                             |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/system`                            |      0 |         0 |          0 |      0 |       0 |       0 |
+| `/games/mlb-852989-new-york-yankees` |     44 |        26 |         62 |     62 | **428** | **428** |
+| `/sign-in`                           |     10 |        10 |         10 |     10 |      77 |      77 |
 
 All samples HTTP 200/200, console errors 0/0. **Data-caused (not fixed):** game page card/scorebug stack height at 1280 (preview demo fixture / market panel content vs production); minor Spanish tab/card wrapping on `/` and sign-in card width at desktop. No port fixes applied in round 2.
 
