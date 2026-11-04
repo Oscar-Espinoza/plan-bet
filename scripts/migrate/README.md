@@ -16,6 +16,8 @@ pnpm migrate:reconcile -- --source migration-out --d1 local
 
 `transform` writes `import.sql` and `manifest-transform.json`. The SQL starts with `PRAGMA defer_foreign_keys = true;`, drops `user_starting_grant` before the user rows, and appends the `CREATE TRIGGER` statement byte-identical to `drizzle/0001_starting_grant_trigger.sql`. Sessions and verification tokens are not migrated. A user with no email is skipped; the transform exits 1 if that user owns wagers, ledger rows, or any other required foreign key.
 
+`provider_cache` is a TTL cache. The enrichment job refetches it, and legacy fixture-context reads it with an expiry. A cache row whose single-row INSERT would be 100 KB or larger is skipped, not fatal. Each skip is a `WARN` line and an entry in `manifest-transform.json` `skippedRows` (`table`, `key` as `provider/kind/scope`, and `bytes`). An oversized row in any other table still stops the transform. Reconcile expects `source − skipped` for those documented skips.
+
 `reconcile --d1` is `local` (`wrangler d1 execute DB --local --env preview`), `preview` (`--remote --env preview`), or `prod`. Prod is refused unless `MP_RECONCILE_PROD=1`. Prod reads the top-level `DB` binding and does not pass `--env preview`.
 
 ## Production cutover (spec §7; Oscar runs these)

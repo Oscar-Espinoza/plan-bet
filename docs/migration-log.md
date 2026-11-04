@@ -771,3 +771,35 @@ Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is 
 Budgets touched: `/` first-load JS gzip 70998 bytes (limit 61440, warn, hard limit 76800; +815 from T10). `/games/[id]` first-load JS gzip 71426 bytes (limit 81920; +815 from T10).
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` on preview (they were not in `.dev.vars`). When T11 lands, buddy can call `game-comments.ts` instead of the copy in `buddy.ts`.
+
+## T14b Skip oversized provider_cache rows — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T14b-g2 / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 6 (five migrate files plus this log). Pieces: 1
+Ported from: none. Follow-up to T14 after the production export rehearsal. One `provider_cache` row was 137,893 bytes in NDJSON; every other table's largest row was under 7 KB.
+Deviations from legacy:
+
+- `provider_cache` is a TTL cache. The enrichment job refetches it, and legacy fixture-context reads it with an expiry. A cache row whose single-row INSERT is 100 KB or larger is skipped. The transform prints `WARN provider_cache <provider>/<kind>/<scope> <bytes> bytes` and records `{ table, key, bytes }` in `manifest-transform.json` `skippedRows`. Reconcile expects `source − skipped`. An oversized row in any other table still stops the transform.
+- Node is 24.20.0. `package.json` engines ask for 24.18.1. pnpm warns. The gate still passes.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `2326097`, the commit before this log):
+
+1. `pnpm check` → `CHECK OK 2326097`. `BUDGET WARN / is 71075 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 74187` (limit 81920). No route code changed. A re-run after this commit prints the new sha.
+
+2. Local rehearsal. Throwaway container `t14-pg` on port 55432, same seed as T14, plus one `provider_cache` row whose payload is about 150 KB of JSON (`rehearsal/discovery/t14-oversized`).
+
+```
+EXPORT OK tables=20 rows=263 elapsed_ms=30
+TRANSFORM warning: skipped user 14141414-1414-4414-8414-141414141416: missing email
+WARN provider_cache rehearsal/discovery/t14-oversized 150241 bytes
+TRANSFORM OK statements=21 bytes=61814 elapsed_ms=9
+RECONCILE note: skipped provider_cache rehearsal/discovery/t14-oversized (150241 bytes)
+RECONCILE OK users=6 tables=20 elapsed_ms=6835
+```
+
+`provider_cache` exported 2 rows. The oversized row was not imported. Nothing was run against production.
+
+Budgets touched: `/` first-load JS gzip 71075 bytes (limit 61440, warn, hard limit 76800). `/games/[id]` 74187 (limit 81920). No UI or route changes in this ticket.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: none. Production import stays with Oscar (spec §7). The skipped cache row is refetched by the enrichment job.

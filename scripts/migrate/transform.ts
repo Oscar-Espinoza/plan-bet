@@ -6,9 +6,17 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { arg, repoRoot } from "./files.ts";
-import { planTransform, toEpochMs, type Row } from "./mapping.ts";
-import { MAX_STATEMENT_BYTES, insertStatements } from "./sql-text.ts";
+import { planTransform, toEpochMs } from "./mapping.ts";
+import type { Row, TransformPlan } from "./mapping.ts";
+import {
+  MAX_STATEMENT_BYTES,
+  insertStatements,
+  oneRowInsertBytes,
+} from "./sql-text.ts";
+import type { SqlValue } from "./sql-text.ts";
 import { SOURCE_TABLES } from "./tables.ts";
+
+type SkippedRow = { table: string; key: string; bytes: number };
 
 const sourceDir = resolve(arg("--source") ?? "migration-out");
 const started = Date.now();
@@ -31,35 +39,21 @@ for (const table of SOURCE_TABLES) {
 }
 
 const plan = planTransform(loaded, exportedAtMs);
+const importPath = resolve(sourceDir, "import.sql");
 const manifestOut = resolve(sourceDir, "manifest-transform.json");
-writeFileSync(
-  manifestOut,
-  `${JSON.stringify(
-    {
-      exportedAt: manifest.exportedAt,
-      transformedAt: new Date().toISOString(),
-      failed: plan.failed,
-      failure: plan.failure,
-      warnings: plan.warnings,
-      skippedUsers: plan.skippedUsers,
-      notMigrated: plan.notMigrated,
-      counts: plan.counts,
-    },
-    null,
-    2,
-  )}\n`,
-);
 
 for (const warning of plan.warnings)
   console.log(`TRANSFORM warning: ${warning}`);
 
-const importPath = resolve(sourceDir, "import.sql");
 if (plan.failed) {
+  writeManifest(manifestOut, manifest.exportedAt, plan, []);
   if (existsSync(importPath)) unlinkSync(importPath);
   console.error("TRANSFORM FAIL");
   console.error(plan.failure);
   process.exit(1);
 }
+
+const skippedRows = skipOversizedProviderCache(plan);
 
 const triggerSql = grantTrigger();
 const statements = [
@@ -95,10 +89,74 @@ if (userAt !== -1 && !(dropAt < userAt && userAt < triggerAt)) {
   throw new Error("grant trigger must be dropped before user rows are loaded");
 }
 
+writeManifest(manifestOut, manifest.exportedAt, plan, skippedRows);
 writeFileSync(importPath, sql);
+for (const skipped of skippedRows) {
+  console.log(`WARN ${skipped.table} ${skipped.key} ${skipped.bytes} bytes`);
+}
 console.log(
   `TRANSFORM OK import=${importPath} statements=${statements.length} bytes=${Buffer.byteLength(sql)} elapsed_ms=${Date.now() - started}`,
 );
+
+function skipOversizedProviderCache(plan: TransformPlan): SkippedRow[] {
+  const cache = plan.tables.find((item) => item.target === "provider_cache");
+  if (!cache) return [];
+  const providerAt = cache.columns.indexOf("provider");
+  const kindAt = cache.columns.indexOf("kind");
+  const scopeAt = cache.columns.indexOf("scope");
+  const kept: SqlValue[][] = [];
+  const skipped: SkippedRow[] = [];
+  for (const row of cache.rows) {
+    const bytes = oneRowInsertBytes(cache.target, cache.columns, row);
+    if (bytes < MAX_STATEMENT_BYTES) {
+      kept.push(row);
+      continue;
+    }
+    skipped.push({
+      table: "provider_cache",
+      key: `${cellText(row[providerAt])}/${cellText(row[kindAt])}/${cellText(row[scopeAt])}`,
+      bytes,
+    });
+  }
+  cache.rows = kept;
+  cache.skipped += skipped.length;
+  const count = plan.counts.provider_cache;
+  if (count) {
+    count.skipped += skipped.length;
+    count.imported = kept.length;
+  }
+  return skipped;
+}
+
+function cellText(value: SqlValue | undefined): string {
+  return value == null ? "" : String(value);
+}
+
+function writeManifest(
+  path: string,
+  exportedAt: string,
+  plan: TransformPlan,
+  skippedRows: SkippedRow[],
+) {
+  writeFileSync(
+    path,
+    `${JSON.stringify(
+      {
+        exportedAt,
+        transformedAt: new Date().toISOString(),
+        failed: plan.failed,
+        failure: plan.failure,
+        warnings: plan.warnings,
+        skippedUsers: plan.skippedUsers,
+        skippedRows,
+        notMigrated: plan.notMigrated,
+        counts: plan.counts,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
 
 function readNdjson(path: string): Row[] {
   const text = readFileSync(path, "utf8");

@@ -66,14 +66,24 @@ if (plan.failed) {
 
 const documented = JSON.parse(
   readFileSync(resolve(dir, "manifest-transform.json"), "utf8"),
-) as { failed?: boolean; counts?: Record<string, { imported?: number }> };
+) as {
+  failed?: boolean;
+  counts?: Record<string, { imported?: number }>;
+  skippedRows?: { table: string; key: string; bytes: number }[];
+};
 if (documented.failed) {
   console.error("RECONCILE FAIL manifest-transform.json is a failed transform");
   process.exit(1);
 }
+const skippedRows = documented.skippedRows ?? [];
+for (const skipped of skippedRows) {
+  console.log(
+    `RECONCILE note: skipped ${skipped.table} ${skipped.key} (${skipped.bytes} bytes)`,
+  );
+}
 const mismatches: string[] = [];
 for (const name of RECONCILE_TABLES) {
-  const expected = plan.counts[name]?.imported;
+  const expected = expectedImported(name);
   const written = documented.counts?.[name]?.imported;
   if (expected !== written) {
     mismatches.push(
@@ -136,7 +146,7 @@ for (const statement of tableCountSql()) {
   }
 }
 for (const name of RECONCILE_TABLES) {
-  const expected = plan.counts[name]?.imported ?? 0;
+  const expected = expectedImported(name);
   const actual = counts.get(name);
   if (actual !== expected) {
     mismatches.push(
@@ -169,6 +179,12 @@ for (const statement of ledgerFile
 console.log(
   `RECONCILE OK users=${expectedUsers.size} tables=${RECONCILE_TABLES.length} elapsed_ms=${Date.now() - started}`,
 );
+
+function expectedImported(name: string): number {
+  const planned = plan.counts[name]?.imported ?? 0;
+  const skipped = skippedRows.filter((row) => row.table === name).length;
+  return planned - skipped;
+}
 
 function userMetricsSql(): string {
   return `
