@@ -92,3 +92,48 @@ Acceptance:
 Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a. No route changes.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: none
+
+## T02 D1 schema, migrations and sports repositories — 2026-11-03 — PASS
+
+Branch / PR: cf/T02-d1 / (not opened) Models: plan Claude Opus 5.5, build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 8 source files (`drizzle.config.ts`, `package.json`, `src/lib/server/db/{schema,client,seed}.ts`, `src/lib/server/data/{sports-repository,sports-data}.ts`, this log). Lockfile, `drizzle/0000_fat_thunderbolts.sql`, `drizzle/0001_starting_grant_trigger.sql`, and `drizzle/meta/` are outside the size cap. Pieces: 8
+Ported from: `legacy/src/db/schema.ts`, `legacy/src/db/client.ts`, `legacy/src/db/seed.ts`, `legacy/src/data/sports-repository.ts`, read side of `legacy/src/data/sports-data.ts`
+Deviations from legacy:
+
+- Auth tables are Better Auth 1.7 core (`user`, `session`, `account`, `verification`) with the Drizzle sqlite CLI column names (`email_verified` boolean, `token`, `account_id`, `provider_id`, `expires_at`, `value`). Legacy `users`, `sessions`, `accounts`, `verification_tokens` are not created. Every former FK to `users.id` points at `user.id` with the same `onDelete`. `user.email` is NOT NULL, matching Better Auth. There is no unique index on `(provider_id, account_id)`; Better Auth 1.7's core schema does not define one.
+- Grant reason is `signup`. `legacy/src/lib/auth.ts` inserts that string inside `createUser`. `legacy/src/data/credits.ts` does not write the grant. Spec §3.6's sample SQL said `starting grant`.
+- `wagers.price` is column `price_hundredths` and `wagers.line` is `line_tenths`, through `customType`s that expose 1.85 / 2.5. Other legacy columns keep their names. `games.status` is `json_extract(summary, '$.status')` VIRTUAL, indexed with `scheduled_at` as `games_status_scheduled_at_idx`. drizzle-kit emitted both in `0000`.
+- SQLite names a composite PRIMARY KEY index `sqlite_autoindex_*`. The legacy constraint names `team_games_team_id_game_id_pk`, `group_members_group_id_user_id_pk`, and `comment_votes_comment_id_user_id_kind_pk` are also UNIQUE indexes so `sqlite_master` lists them. The PRIMARY KEY constraints are still there.
+- `defaultNow()` columns use `.$defaultFn(() => new Date())` and have no SQL default. Better Auth timestamp columns use the CLI default `cast(unixepoch('subsecond') * 1000 as integer)`. `session.updated_at` and `account.updated_at` match the CLI: `$onUpdate`, no SQL default.
+- `persistSportsTeamData` is one `runBatch` of upserts and inserts. The legacy transaction selected the team id, then used returned game ids. Those ids are subselects on `teams.slug` and `games.canonical_id` inside the same batch. Snapshot conflict updates copy `excluded.*`. `metadataRefreshed` still chooses the team update set in JS; it is an input flag, not a row read. Route checks throw before the batch. A missing parent inserts zero child rows instead of throwing "Unable to resolve persisted team/game".
+- `applyGameUpdates` still reads the stored summary, merges the provider fields, and re-parses with `gameSummarySchema` before each update. The other summary fields are not in the update payload, so a blind `json_set` would drop them. It is not a money predicate.
+- `acquireRefreshLease` fails expired `running` rows and inserts the new lease in one batch. The id is `crypto.randomUUID()` before the insert. `onConflictDoNothing()` has no target, so it matches the partial unique index. The lease is held only when that insert's `meta.changes === 1`.
+- Read side only of `sports-data`. `scheduleRefresh(sport)` is a no-op (T03 wires the jobs binding). `forceRefresh` calls it and re-reads; it does not call a provider. Not ported: `unstable_cache`, `after()`, `revalidateTag`, `refreshSportData`, `refreshSoccerData`, `refreshBaseballData`, `getCachedDashboardData`, and the fixture-context merge (`readFixtureContext` / `withContextFacts`). `getGameDetail` returns the demo snapshot for a seed route id, otherwise the stored snapshot. `MATCHDAY_DATA_MODE=demo` and a missing `DB` binding both serve the seed. `MATCHDAY_DATA_MODE` is read from `cloudflare:workers` `env`.
+- `DatabaseConfigurationError` says "DB binding is not configured". `isDatabaseConfigured()` is true when `env.DB` exists. `checkDatabaseConnection` lists schema tables from `sqlite_master` and pending migrations as journal tags (`drizzle/<tag>.sql`) minus `d1_migrations.name`. Dropped `withDatabaseTransaction` and `setDatabaseForTests`. No D1 Sessions API helper: the plan's client decision list does not include one.
+- `seedConfiguredTeams` is still `onConflictDoNothing` on slug (legacy idempotent insert). No `db:seed:local` script; the plan's scripts are `db:generate` and `db:migrate:local`.
+- `CanonicalTeamBundle` and `ProviderGameUpdate` live next to the repository. The shapes match `legacy/src/providers/contracts.ts`. The provider package is T03.
+- `getLastAiGenerationAt` treats `max(created_at)` as epoch milliseconds.
+
+Packages: `drizzle-orm` 0.45.4, `drizzle-kit` 0.31.11.
+
+Acceptance (`scripts/check-ok.mjs` prints the current HEAD short sha, so a re-run on this commit prints this commit):
+
+1. `pnpm check` → `CHECK OK 8bfd5d3`. `/` first-load JS gzip 30854 bytes. `/games/[id]` n/a.
+2. `rm -rf .wrangler/state && pnpm db:migrate:local` → both migrations applied, no error. `0000_fat_thunderbolts.sql` ✅, `0001_starting_grant_trigger.sql` ✅. Wrangler executed 67 commands then 2.
+3. `pnpm wrangler d1 execute DB --local --env preview --command "SELECT name, sql FROM sqlite_master WHERE type IN ('index','trigger') ORDER BY name"` lists every legacy index name. Partial predicates, verbatim from the `sql` column:
+   - `buddy_messages_ip_day_idx` WHERE `"buddy_messages"."role" = 'user'`
+   - `buddy_messages_session_day_idx` WHERE `"buddy_messages"."role" = 'user'`
+   - `credit_entries_user_grant_uidx` WHERE `"credit_entries"."kind" = 'grant'`
+   - `credit_entries_wager_activity_idx` WHERE `"credit_entries"."kind" in ('stake', 'return')`
+   - `credit_entries_wager_return_uidx` WHERE `"credit_entries"."kind" = 'return'`
+   - `ingestion_runs_active_lease_uidx` WHERE `"ingestion_runs"."status" = 'running'`
+   - Trigger `user_starting_grant` is present. `sqlite_autoindex_*` rows have `sql` null (automatic primary keys, including `d1_migrations`).
+4. Insert one `user` (`11111111-1111-4111-8111-111111111111`). `SELECT kind, amount, reason FROM credit_entries WHERE user_id = '11111111-1111-4111-8111-111111111111'` → one row `grant | 1000 | signup`. A second `INSERT` of `kind = 'grant'` for that user fails: `UNIQUE constraint failed: credit_entries.user_id: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)`. SQLite names the columns, not the index. The only UNIQUE index on `credit_entries.user_id` is `credit_entries_user_grant_uidx`.
+5. Insert a wager and one `return`. The second `return` for that wager fails: `UNIQUE constraint failed: credit_entries.wager_id: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)` (`credit_entries_wager_return_uidx`). `INSERT ... ON CONFLICT (wager_id) WHERE kind = 'return' DO NOTHING` then `SELECT changes(), COUNT(*)` → `changes: 0`, `return_rows: 1`.
+6. Two `running` `ingestion_runs` rows with the same provider/operation/scope: the second fails `UNIQUE constraint failed: ingestion_runs.provider, ingestion_runs.operation, ingestion_runs.scope: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)` (`ingestion_runs_active_lease_uidx`).
+7. `PRAGMA foreign_key_list(wagers)` → `from: user_id`, `table: user`, `to: id`, `on_delete: CASCADE`. `group_id` → `groups(id)` is the other FK.
+
+Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a. No route changes.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: T03 implements `scheduleRefresh`, the fixture-context merge on `getGameDetail`, and the provider refresh that calls `persistSportsTeamData`. The spec's Sessions API bookmark helper was not in this plan's client.ts list.
