@@ -22,6 +22,9 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && node scripts/budget.mjs && node scripts/check-ok.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --env preview",
+    "migrate:export": "node --experimental-strip-types scripts/migrate/export-neon.ts",
+    "migrate:transform": "node --experimental-strip-types scripts/migrate/transform.ts",
+    "migrate:reconcile": "node --experimental-strip-types scripts/migrate/reconcile.ts",
     "verify:money": "node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8787",
     "jobs:dev": "wrangler dev --config workers/jobs/wrangler.jsonc --env preview",
     "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
@@ -46,6 +49,8 @@
     "eslint": "9.39.5",
     "eslint-plugin-svelte": "3.24.0",
     "globals": "17.14.0",
+    "pg": "8.23.1",
+    "postgres": "4.0.0",
     "prettier": "3.9.10",
     "prettier-plugin-svelte": "4.1.1",
     "svelte": "5.57.3",
