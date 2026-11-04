@@ -945,3 +945,15 @@ Changes (`79db5db`, preview `1a230557-6db3-4e85-b8f5-5bc8a7cb9e1e`):
 | Production `/` |   93 |    0.95 |    3.20 |          262074 |
 
 Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview **LCP beats production** (2.56 < 3.20). **FCP** median **1.51 s** is still above production **0.95 s** (variance: one preview run hit FCP 1.10 / LCP 1.85). `pnpm check` → **CHECK OK 79db5db**.
+
+## T15 prep — 2026-11-04 — coordinator
+
+- **Production resources:** D1 `matchday-prod` `f2f0f349-6479-4155-a5c6-d9b79e27af6a`, KV `dee24d2bc7ae4ebb9169318918a5d0e9`, migrations 0000–0002 applied. App Worker `matchday` on custom domain `matchday.tendo.ar`, jobs Worker `matchday-jobs` with the three crons. Secrets set on both (new `BETTER_AUTH_SECRET` and `CRON_SECRET`; OAuth, OpenAI, Resend and provider keys from `.env.local`). `FOOTBALL_DATA_API_TOKEN` is still missing: Vercel marks it sensitive, so `vercel env pull` returns a placeholder.
+- **Edge cache works on the custom domain:** second request to `/` and `/rules` is `cf-cache-status: HIT`, `x-mp-cache: HIT`.
+- **Account is on Workers Free.** The cron deploy failed on the 5-cron account limit, so preview jobs now have `crons: []` and are triggered by hand.
+- **Measured CPU on Workers Free (preview, tail):** warm SSR 1–15 ms, cold 50–80 ms, refresh 146 ms, settle 26 ms, enrich 9 ms. None were killed.
+- **Blocker for Free:** after importing real data (142 games, 84 fixture contexts), `refreshAll` and `enrich` hang until the caller gives up (outcome `canceled`, no logs). The same refresh runs locally on the same data in 3.7 s. The likely cause is the Free limit of 50 D1 queries per invocation (Paid: 1000). The exception then hangs across the RPC, as in T03. Workers Paid is required.
+- **Follow-up:** the app's cron routes should race `env.JOBS.*` against a timeout, so a jobs failure returns 504 instead of hanging.
+- **Rehearsal on production D1:** `scripts/migrate/cutover.sh rehearse` printed export 2,356 rows, then `RECONCILE OK users=4 tables=20` (one oversized `provider_cache` row skipped, as documented).
+- **Vercel redirect:** `scripts/migrate/vercel-redirect/` was tested as a protected preview deploy. `/`, `/rules` and `/games/x?y=1` all return 308 to `matchday.tendo.ar` with the path and query kept. The test deploy was removed.
+- **Cutover:** `scripts/migrate/cutover.sh go` runs spec §7 steps 1–6 in order and stops on the first failed check.

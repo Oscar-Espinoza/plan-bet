@@ -12,20 +12,26 @@
   "vars": {
     "MATCHDAY_DATA_MODE": "live",
     "MATCHDAY_MAINTENANCE": "0",
-    "PUBLIC_SITE_URL": "https://<domain>",
+    "PUBLIC_SITE_URL": "https://matchday.tendo.ar",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "matchday-prod",
-      "database_id": "<T15>",
+      "database_id": "f2f0f349-6479-4155-a5c6-d9b79e27af6a",
       "migrations_dir": "drizzle",
     },
   ],
-  "kv_namespaces": [{ "binding": "PUBLIC", "id": "<T15>" }],
+  "kv_namespaces": [{ "binding": "PUBLIC", "id": "dee24d2bc7ae4ebb9169318918a5d0e9" }],
+  "services": [
+    { "binding": "JOBS", "service": "matchday-jobs", "entrypoint": "Jobs" },
+  ],
+  "routes": [{ "pattern": "matchday.tendo.ar", "custom_domain": true }],
   "env": {
     "preview": {
       "name": "matchday-preview",
+      "routes": [],
+      "workers_dev": true,
       "vars": {
         "MATCHDAY_DATA_MODE": "live",
         "MATCHDAY_MAINTENANCE": "0",
