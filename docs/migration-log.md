@@ -26,6 +26,7 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T14    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS                                                       | 32.7 min (exited cleanly)                                                      | included |
 | T10    | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 1 / 0               | 0                | 0                 | 0             | clean   | PASS (round 2; round 2 caused by a coordinator plan error) | 41.8 min                                                                       | included |
 | T11    | B    | Composer 2.5 | yes           | 0          | 2             | 0 / 1 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2)                                             | 16.9 min                                                                       | included |
+| T12    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS                                                       | 29.3 min (exited cleanly)                                                      | included |
 
 ## Coordinator notes
 
@@ -58,6 +59,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T10 review (Opus): round 1 one MAJOR — non-member group APIs returned 404 instead of legacy's 403 `forbidden`; the T10 plan wrongly said 404 'as legacy does', and Grok followed the plan (coordinator error). Round 2 restored 403 with legacy messages (missing group stays 404; the page stays 404). Verified: `CHECK OK d3aee47`, GROUPS SCENARIO OK (one pending link per group via migration 0002's partial unique index, accept-vs-revoke never both win, accept-page GET doesn't join, removed members can't place group wagers), MONEY SCENARIO OK + LEDGER INVARIANTS OK. Accepted deviations: slug allocation retries on the unique index; group activity consolidated into one component; `loading.tsx` not ported (navigation preview covers it). `/` 70,183 B gzip (BUDGET WARN).
 
 - T11 review (Opus): round 1 server side accepted (COMMENTS SCENARIO OK: one comment per phase, non-member can't read/post/vote, removed member loses access because membership is re-checked inside the write); reading membership on the thread read is a stricter-than-legacy choice, accepted. Round 1 MAJOR: the browser rollback check was skipped; MINOR: log edit left uncommitted. Round 2: real preview snapshot copied into local D1, forced-500 vote 0→1→0, real vote 0→1 (`VOTE BROWSER ACCEPTANCE OK`), `CHECK OK 341535b`. Also fixed T09's carry-over (`pnpm verify:settle` with tsx). Observation: Composer's local wrangler needed `--compatibility-date 2026-10-26`; check in T13 whether the installed workerd supports 2026-11-01.
+
+- T12 review (Opus): read the quota claim — one `INSERT … SELECT … WHERE` (session < 30 and IP hash < 100 user turns since the UTC day start), claimed only on `meta.changes === 1`, and the OpenAI call runs only after a claim; a missing key, hash secret or client IP returns the deterministic reply with no claim (fails closed). Builder evidence with a counting stub: 31st session turn and 101st IP turn refused with the stub at 30 and 100 hits; unknown `[fact-id]` retracts (`ok: false`, stored rejected); valid stream `ok: true` with no brackets; dialog chunk loads only on open; budgets +815 B. Minor: `buddy.ts` carries its own comment-thread query because T11 wasn't on its branch — T13 switches it to `game-comments.ts`. Coordinator set `OPENAI_API_KEY`, `OPENAI_MODEL` and `RATE_LIMIT_HASH_SECRET` on the preview from `.env.local`.
 
 ## Tickets
 
@@ -740,3 +743,31 @@ Review: coordinator round 1 — server + `COMMENTS SCENARIO OK` + membership-on-
 FOLLOWUPS: Coordinator scorecard row; re-run comments scenario without the compatibility-date override once workerd supports 2026-11-01.
 
 Round 1 (coordinator): MAJOR closed with headless vote rollback on preview snapshot `mlb-852989-new-york-yankees` (see acceptance 3). MINOR: migration log committed with this round's results.
+
+## T12 Buddy — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T12-buddy / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 13 (12 plus this log). Pieces: 4
+Ported from: `legacy/src/data/buddy.ts`, `legacy/src/data/buddy-repository.ts`, `legacy/src/lib/buddy-prompt.ts`, `legacy/src/lib/buddy-validation.ts`, `legacy/src/app/api/buddy/route.ts`, `legacy/src/components/buddy.tsx`, `legacy/src/components/buddy-launcher.tsx`. The OpenAI client was already in `src/lib/server/providers/openai/client.ts` (T03); this ticket only reads `OPENAI_BASE_URL` there. `listBoardContext` is T03's `fixture-context-repository.ts`.
+Deviations from legacy:
+
+- D1 has no advisory locks. The quota claim is one `INSERT INTO buddy_messages … SELECT … WHERE` session count `< 30` and IP-hash count `< 100`. Claimed means `meta.changes === 1`. A count for the displayed remainder runs after that insert and does not gate the call.
+- `RATE_LIMIT_HASH_SECRET` is required. If it is missing, or `CF-Connecting-IP` is missing, the turn returns the deterministic `metering_unavailable` reply and writes no claim. There is no per-process fallback salt, and a raw IP is never stored. The address is `CF-Connecting-IP` only.
+- The reader's zone is the client `Intl` zone, else `request.cf.timezone`, else UTC.
+- `OPENAI_BASE_URL` overrides the responses URL so `scripts/verify/buddy-scenario.ts` can point at a local stub. Unset, the URL stays `https://api.openai.com/v1/responses`.
+- Comment threads are read inside `buddy.ts` (`commentPhase`, `pickPins`, `listCommentThreads`). T11 owns `game-comments.ts`, the game-thread component, the game page social panel, and the comment/vote routes, and those files are not in this worktree. Vote tallies are counted in JS. A database error still drops the thread and keeps the turn.
+- The dialog is a native `<dialog class="buddy-panel">` with `dialog.buddy-panel::backdrop` sharing the `.buddy-overlay` rule. Legacy used Radix. The launcher still sits in the shell slot beside the tour bar, on every page except `/` and `/games/*`, and the dialog chunk is a dynamic import.
+- A fallback reply row is skipped when there is no IP hash, because `ip_hash` is NOT NULL.
+- `.dev.vars` was not in the worktree, so preview `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` were not set. The scenario wrote a temporary `.dev.vars` and deleted it. Node is 24.20.0; `package.json` engines ask for 24.18.1. pnpm warns and the gate still passes.
+- `buddy.svelte` warns `state_referenced_locally` on `initiallyOpen`, the same pattern as `join-link.svelte` and `notify-toggle.svelte`. The gate still prints CHECK OK.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `2deec20`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 2deec20`. `BUDGET WARN / is 70998 bytes gzip, over the 61440 target (record it in the log; fails above 76800)`. `/games/[id] 71426` (limit 81920). Growth from the T10 numbers (`/` 70183, `/games/[id]` 70611) is 815 bytes gzip on each route. The dialog chunk `DDIf90Iz.js` is a dynamic import of `buddy.svelte`, not a static import of the layout.
+2. `pnpm verify:buddy` → `BUDDY SCENARIO OK`. Ports chosen: worker 8790, stub 8791. Both stopped by PID. Steps: (a) key unset, per-fact reply, no user claim, stub hits 0; (b) key `invalid`, claim `created_at` before the stub saw the request, terminal `ok: false`; (c) 31st session turn `429` `quota_exceeded` with stub hits staying at 30; (d) 101st IP-hash turn `429` with stub hits staying at 100; (e) unknown `[fact-id]` terminal `ok: false` `unknown_fact`, buddy row `rejected`; (f) valid stub stream, terminal `ok: true`, prose has no `[`; (g) `DELETE /api/buddy` clears notes.
+3. Headless Chrome (`/usr/bin/google-chrome`, script not committed) on the preview with the stub streaming `[f1]` in its own delta. `/rules` at 1280×900 in English: the dialog chunk was absent before the click and loaded on open (`/_app/immutable/chunks/DDIf90Iz.js`); focus moved to `#buddy-question`; no horizontal overflow; no console errors. Visible transcript samples were `Look `, then `Look closely.`, then the retraction (that page has no `f1`). No sample contained `[`. At 390×844 in Spanish the launcher and dialog title read `Asistente`, the launcher's bottom (756) sits above the mobile nav (768), and there is no horizontal overflow.
+
+Budgets touched: `/` first-load JS gzip 70998 bytes (limit 61440, warn, hard limit 76800; +815 from T10). `/games/[id]` first-load JS gzip 71426 bytes (limit 81920; +815 from T10).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `RATE_LIMIT_HASH_SECRET` on preview (they were not in `.dev.vars`). When T11 lands, buddy can call `game-comments.ts` instead of the copy in `buddy.ts`.

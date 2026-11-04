@@ -3,6 +3,11 @@ import { defaultFetch, fetchWithTimeout } from "../abort-timeout";
 import { providerEnv } from "../worker-env";
 
 const BASE_URL = "https://api.openai.com/v1/responses";
+
+/** Full responses URL. OPENAI_BASE_URL points a local verify stub at the same path. */
+function responsesUrl() {
+  return providerEnv("OPENAI_BASE_URL") || BASE_URL;
+}
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_MODEL = "gpt-6-luna";
 const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
@@ -85,7 +90,7 @@ export class OpenAiClient {
     try {
       response = await fetchWithTimeout(
         this.fetcher,
-        BASE_URL,
+        responsesUrl(),
         {
           method: "POST",
           headers: {
