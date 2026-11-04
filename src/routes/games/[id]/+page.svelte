@@ -1,5 +1,6 @@
 <script lang="ts">
   import GameDetail from "#lib/components/game-detail.svelte";
+  import GroupDiscussion from "#lib/components/matchup/group-discussion.svelte";
   import SignedOutWager from "#lib/components/matchup/signed-out-wager.svelte";
   import WageringPanel from "#lib/components/matchup/wagering-panel.svelte";
   import StadiumPreload from "#lib/components/stadium-preload.svelte";
@@ -27,6 +28,19 @@
           home={data.home}
           away={data.away}
         />
+      {/if}
+    {/snippet}
+    {#snippet socialPanel()}
+      {#if data.socialDiscussion}
+        {#await data.socialDiscussion then discussion}
+          {#if discussion}
+            <GroupDiscussion
+              routeId={data.routeId}
+              {discussion}
+              matchup={{ home: data.home, away: data.away }}
+            />
+          {/if}
+        {/await}
       {/if}
     {/snippet}
   </GameDetail>

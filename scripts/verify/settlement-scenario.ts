@@ -1,6 +1,7 @@
 /**
  * Local settlement acceptance for T09.
- *   node --experimental-strip-types scripts/verify/settlement-scenario.ts
+ *   pnpm verify:settle
+ *   tsx scripts/verify/settlement-scenario.ts
  */
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";

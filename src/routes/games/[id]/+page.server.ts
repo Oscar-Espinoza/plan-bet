@@ -1,5 +1,10 @@
 import { error } from "@sveltejs/kit";
 import { isAuthConfigured, requireAccount } from "#lib/server/auth";
+import {
+  commentPhase,
+  listCommentThreads,
+  pickPins,
+} from "#lib/server/data/game-comments";
 import { getCreditSummary } from "#lib/server/data/credits";
 import { listGroupsForUser } from "#lib/server/data/groups-repository";
 import { toSlipWager } from "#lib/server/data/slip-wager";
@@ -14,6 +19,7 @@ import {
 import { getTeam } from "#lib/server/domain/seed";
 import { getTranslation } from "#lib/server/locale";
 import { buildMatchView } from "#lib/shared/game-view";
+import type { SocialDiscussionView } from "#lib/shared/comment-view";
 import { marketsFor } from "#lib/shared/markets";
 import type { WagerPanelData } from "#lib/shared/wager-view";
 import type { PageServerLoad } from "./$types";
@@ -79,6 +85,46 @@ async function readWagering(
   };
 }
 
+async function loadSocialDiscussion(
+  userId: string,
+  routeId: string,
+): Promise<SocialDiscussionView | null> {
+  const memberships = await listGroupsForUser(userId);
+  if (memberships.length === 0) return null;
+
+  const game = await readGameForWager(routeId);
+  if (!game) return null;
+
+  const [threads, gameWagers] = await Promise.all([
+    listCommentThreads(userId, game.canonicalId),
+    listWagersForGame(userId, game.canonicalId),
+  ]);
+  if (threads.length === 0) return null;
+
+  const currentPhase = commentPhase(
+    game.summary.scheduledAt,
+    new Date(),
+    game.summary.status,
+  );
+
+  return {
+    threads: threads.map((thread) => ({
+      groupId: thread.groupId,
+      groupName: thread.groupName,
+      comments: thread.comments,
+      postingPhase: currentPhase,
+      hasCommented: thread.comments.some(
+        (comment) =>
+          comment.userId === userId && comment.phase === currentPhase,
+      ),
+      viewerSelectionLabel:
+        gameWagers.find((wager) => wager.groupId === thread.groupId)
+          ?.selectionLabel ?? null,
+      pins: pickPins(thread.comments),
+    })),
+  };
+}
+
 export const load: PageServerLoad = async (event) => {
   const id = event.params.id;
   const detail = await getGameDetail(id);
@@ -117,5 +163,6 @@ export const load: PageServerLoad = async (event) => {
     ...page,
     signedOut: false as const,
     wagering: loadWagering(account.userId, id),
+    socialDiscussion: loadSocialDiscussion(account.userId, id),
   };
 };
