@@ -9,10 +9,7 @@ import {
 import { requireAccount } from "#lib/server/auth";
 import { notifyGroupInvite } from "#lib/server/data/group-notifications";
 import { inviteToGroup } from "#lib/server/data/groups";
-import {
-  getGroupBySlug,
-  isGroupMember,
-} from "#lib/server/data/groups-repository";
+import { getGroupBySlug } from "#lib/server/data/groups-repository";
 import { groupInviteRequestSchema } from "#lib/server/domain/contracts";
 import { isEmailConfigured } from "#lib/server/email";
 import { logEvent } from "#lib/server/logger";
@@ -36,7 +33,7 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const group = await getGroupBySlug(event.params.slug);
-  if (!group || !(await isGroupMember(group.id, account.userId))) {
+  if (!group) {
     return apiFailure("not_found", "That group does not exist.", context);
   }
 
@@ -58,7 +55,11 @@ export const POST: RequestHandler = async (event) => {
   if (!outcome.ok) {
     switch (outcome.reason) {
       case "not_a_member":
-        return apiFailure("not_found", "That group does not exist.", context);
+        return apiFailure(
+          "forbidden",
+          "You are not a member of this group.",
+          context,
+        );
       case "already_member":
         return apiFailure(
           "invalid_request",

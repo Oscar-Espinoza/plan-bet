@@ -7,10 +7,7 @@ import {
 } from "#lib/server/api-response";
 import { requireAccount } from "#lib/server/auth";
 import { createJoinLink } from "#lib/server/data/groups";
-import {
-  getGroupBySlug,
-  isGroupMember,
-} from "#lib/server/data/groups-repository";
+import { getGroupBySlug } from "#lib/server/data/groups-repository";
 import { appBaseUrl } from "#lib/server/email";
 
 export const POST: RequestHandler = async (event) => {
@@ -36,7 +33,7 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const group = await getGroupBySlug(event.params.slug);
-  if (!group || !(await isGroupMember(group.id, account.userId))) {
+  if (!group) {
     return apiFailure("not_found", "That group does not exist.", context);
   }
 
@@ -45,7 +42,11 @@ export const POST: RequestHandler = async (event) => {
     userId: account.userId,
   });
   if (!outcome.ok) {
-    return apiFailure("not_found", "That group does not exist.", context);
+    return apiFailure(
+      "forbidden",
+      "You are not a member of this group.",
+      context,
+    );
   }
 
   return apiSuccess(

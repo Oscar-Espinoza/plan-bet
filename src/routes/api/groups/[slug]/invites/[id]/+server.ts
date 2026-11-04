@@ -7,10 +7,7 @@ import {
 } from "#lib/server/api-response";
 import { requireAccount } from "#lib/server/auth";
 import { revokeInvite } from "#lib/server/data/groups";
-import {
-  getGroupBySlug,
-  isGroupMember,
-} from "#lib/server/data/groups-repository";
+import { getGroupBySlug } from "#lib/server/data/groups-repository";
 
 export const DELETE: RequestHandler = async (event) => {
   const context = createRouteContext("DELETE /api/groups/[slug]/invites/[id]");
@@ -31,7 +28,7 @@ export const DELETE: RequestHandler = async (event) => {
   }
 
   const group = await getGroupBySlug(event.params.slug);
-  if (!group || !(await isGroupMember(group.id, account.userId))) {
+  if (!group) {
     return apiFailure("not_found", "That group does not exist.", context);
   }
 
@@ -41,7 +38,11 @@ export const DELETE: RequestHandler = async (event) => {
     userId: account.userId,
   });
   if (!outcome.ok) {
-    return apiFailure("not_found", "That group does not exist.", context);
+    return apiFailure(
+      "forbidden",
+      "You are not a member of this group.",
+      context,
+    );
   }
 
   return apiSuccess({ revoked: true }, context);

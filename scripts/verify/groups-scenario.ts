@@ -307,8 +307,14 @@ async function main() {
     outsiderCookie,
     { notifyOnActivity: false },
   );
-  if (outsiderPage.status === 404 && outsiderPatch.status === 404) {
-    pass("f non-member 404");
+  const patchError = outsiderPatch.payload?.error;
+  if (
+    outsiderPage.status === 404 &&
+    outsiderPatch.status === 403 &&
+    patchError?.code === "forbidden" &&
+    patchError?.message === "You are not a member of this group."
+  ) {
+    pass("f non-member page 404 api 403");
   } else {
     fail(
       "f non-member",

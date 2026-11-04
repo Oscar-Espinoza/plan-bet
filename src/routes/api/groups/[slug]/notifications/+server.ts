@@ -50,7 +50,11 @@ export const PATCH: RequestHandler = async (event) => {
     notifyOnActivity: body.data.notifyOnActivity,
   });
   if (!updated) {
-    return apiFailure("not_found", "That group does not exist.", context);
+    return apiFailure(
+      "forbidden",
+      "You are not a member of this group.",
+      context,
+    );
   }
 
   return apiSuccess({ notifyOnActivity: body.data.notifyOnActivity }, context);
