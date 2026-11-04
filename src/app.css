@@ -1,11 +1,14 @@
 @import "tailwindcss";
 /* Font wiring. The three latin faces live in static/fonts. They are not
-   preloaded: font-display: swap and the metric-matched fallbacks paint
-   first, and a preload would compete with the render-blocking stylesheet.
-   Archivo is subset to the weights and widths the design uses (600–800,
-   wdth 75–118). IBM Plex Sans is subset to 400–700. Regenerate with
-   scripts/subset-fonts.py. Fallback faces use the size-adjust metrics from
-   the legacy next/font build (legacy/.next/static/chunks CSS, size-adjust). */
+   preloaded. Until <html> has class "fonts" (added after the first frame
+   in optimize-head.ts) the used stacks are only the metric-matched local
+   faces, so the first style pass does not request the woff2 files.
+   font-display: swap then keeps those faces on screen until the file
+   arrives. Archivo is subset to the weights and widths the design uses
+   (600–800, wdth 75–118). IBM Plex Sans is subset to 400–700. Regenerate
+   with scripts/subset-fonts.py. Fallback faces use the size-adjust metrics
+   from the legacy next/font build (legacy/.next/static/chunks CSS,
+   size-adjust). */
 @font-face {
   font-family: archivo;
   src: url("/fonts/archivo-latin-wdth-normal.woff2") format("woff2");
@@ -133,14 +136,21 @@
   --radius-sm: 8px;
   --radius-md: 11px;
 
-  /* Type faces. Names match the @font-face rules above. */
-  --font-archivo: "archivo", "archivo Fallback", "Arial Narrow", sans-serif;
-  --font-plex: "plexSans", "plexSans Fallback", system-ui, sans-serif;
-  --font-dm-mono:
-    "dmMono", "dmMono Fallback", ui-monospace, "SF Mono", monospace;
+  /* Type faces. Names match the @font-face rules above. The webfont
+     names sit on :root.fonts so a first paint that has not added that
+     class never uses them. */
+  --font-archivo: "archivo Fallback", "Arial Narrow", sans-serif;
+  --font-plex: "plexSans Fallback", system-ui, sans-serif;
+  --font-dm-mono: "dmMono Fallback", ui-monospace, "SF Mono", monospace;
   --font-body: var(--font-plex);
   --font-display: var(--font-archivo);
   --font-mono: var(--font-dm-mono);
+  &.fonts {
+    --font-archivo: "archivo", "archivo Fallback", "Arial Narrow", sans-serif;
+    --font-plex: "plexSans", "plexSans Fallback", system-ui, sans-serif;
+    --font-dm-mono:
+      "dmMono", "dmMono Fallback", ui-monospace, "SF Mono", monospace;
+  }
 
   /* Shared easing, promoted from .mp (matchup.css --mp-ease). */
   --ease: cubic-bezier(0.23, 1, 0.32, 1);

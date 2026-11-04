@@ -4,7 +4,13 @@
  * the first frame. A double animation frame still started the import in
  * the same timestamp as first paint, so the wait is one frame and then a
  * macrotask. Modulepreloads and an immediate `import()` both pull
- * the client chunks into the first-paint window.
+ * the client chunks into the first-paint window. `fonts` on `<html>` is
+ * what switches the used stacks onto the woff2 faces. That class waits
+ * until a first-contentful-paint entry exists: the macrotask, and one
+ * frame after it, both still started the woff2 requests a few milliseconds
+ * before first paint. `document.fonts.check()` adds the class immediately
+ * when the faces are already loaded in this document; a check on its own
+ * does not request them.
  */
 export function optimizePageHtml(html: string, pathname: string): string {
   const delayed = delayKitStart(html);
@@ -59,19 +65,31 @@ export function optimizePageHtml(html: string, pathname: string): string {
 }
 
 /**
+ * True only when this document has already loaded the three families.
+ * A warm HTTP cache is not enough: a new document still reports false,
+ * and the check does not start a request. Both DM Mono files are separate
+ * faces, so each weight is checked.
+ */
+const FONTS_IF_READY = `try{if(document.fonts.check('600 16px "archivo"')&&document.fonts.check('400 16px "plexSans"')&&document.fonts.check('400 16px "dmMono"')&&document.fonts.check('500 16px "dmMono"'))document.documentElement.classList.add("fonts")}catch(e){}\n\t\t\t\t\t`;
+
+/** Adds `fonts` on the frame after first contentful paint, or after 90 frames. */
+const ARM_FONTS = `(() => { if (document.documentElement.classList.contains("fonts")) return; let frames = 0; const arm = () => { frames += 1; if (frames > 90 || performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) document.documentElement.classList.add("fonts"); else requestAnimationFrame(arm); }; arm(); })();\n\t\t\t\t\t\t`;
+
+/**
  * `document.currentScript` is only set while this inline script runs, so
  * `element` is captured immediately. The dynamic import waits until after
  * the first paint (one frame, then a macrotask) so those chunks are not in
- * the first-paint window.
- * The service-worker block stays outside the wait: it registers on `load`.
+ * the first-paint window. Nested routes import `../_app/...` rather than
+ * `./_app/...`. The service-worker block stays outside the wait: it
+ * registers on `load`.
  */
 function delayKitStart(html: string): string {
   const start =
-    /import\((["'])(\.\/_app\/immutable\/entry\/start\.[^"']+)\1\)\.then\(async \(kit\) => \{/;
+    /import\((["'])((?:\.+\/)+_app\/immutable\/entry\/start\.[^"']+)\1\)\.then\(async \(kit\) => \{/;
   if (!start.test(html)) return html;
   const opened = html.replace(
     start,
-    "requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\timport($1$2$1).then(async (kit) => {",
+    `${FONTS_IF_READY}requestAnimationFrame(() => {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t${ARM_FONTS}import($1$2$1).then(async (kit) => {`,
   );
   const closed = opened.replace(
     /\}\);\n(\s*)if \('serviceWorker' in navigator\)/,

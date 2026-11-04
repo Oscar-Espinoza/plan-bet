@@ -1183,3 +1183,66 @@ Measured and not kept:
 Kept preview version `9993027d-51a7-4563-b584-8f9d6d8eaa7d`. The ×5 after table was measured on `fc2dad75-2124-4036-9b30-3860b617080f`, the same HTML: the delayed import, no modulepreload, the disabled stylesheet link, the stadium preload, and Early Hints. `pnpm check` → `CHECK OK a297554`. Budgets unchanged: `/` 60,706 gzip (limit 61,440), `/games/[id]` 73,032 (limit 81,920).
 
 Files this round: `src/lib/server/optimize-head.ts` and this log.
+
+## T13c Fonts and beacon — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T13c-fonts-beacon / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 4 (`src/app.css`, `src/hooks.server.ts`, `src/lib/server/optimize-head.ts`, this log). Pieces: 2
+Ported from: none.
+Deviations from the plan:
+
+- The `fonts` class is not added inside the same macrotask as `kit.start`. That macrotask, and one extra frame after it, both still started the four woff2 requests a few milliseconds before observed FCP (160 vs 164, then 958 vs 964). The class now waits until a `first-contentful-paint` entry exists, with a 90-frame cap. On the kept build the requests start after that paint (home 870 vs 840, game 416 vs 372).
+- `delayKitStart` only matched `./_app/...`, which is the root document. A game page imports `../_app/...`, so it never delayed `kit.start` and would never have gained the class. The pattern is now `(?:\.+\/)+_app/...`, which covers `./`, `../`, and `../../`.
+
+No production deploy. Preview version `9ebb47bb-39fc-4350-a5be-b5f5916caf7a`. Game page: `/games/football-data-575386-real-madrid`. Queries `?t13c=before` and `?t13c=after`.
+
+`document.fonts.check()` was measured in headless Chrome against a page that declares the four faces and does not use them. The check returned false for archivo 600, plexSans 400, and both DM Mono weights, and the server saw no woff2 request. A later document in the same profile, after archivo had been fetched, still returned false. The check does not itself start a load, so it stays: it adds `fonts` immediately only when this document has already loaded the faces. A warm HTTP cache is not that state.
+
+HTML responses send `Cache-Control` with `no-transform`, `Vary: Accept-Encoding`, and `Content-Encoding: gzip` when the request accepts gzip. The body is `CompressionStream("gzip")` with `encodeBody: "manual"`. The edge cache stores the uncompressed render (`content-encoding` is dropped on `cache.put`) and compresses on the way out, including a HIT. `x-mp-cache` is still HIT, MISS, or BYPASS. `curl -H 'accept-encoding: gzip'` against preview: 20,938 bytes, magic `1f8b`, decompresses to a 105,475 byte document that starts with `<!doctype html>`. The earlier brotli document on the same preview was 21,610 bytes. A request with `accept-encoding: identity` is uncompressed HTML and still carries `no-transform`. A signed-in cookie is `x-mp-cache: BYPASS`, `private, no-cache, no-transform`, gzip. `/__data.json` is not given `no-transform`. Preview has no beacon; production removal is the coordinator's check.
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `03604be`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 03604be`. `node scripts/budget.mjs` → `/ 60705` (limit 61440), `/games/[id] 73031` (limit 81920). No budget warning.
+
+2. Lighthouse 12 mobile ×5, median of each metric, same command as T13b. Simulated metrics except the observed-FCP row. Preview before is the T13b round 3 build that was live at the start. Preview after is `9ebb47bb-39fc-4350-a5be-b5f5916caf7a`.
+
+| Page | Metric       | Old site | Preview before | Preview after |
+| ---- | ------------ | -------: | -------------: | ------------: |
+| `/`  | Score        |       93 |            100 |           100 |
+| `/`  | FCP          |   0.95 s |         1.00 s |        0.96 s |
+| `/`  | LCP          |   3.20 s |         1.37 s |        1.43 s |
+| `/`  | TBT          |          |          38 ms |         40 ms |
+| `/`  | JS transfer  |   262 KB |       90,972 B |      92,485 B |
+| `/`  | CSS transfer |          |            0 B |           0 B |
+| `/`  | Total bytes  |   505 KB |      279,259 B |     278,660 B |
+| `/`  | TTFB         |   307 ms |         345 ms |         62 ms |
+| `/`  | CLS          |          |         0.0009 |        0.0008 |
+| `/`  | Observed FCP |          |         475 ms |        164 ms |
+| game | Score        |       93 |            100 |           100 |
+| game | FCP          |   0.95 s |         1.00 s |        0.94 s |
+| game | LCP          |   3.20 s |         1.45 s |        1.40 s |
+| game | TBT          |          |          24 ms |          0 ms |
+| game | JS transfer  |   262 KB |       97,795 B |      99,268 B |
+| game | CSS transfer |          |            0 B |           0 B |
+| game | Total bytes  |   505 KB |      268,874 B |     268,331 B |
+| game | TTFB         |   307 ms |         123 ms |         79 ms |
+| game | CLS          |          |         0.0011 |        0.0009 |
+| game | Observed FCP |          |         255 ms |        160 ms |
+
+Home runs before: FCP 1.00 / 1.01 / 1.00 / 0.96 / 1.04, LCP 1.40 / 1.37 / 1.00 / 1.38 / 1.36, TBT 47 / 38 / 32 / 72 / 28. Home runs after: FCP 0.96 / 0.96 / 0.96 / 0.96 / 0.96, LCP 1.43 / 1.07 / 1.58 / 1.47 / 0.98, TBT 40 / 44 / 29 / 53 / 15. Game runs before: FCP 0.99 / 1.00 / 1.03 / 1.01 / 0.97, LCP 1.39 / 2.05 / 1.45 / 1.86 / 1.06, TBT 18 / 24 / 28 / 23 / 34. Game runs after: FCP 0.94 / 0.96 / 0.94 / 0.94 / 0.95, LCP 1.40 / 1.37 / 1.40 / 1.46 / 1.40, TBT 0 / 4 / 0 / 0 / 0.
+
+The 0.88 s preview FCP target was not met. Kept medians are 0.96 s and 0.94 s. Home FCP is 0.04 s lower than this ticket's before. Game FCP is 0.06 s lower. Home LCP median is 1.43 s against 1.37 s before; the five runs overlap (before 1.00–1.40, after 0.98–1.58). Game LCP is 1.40 s against 1.45 s. Home TBT is 40 ms against 38 ms. Game TBT is 0 ms against 24 ms. CLS is 0.0008 and 0.0009 against 0.0009 and 0.0011. The four woff2 files still transfer about 119 KB, after first paint, so they stay in the total. Lighthouse still lists them as high-priority children of the document. Simulated FCP is still the document plus the script requests that begin at the same moment as first paint, which is the T13b round 3 residual.
+
+3. Headless Chrome on the kept build, 390×844:
+
+- Fonts. Before the class, computed `font-family` is `"plexSans Fallback", system-ui, sans-serif` and the text color is `rgb(244, 247, 251)` at opacity 1. After the class it is `plexSans, "plexSans Fallback", ...`. A team name is `archivo, "archivo Fallback", "Arial Narrow", sans-serif`. No sample had transparent or hidden text.
+- Client navigation. A click from `/` to `/games/football-data-564741-real-madrid` left `performance.getEntriesByType('navigation')` at 1. Every frame through the click kept class `fonts` and the plexSans stack. The h1 became "Valencia CF vs Real Madrid CF".
+- Spanish. `button[lang=es]` set `locale=es`, the group `aria-label` to "Idioma", `aria-pressed` true, and the nav label "Partidos". The class stayed. No exceptions.
+- Signed-out game page. A fresh profile, no session cookie, on `/games/football-data-575386-real-madrid` rendered h1 "PAE AEK 2 – 3 Real Madrid CF, final" and then the webfont stacks. Font requests started at 416 ms, observed FCP at 372 ms.
+
+4. Screenshots at 390×844, both after `document.fonts.ready`. Game page luminance delta of 8 or more: 0 of 329,160 px. Home: 17,064 px (5.18%). Of that, 15,712 px are y 702–767, where the before shot still had the product tour over the next row and the after shot shows Sunday's game. Above y 640 the delta is 1,352 px (0.54%), the Valencia crest, which had not painted in the before shot. The type and the hero card otherwise match.
+
+Budgets touched: none. `/` first-load JS gzip 60,705 bytes (limit 61,440). `/games/[id]` 73,031 bytes (limit 81,920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Production check that `no-transform` plus this gzip removes the Cloudflare beacon and keeps the HTML compressed. Simulated preview FCP is 0.96 s and 0.94 s, still above 0.88 s.
