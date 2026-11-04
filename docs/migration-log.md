@@ -10,12 +10,13 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 
 ## Builder scorecard
 
-| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome        | Wall time | Cost     |
-| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | -------------- | --------- | -------- |
-| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS           | 21.5 min  | included |
-| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 2.8 min   | included |
-| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 19.8 min  | included |
-| T03    | B    | Composer 2.5 | yes           | 0          | 2             | 1 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2) | 25.4 min  | included |
+| Ticket | Tier | Builder      | Plan followed | Gate loops | Review rounds | Blocker / major / minor | Invariant breaks | SvelteKit 2 slips | Invented APIs | Sandbox | Outcome        | Wall time                                                           | Cost     |
+| ------ | ---- | ------------ | ------------- | ---------- | ------------- | ----------------------- | ---------------- | ----------------- | ------------- | ------- | -------------- | ------------------------------------------------------------------- | -------- |
+| T00    | B    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS           | 21.5 min                                                            | included |
+| T01    | B    | Composer 2.5 | yes           | 0          | 1             | 0 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS           | 2.8 min                                                             | included |
+| T02    | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 2               | 0                | 0                 | 0             | clean   | PASS           | 19.8 min                                                            | included |
+| T03    | B    | Composer 2.5 | yes           | 0          | 2             | 1 / 0 / 1               | 0                | 0                 | 0             | clean   | PASS (round 2) | 25.4 min                                                            | included |
+| T04    | A    | Grok 4.7     | yes           | 0          | 2             | 0 / 1 / 0               | 0                | 0                 | 0             | clean   | PASS (round 2) | 43 min (process hung after committing both rounds; killed at limit) | included |
 
 ## Coordinator notes
 
@@ -26,6 +27,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 - T02 review (Opus): gate `CHECK OK d11226d`; fresh local migrate applies 0000 + 0001; schema dump matches legacy tables, onDelete rules and enum CHECKs; independently confirmed with SQL: one `grant 1000 signup` per user via trigger, second grant rejected, second `return` rejected and `ON CONFLICT (wager_id) WHERE kind='return'` is a no-op, duplicate `running` lease rejected, duplicate idempotency key rejected. Good catch by Grok: legacy grant reason is `signup`. Minor: Better Auth's `user.name`/`user.email` are NOT NULL while legacy allowed null; T14's transform must default them. Minor: fixture-context merge in `getGameDetail` deferred; added to T03's plan.
 
 - T03 review (Opus): round 1 BLOCK — the enrich RPC failed and surfaced as a hung Worker (500 from the cron route). Composer's round 2 found the cause: a Drizzle `sql` fragment in `dueWork` that D1 rejected (fixed with `or(isNull, lt)`, same semantics as legacy) plus a throw across the RPC boundary; it also cleared abort timers and made the cron routes return the legacy error envelope. Re-verified: enrich 200 twice, refresh 200 (baseball succeeded, soccer skipped: no football token on the preview), `board:v1` published. Minor: bearer cron POSTs need `Content-Type: application/json` under SvelteKit 3 CSRF; Workers cron uses RPC so nothing depends on it.
+
+- T04 review (Opus): round 1 one MAJOR — SvelteKit sets `private, no-store` on every data response and the cache treated that as an opt-out, so client-navigation data was never cached. Round 2 fixed it (data requests opt out only via `x-mp-opt-out: 1`); re-verified locally: data MISS→HIT, session cookie BYPASS, HTML rules unchanged. Grok's parity measurements (0 px vs production, 320/390/1280 × en/es) and cache checks reproduced. Observation: both Grok runs kept the CLI process alive long after committing (41 min of work then idle until the 2 h limit; round 2 committed after 2 min then idle until killed); later runs use a shorter timeout and are judged by the commit. Merge into cf/main needed conflict resolution in package.json and this log (T04 branched before T02/T03). The shell alone puts `/` at 54.5 KB of 60 KB.
 
 ## Tickets
 
