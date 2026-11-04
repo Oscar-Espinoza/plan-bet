@@ -1034,6 +1034,7 @@ The second `api_request` line is `apiFailure`, same as the existing `internal_er
 Budgets touched: none. This check printed `/` 60573 bytes gzip (limit 61440) and `/games/[id]` 73030 (limit 81920). No UI change in this ticket.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: coordinator deploys after review. `FOOTBALL_DATA_API_TOKEN` is still unset, so soccer refresh stays unconfigured.
+
 ## T13b First paint — 2026-11-04 — PASS (builder)
 
 Branch / PR: cf/T13b-first-paint / (not opened) Models: build Grok 4.7, verify not run
