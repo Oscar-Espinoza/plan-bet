@@ -28,6 +28,7 @@ export type GameReadModel = {
 const BOARD_KEY = "board:v1";
 const ROUTES_KEY = "routes:v1";
 const VERSION_KEY = "publish:version";
+export const PUBLISH_LAST_AT_KEY = "publish:lastAt";
 
 export function gameReadModelKey(routeId: string) {
   return `game:v1:${routeId}`;
@@ -118,6 +119,7 @@ export async function publishReadModels(now = new Date()) {
     );
     await env.PUBLIC.put(ROUTES_KEY, JSON.stringify(routes));
     await env.PUBLIC.put(VERSION_KEY, next);
+    await env.PUBLIC.put(PUBLISH_LAST_AT_KEY, now.toISOString());
     logEvent("info", "publish_read_models", {
       version: next,
       games: games.length,

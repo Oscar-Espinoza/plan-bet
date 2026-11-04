@@ -6,6 +6,7 @@ import {
   refreshSportData,
   type RefreshOutcome,
 } from "../../../src/lib/server/data/sports-data";
+import { settleWagers } from "../../../src/lib/server/data/settlement";
 import { getSportsProvider } from "../../../src/lib/server/providers/registry";
 import { providerErrorCode } from "../../../src/lib/server/providers/provider-error";
 
@@ -50,7 +51,8 @@ export class Jobs extends WorkerEntrypoint {
   }
 
   async settle() {
-    return { skipped: "settlement arrives in T09" } as const;
+    const requestId = crypto.randomUUID();
+    return settleWagers({ requestId });
   }
 
   async enrich() {
