@@ -3,7 +3,7 @@
   import "../app.css";
   import "#lib/styles/matchup.css";
   import AppShell from "#lib/components/app-shell.svelte";
-  import AccountControl from "#lib/components/account-control.svelte";
+  import AccountControl from "#lib/components/account-control-lazy.svelte";
   import LanguageProvider from "#lib/components/language-provider.svelte";
   import RefreshVisiblePage from "#lib/components/refresh-visible-page.svelte";
   import RequestClock from "#lib/components/request-clock.svelte";

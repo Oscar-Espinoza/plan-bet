@@ -1,4 +1,3 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { translate, type Locale } from "../../shared/locale";
 import { marketsFor } from "../../shared/markets";
 import "../locale";
@@ -6,13 +5,10 @@ import { estimateCostMicros } from "../ai-cost";
 import {
   gameSummarySchema,
   type EvidenceFact,
-  type GameCommentPhase,
-  type GameStatus,
   type GroupLeaderboardEntry,
   type RecordSlices,
 } from "../domain/contracts";
 import { getDatabase, isDatabaseConfigured } from "../db/client";
-import { commentVotes, gameComments, groups, user, wagers } from "../db/schema";
 import { logEvent } from "../logger";
 import { isOpenAiConfigured, OpenAiClient } from "../providers/openai/client";
 import { ProviderError } from "../providers/provider-error";
@@ -30,6 +26,12 @@ import {
   getGroupLeaderboard,
   isGroupMember,
 } from "./groups-repository";
+import {
+  commentPhase,
+  listCommentThreads,
+  pickPins,
+  type CommentThread,
+} from "./game-comments";
 import { getGameDetail } from "./sports-data";
 import { getRecordSlices, readGameForWager } from "./wagers-repository";
 import {
@@ -112,160 +114,6 @@ export function boardFacts(
     );
   }
   return facts;
-}
-
-type ThreadComment = {
-  id: string;
-  userId: string;
-  authorName: string | null;
-  authorSelectionLabel: string;
-  phase: GameCommentPhase;
-  body: string;
-  shameVotes: number;
-  slanderVotes: number;
-};
-
-type CommentThread = {
-  groupId: string;
-  comments: ThreadComment[];
-};
-
-/** The second message opens only when the provider confirms full time. */
-function commentPhase(
-  scheduledAt: Date | string,
-  now: Date,
-  status: GameStatus,
-): GameCommentPhase | null {
-  if (status === "finished") return "after";
-  if (
-    status === "scheduled" &&
-    now.getTime() < new Date(scheduledAt).getTime()
-  ) {
-    return "before";
-  }
-  return null;
-}
-
-/**
- * The comment id with the most votes of each kind, undefined below one vote.
- * Comments arrive ordered createdAt asc, so a strict `>` gives earliest-wins
- * on a tie.
- */
-function pickPins(comments: ThreadComment[]): {
-  shame?: string;
-  slander?: string;
-} {
-  let shame: { id: string; votes: number } | undefined;
-  let slander: { id: string; votes: number } | undefined;
-  for (const comment of comments) {
-    if (
-      comment.shameVotes > 0 &&
-      (!shame || comment.shameVotes > shame.votes)
-    ) {
-      shame = { id: comment.id, votes: comment.shameVotes };
-    }
-    if (
-      comment.slanderVotes > 0 &&
-      (!slander || comment.slanderVotes > slander.votes)
-    ) {
-      slander = { id: comment.id, votes: comment.slanderVotes };
-    }
-  }
-  return { shame: shame?.id, slander: slander?.id };
-}
-
-/**
- * One entry per group where the viewer has a wager on this game. Kept here
- * because T11 owns `game-comments.ts` and that file is not in this worktree.
- */
-async function listCommentThreads(
-  userId: string,
-  canonicalGameId: string,
-): Promise<CommentThread[]> {
-  const database = getDatabase();
-  const eligibleGroups = await database
-    .selectDistinct({ groupId: wagers.groupId })
-    .from(wagers)
-    .innerJoin(groups, eq(groups.id, wagers.groupId))
-    .where(
-      and(
-        eq(wagers.userId, userId),
-        eq(wagers.canonicalGameId, canonicalGameId),
-      ),
-    );
-  const groupsWithId = eligibleGroups.flatMap((row) =>
-    row.groupId ? [row.groupId] : [],
-  );
-  if (groupsWithId.length === 0) return [];
-
-  const groupIds = groupsWithId;
-  const commentRows = await database
-    .select({
-      comment: gameComments,
-      authorName: user.name,
-      authorSelectionLabel: sql<string | null>`(
-        select ${wagers.selectionLabel} from ${wagers}
-        where ${wagers.groupId} = ${gameComments.groupId}
-          and ${wagers.userId} = ${gameComments.userId}
-          and ${wagers.canonicalGameId} = ${canonicalGameId}
-        limit 1
-      )`,
-    })
-    .from(gameComments)
-    .innerJoin(user, eq(user.id, gameComments.userId))
-    .where(
-      and(
-        inArray(gameComments.groupId, groupIds),
-        eq(gameComments.canonicalGameId, canonicalGameId),
-      ),
-    )
-    .orderBy(asc(gameComments.createdAt));
-
-  const commentIds = commentRows.map((row) => row.comment.id);
-  const voteRows = commentIds.length
-    ? await database
-        .select({
-          commentId: commentVotes.commentId,
-          kind: commentVotes.kind,
-        })
-        .from(commentVotes)
-        .where(inArray(commentVotes.commentId, commentIds))
-    : [];
-  const tallyByComment = new Map<
-    string,
-    { shameVotes: number; slanderVotes: number }
-  >();
-  for (const vote of voteRows) {
-    const tally = tallyByComment.get(vote.commentId) ?? {
-      shameVotes: 0,
-      slanderVotes: 0,
-    };
-    if (vote.kind === "shame") tally.shameVotes += 1;
-    else tally.slanderVotes += 1;
-    tallyByComment.set(vote.commentId, tally);
-  }
-
-  return groupsWithId.map((groupId) => ({
-    groupId,
-    comments: commentRows
-      .filter((row) => row.comment.groupId === groupId)
-      .map((row) => {
-        const tally = tallyByComment.get(row.comment.id) ?? {
-          shameVotes: 0,
-          slanderVotes: 0,
-        };
-        return {
-          id: row.comment.id,
-          userId: row.comment.userId,
-          authorName: row.authorName,
-          authorSelectionLabel: row.authorSelectionLabel ?? "",
-          phase: row.comment.phase,
-          body: row.comment.body,
-          shameVotes: tally.shameVotes,
-          slanderVotes: tally.slanderVotes,
-        };
-      }),
-  }));
 }
 
 /**
