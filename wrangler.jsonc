@@ -42,6 +42,13 @@
       "kv_namespaces": [
         { "binding": "PUBLIC", "id": "8a316593b062493cacddfe7b89d63f2f" },
       ],
+      "services": [
+        {
+          "binding": "JOBS",
+          "service": "matchday-jobs-preview",
+          "entrypoint": "Jobs",
+        },
+      ],
     },
   },
 }

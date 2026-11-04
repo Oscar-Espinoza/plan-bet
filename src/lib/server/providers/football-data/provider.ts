@@ -1,0 +1,110 @@
+import type { TeamSlug } from "../../domain/contracts";
+import type {
+  CachedTeamMetadata,
+  ProviderRefreshFailure,
+  SportsProvider,
+} from "../contracts";
+import { FootballDataClient } from "./client";
+import {
+  FOOTBALL_DATA_PROVIDER,
+  normalizeFootballGameUpdate,
+  normalizeSoccerTeamData,
+  SOCCER_PROVIDER_IDS,
+} from "./normalize";
+import type { FootballDataTeam } from "./schemas";
+import { providerErrorCode } from "../provider-error";
+import { providerEnv } from "../worker-env";
+
+type SoccerSlug = keyof typeof SOCCER_PROVIDER_IDS;
+
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function cachedProviderTeam(
+  slug: SoccerSlug,
+  cached: CachedTeamMetadata | undefined,
+): FootballDataTeam | undefined {
+  if (!cached) return undefined;
+  return {
+    id: SOCCER_PROVIDER_IDS[slug],
+    name: cached.team.name,
+    shortName: cached.team.shortName,
+    tla: cached.team.abbreviation,
+    crest: cached.team.crestUrl,
+    lastUpdated: cached.sourceObservedAt.toISOString(),
+  };
+}
+
+export class FootballDataProvider implements SportsProvider {
+  readonly sport = "soccer" as const;
+  readonly provider = FOOTBALL_DATA_PROVIDER;
+  readonly refreshOperation = "refresh_soccer";
+  readonly refreshScope = "configured-teams";
+  readonly teamSlugs = Object.keys(SOCCER_PROVIDER_IDS) as SoccerSlug[];
+
+  isConfigured() {
+    return Boolean(providerEnv("FOOTBALL_DATA_API_TOKEN"));
+  }
+
+  async refresh(input: {
+    now: Date;
+    cachedTeams: Partial<Record<TeamSlug, CachedTeamMetadata>>;
+  }) {
+    const client = new FootballDataClient();
+    const standings = await client.getLaLigaStandings();
+    const bundles = [];
+    const failures: ProviderRefreshFailure[] = [];
+
+    for (const slug of this.teamSlugs) {
+      try {
+        const providerId = SOCCER_PROVIDER_IDS[slug];
+        const cachedTeam = cachedProviderTeam(slug, input.cachedTeams[slug]);
+        const team = cachedTeam ?? (await client.getTeam(providerId));
+        const dateTo = new Date(input.now);
+        dateTo.setUTCFullYear(dateTo.getUTCFullYear() + 1);
+        const [upcoming, recent] = await Promise.all([
+          client.getTeamMatches(providerId, "upcoming_matches", {
+            dateFrom: formatDate(input.now),
+            dateTo: formatDate(dateTo),
+            limit: "50",
+          }),
+          client.getTeamMatches(providerId, "recent_matches", {
+            status: "FINISHED",
+            limit: "20",
+          }),
+        ]);
+        const normalized = normalizeSoccerTeamData({
+          slug,
+          team,
+          upcoming: upcoming.matches,
+          recent: recent.matches,
+          standings,
+          fetchedAt: input.now,
+        });
+        bundles.push({
+          provider: this.provider,
+          providerExternalId: String(providerId),
+          metadataRefreshed: !cachedTeam,
+          metadataObservedAt: new Date(team.lastUpdated ?? input.now),
+          schedule: normalized.schedule,
+          snapshots: normalized.snapshots,
+        });
+      } catch (error) {
+        failures.push({ teamSlug: slug, code: providerErrorCode(error) });
+      }
+    }
+
+    return { bundles, failures };
+  }
+
+  async fetchGameUpdates(input: { providerGameIds: string[]; now: Date }) {
+    if (!input.providerGameIds.length) return [];
+    const response = await new FootballDataClient().getMatchesById(
+      input.providerGameIds.map(Number),
+    );
+    return response.matches.map((match) =>
+      normalizeFootballGameUpdate(match, input.now),
+    );
+  }
+}

@@ -3,6 +3,7 @@ node_modules
 .wrangler/
 .env*
 !.env.example
+.dev.vars
 migration-out/
 .output
 .DS_Store

@@ -1,0 +1,400 @@
+import {
+  gameScheduleSchema,
+  gameSnapshotSchema,
+  gameStatusSchema,
+  teamSchema,
+  type Freshness,
+  type GameResult,
+  type GameStatus,
+  type Team,
+  type TeamSlug,
+} from "../../domain/contracts";
+import { getTeam } from "../../domain/seed";
+import type {
+  FootballDataMatch,
+  FootballDataStandings,
+  FootballDataTeam,
+} from "./schemas";
+import {
+  MIN_GAMES_FOR_STANDING,
+  RESULT_RETENTION_DAYS,
+  TERMINAL_STATUSES,
+  type ProviderGameUpdate,
+  type ProviderSnapshot,
+} from "../contracts";
+
+export const FOOTBALL_DATA_PROVIDER = "football-data";
+export const FOOTBALL_DATA_ATTRIBUTION = {
+  name: "football-data.org",
+  url: "https://www.football-data.org/",
+} as const;
+
+export const SOCCER_PROVIDER_IDS = {
+  "real-madrid": 86,
+  barcelona: 81,
+} as const satisfies Record<"real-madrid" | "barcelona", number>;
+
+const TRACKED_SLUGS_BY_ID = new Map<number, TeamSlug>(
+  Object.entries(SOCCER_PROVIDER_IDS).map(([slug, id]) => [
+    id,
+    slug as TeamSlug,
+  ]),
+);
+
+export function normalizeFootballStatus(status: string): GameStatus {
+  const normalized = status.toUpperCase();
+  if (normalized === "SCHEDULED" || normalized === "TIMED") return "scheduled";
+  if (["LIVE", "IN_PLAY", "PAUSED"].includes(normalized)) return "live";
+  if (normalized === "FINISHED") return "finished";
+  if (["POSTPONED", "SUSPENDED"].includes(normalized)) return "postponed";
+  if (normalized === "CANCELLED") return "cancelled";
+  return gameStatusSchema.parse("unknown");
+}
+
+function providerGameId(id: number) {
+  return `football-data-${id}`;
+}
+
+function canonicalGameId(id: number, slug: TeamSlug) {
+  return `${providerGameId(id)}-${slug}`;
+}
+
+function normalizeTeam(
+  slug: "real-madrid" | "barcelona",
+  raw: FootballDataTeam,
+): Team {
+  const configured = getTeam(slug)!;
+  return teamSchema.parse({
+    ...configured,
+    abbreviation: raw.tla ?? configured.abbreviation,
+    crestUrl: raw.crest ?? undefined,
+    providerIds: {
+      ...configured.providerIds,
+      [FOOTBALL_DATA_PROVIDER]: String(raw.id),
+    },
+  });
+}
+
+function resultFor(match: FootballDataMatch, teamId: number) {
+  const isHome = match.homeTeam.id === teamId;
+  const score = match.score?.fullTime;
+  if (score?.home == null || score.away == null) return undefined;
+  const own = isHome ? score.home : score.away;
+  const opponent = isHome ? score.away : score.home;
+  return own === opponent ? "D" : own > opponent ? "W" : "L";
+}
+
+// football-data reports how a match reached its full-time score. Anything it
+// does not report stays absent rather than being assumed to be regulation.
+const SOCCER_COMPLETION: Record<string, GameResult["completion"]> = {
+  REGULAR: "regulation",
+  EXTRA_TIME: "extra",
+  PENALTY_SHOOTOUT: "shootout",
+};
+
+// Only a provider-confirmed final carries a result. football-data fills
+// `fullTime` with the running score while a match is live, and settlement
+// pays once, so an in-play 1–0 must never look like a final score.
+function toGameResult(
+  match: FootballDataMatch,
+  fetchedAt: Date,
+): GameResult | undefined {
+  if (normalizeFootballStatus(match.status) !== "finished") return undefined;
+  const score = match.score?.fullTime;
+  if (score?.home == null || score.away == null) return undefined;
+  return {
+    homeScore: score.home,
+    awayScore: score.away,
+    completion: match.score?.duration
+      ? SOCCER_COMPLETION[match.score.duration.toUpperCase()]
+      : undefined,
+    source: FOOTBALL_DATA_PROVIDER,
+    observedAt: match.lastUpdated ?? fetchedAt.toISOString(),
+  };
+}
+
+/**
+ * A known match's latest status for settlement reconciliation — fetched by
+ * id, so it reaches fixtures outside the browse and retention windows.
+ */
+export function normalizeFootballGameUpdate(
+  match: FootballDataMatch,
+  fetchedAt: Date,
+): ProviderGameUpdate {
+  return {
+    canonicalGameId: providerGameId(match.id),
+    status: normalizeFootballStatus(match.status),
+    scheduledAt: match.utcDate,
+    result: toGameResult(match, fetchedAt),
+  };
+}
+
+export type NormalizedSoccerTeamData = {
+  schedule: ReturnType<typeof gameScheduleSchema.parse>;
+  snapshots: ProviderSnapshot[];
+};
+
+export function normalizeSoccerTeamData(input: {
+  slug: "real-madrid" | "barcelona";
+  team: FootballDataTeam;
+  upcoming: FootballDataMatch[];
+  recent: FootballDataMatch[];
+  standings: FootballDataStandings;
+  fetchedAt: Date;
+}): NormalizedSoccerTeamData {
+  const { slug, fetchedAt } = input;
+  const teamId = SOCCER_PROVIDER_IDS[slug];
+  const team = normalizeTeam(slug, input.team);
+  const standingsTable =
+    input.standings.standings.find((entry) => entry.type === "TOTAL")?.table ??
+    input.standings.standings[0]?.table ??
+    [];
+  // A row from a table nobody has played in yet is not a fact about form.
+  const tableRow = (id: number) => {
+    const row = standingsTable.find((entry) => entry.team.id === id);
+    return row && row.playedGames >= MIN_GAMES_FOR_STANDING ? row : undefined;
+  };
+  const standing = tableRow(teamId);
+  const recent = [...input.recent]
+    .filter((match) => normalizeFootballStatus(match.status) === "finished")
+    .sort((a, b) => b.utcDate.localeCompare(a.utcDate))
+    .slice(0, 5);
+  const recentForm = recent
+    .map((match) => resultFor(match, teamId))
+    .filter((result): result is "W" | "D" | "L" => Boolean(result));
+  const context = {
+    kind: "soccer" as const,
+    tablePosition: standing?.position,
+    points: standing?.points,
+    record: standing
+      ? `${standing.won}W · ${standing.draw}D · ${standing.lost}L`
+      : undefined,
+    recentForm,
+    availability: [],
+    matchupNotes: [],
+  };
+  const expiresAt = new Date(fetchedAt.getTime() + 60 * 60 * 1000);
+  const scheduleExpiry = new Date(fetchedAt.getTime() + 6 * 60 * 60 * 1000);
+  const freshness: Freshness = {
+    mode: "live",
+    provider: FOOTBALL_DATA_PROVIDER,
+    sourceObservedAt: fetchedAt.toISOString(),
+    fetchedAt: fetchedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    attribution: FOOTBALL_DATA_ATTRIBUTION,
+  };
+  const toGameSummary = (match: FootballDataMatch) => ({
+    id: canonicalGameId(match.id, slug),
+    sport: "soccer" as const,
+    teamSlug: slug,
+    competition: match.competition.name,
+    homeTeam: match.homeTeam.name,
+    awayTeam: match.awayTeam.name,
+    homeTeamCrestUrl: match.homeTeam.crest ?? undefined,
+    awayTeamCrestUrl: match.awayTeam.crest ?? undefined,
+    homeTeamSlug: TRACKED_SLUGS_BY_ID.get(match.homeTeam.id),
+    awayTeamSlug: TRACKED_SLUGS_BY_ID.get(match.awayTeam.id),
+    scheduledAt: match.utcDate,
+    venue: match.venue ?? undefined,
+    status: normalizeFootballStatus(match.status),
+    result: toGameResult(match, fetchedAt),
+  });
+
+  const games = [...input.upcoming]
+    .filter((match) =>
+      ["scheduled", "live", "postponed"].includes(
+        normalizeFootballStatus(match.status),
+      ),
+    )
+    .sort((a, b) => a.utcDate.localeCompare(b.utcDate))
+    .slice(0, 5)
+    .map(toGameSummary);
+
+  // Finished, cancelled, and postponed matches are re-snapshotted so a fixture
+  // that kicks off (or is called off) keeps its route readable with its final
+  // status instead of freezing at the pre-match snapshot it had when it left
+  // the upcoming window — and so settlement sees the terminal status. They
+  // are deliberately NOT added to `schedule.games`, which stays the five
+  // upcoming fixtures.
+  const retainedFrom = new Date(
+    fetchedAt.getTime() - RESULT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const upcomingIds = new Set(games.map((game) => game.id));
+  const finishedGames = [
+    ...new Map(
+      [...input.upcoming, ...input.recent].map((match) => [match.id, match]),
+    ).values(),
+  ]
+    .filter(
+      (match) =>
+        TERMINAL_STATUSES.includes(normalizeFootballStatus(match.status)) &&
+        new Date(match.utcDate) >= retainedFrom,
+    )
+    .sort((a, b) => b.utcDate.localeCompare(a.utcDate))
+    .map(toGameSummary)
+    .filter((game) => !upcomingIds.has(game.id));
+
+  const rawByRouteId = new Map(
+    [...input.upcoming, ...input.recent].map((match) => [
+      canonicalGameId(match.id, slug),
+      match,
+    ]),
+  );
+
+  const snapshots: ProviderSnapshot[] = [];
+  for (const game of [...games, ...finishedGames]) {
+    const raw = rawByRouteId.get(game.id)!;
+    const observedAt = raw.lastUpdated ?? fetchedAt.toISOString();
+    const sourceIds = {
+      schedule: `${game.id}-source-schedule`,
+      standings: `${game.id}-source-standings`,
+      form: `${game.id}-source-form`,
+    };
+    const sources = [
+      {
+        id: sourceIds.schedule,
+        name: "football-data.org team matches",
+        description: "Fixture time, competition, teams, status, and venue.",
+        provider: FOOTBALL_DATA_PROVIDER,
+        // A retained finished fixture came from the other request, and the
+        // source it cites has to say so.
+        operation: game.result ? "recent_matches" : "upcoming_matches",
+        url: `https://api.football-data.org/v4/teams/${teamId}/matches`,
+        observedAt,
+      },
+      {
+        id: sourceIds.standings,
+        name: "football-data.org La Liga standings",
+        description: "Current total-table position, points, and record.",
+        provider: FOOTBALL_DATA_PROVIDER,
+        operation: "standings",
+        url: "https://api.football-data.org/v4/competitions/PD/standings",
+        observedAt: fetchedAt.toISOString(),
+      },
+      {
+        id: sourceIds.form,
+        name: "football-data.org completed matches",
+        description:
+          "Last five completed matches from the tracked team perspective.",
+        provider: FOOTBALL_DATA_PROVIDER,
+        operation: "recent_matches",
+        url: `https://api.football-data.org/v4/teams/${teamId}/matches`,
+        observedAt: recent[0]?.lastUpdated ?? fetchedAt.toISOString(),
+      },
+    ];
+    const factPrefix = `${game.id}-fact`;
+    const trackedIsHome = raw.homeTeam.id === teamId;
+    const opponentSide = trackedIsHome ? raw.awayTeam : raw.homeTeam;
+    // The standings payload already holds the whole table, so the opponent's row
+    // is a sourced fact rather than a second request.
+    const opponentStanding = tableRow(opponentSide.id);
+    const facts = [
+      {
+        id: `${factPrefix}-schedule`,
+        label: "Scheduled time",
+        value: game.scheduledAt,
+        valueType: "datetime" as const,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-matchup`,
+        label: "Matchup",
+        value: `${game.homeTeam} (home) vs ${game.awayTeam} (away); ${team.shortName} is ${trackedIsHome ? "at home" : "away"}`,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-competition`,
+        label: "Competition",
+        value: game.competition,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-stage`,
+        label: "Competition stage",
+        value: raw.stage
+          ? raw.stage.replaceAll("_", " ").toLowerCase()
+          : "Not provided",
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-status`,
+        label: "Fixture status",
+        value: game.status,
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-venue`,
+        label: "Venue",
+        value: game.venue ?? "Not provided",
+        sourceId: sourceIds.schedule,
+        observedAt,
+      },
+      {
+        id: `${factPrefix}-standing`,
+        label: "La Liga standing",
+        value: standing
+          ? `#${standing.position} · ${standing.points} pts · ${context.record} · ${standing.playedGames} played`
+          : "Not provided",
+        sourceId: sourceIds.standings,
+        observedAt: fetchedAt.toISOString(),
+      },
+      {
+        id: `${factPrefix}-opponent-standing`,
+        label: `${opponentSide.shortName ?? opponentSide.name} La Liga standing`,
+        value: opponentStanding
+          ? `#${opponentStanding.position} · ${opponentStanding.points} pts · ${opponentStanding.won}W · ${opponentStanding.draw}D · ${opponentStanding.lost}L · ${opponentStanding.playedGames} played`
+          : "Not provided",
+        sourceId: sourceIds.standings,
+        observedAt: fetchedAt.toISOString(),
+      },
+      // Only on a finished fixture, so a read of a played match is
+      // grounded on its score instead of previewing a game already over.
+      ...(game.result
+        ? [
+            {
+              id: `${factPrefix}-final-score`,
+              label: "Final score",
+              value: `${game.homeTeam} ${game.result.homeScore} – ${game.result.awayScore} ${game.awayTeam}${game.result.completion && game.result.completion !== "regulation" ? ` (after ${game.result.completion === "shootout" ? "penalties" : "extra time"})` : ""}`,
+              sourceId: sourceIds.schedule,
+              observedAt: game.result.observedAt,
+            },
+          ]
+        : []),
+      {
+        id: `${factPrefix}-form`,
+        label: "Last five completed matches",
+        value: recentForm.length ? recentForm.join(" · ") : "Not provided",
+        sourceId: sourceIds.form,
+        observedAt: recent[0]?.lastUpdated ?? fetchedAt.toISOString(),
+      },
+    ];
+    const snapshot = gameSnapshotSchema.parse({
+      game,
+      context,
+      sources,
+      evidenceFacts: facts,
+      freshness: { ...freshness, sourceObservedAt: observedAt },
+    });
+    snapshots.push({
+      providerGameId: String(raw.id),
+      canonicalGameId: providerGameId(raw.id),
+      route: { id: game.id, teamSlug: slug },
+      snapshot,
+    });
+  }
+
+  return {
+    schedule: gameScheduleSchema.parse({
+      team,
+      games,
+      context,
+      freshness: { ...freshness, expiresAt: scheduleExpiry.toISOString() },
+    }),
+    snapshots,
+  };
+}

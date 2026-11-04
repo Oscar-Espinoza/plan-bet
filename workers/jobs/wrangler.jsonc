@@ -1,0 +1,36 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "matchday-jobs",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "triggers": { "crons": ["5 * * * *", "20 * * * *", "40 */3 * * *"] },
+  "vars": { "MATCHDAY_DATA_MODE": "live" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "matchday-prod",
+      "database_id": "<T15>",
+      "migrations_dir": "../../drizzle",
+    },
+  ],
+  "kv_namespaces": [{ "binding": "PUBLIC", "id": "<T15>" }],
+  "env": {
+    "preview": {
+      "name": "matchday-jobs-preview",
+      "vars": { "MATCHDAY_DATA_MODE": "live" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "matchday-preview",
+          "database_id": "d5c258c4-491c-465e-834b-ab2aa0216924",
+          "migrations_dir": "../../drizzle",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "PUBLIC", "id": "8a316593b062493cacddfe7b89d63f2f" },
+      ],
+    },
+  },
+}

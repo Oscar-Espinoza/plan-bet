@@ -21,10 +21,13 @@
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && node scripts/budget.mjs && node scripts/check-ok.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local --env preview"
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --env preview",
+    "jobs:dev": "wrangler dev --config workers/jobs/wrangler.jsonc --env preview",
+    "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
   },
   "dependencies": {
     "clsx": "2.1.1",
+    "csv-parse": "7.0.3",
     "drizzle-orm": "0.45.4",
     "zod": "4.6.7"
   },

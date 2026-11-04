@@ -140,3 +140,44 @@ Acceptance (`scripts/check-ok.mjs` prints the current HEAD short sha, so a re-ru
 Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a. No route changes.
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: T03 implements `scheduleRefresh`, the fixture-context merge on `getGameDetail`, and the provider refresh that calls `persistSportsTeamData`. The spec's Sessions API bookmark helper was not in this plan's client.ts list.
+
+## T03 Providers and the jobs Worker — 2026-11-04 — PASS
+
+Branch / PR: cf/T03-jobs / (not opened) Models: plan Claude Opus 5.5, build Composer 2.5, verify not run
+Builder scorecard: left for the coordinator
+Files: ~50 under `src/lib/server/providers/`, `src/lib/server/data/{publish,fixture-context,fixture-facts,sports-data}.ts`, `workers/jobs/`, cron routes, wrangler and package updates, plus `scripts/port-legacy-imports.mjs`. Lockfile and `.dev.vars` (gitignored) outside the cap. Pieces: 9
+Ported from: `legacy/src/providers/**`, refresh side of `legacy/src/data/sports-data.ts`, `legacy/src/data/{fixture-context,fixture-facts,fixture-context-repository}.ts`, cron routes under `legacy/src/app/api/cron/`
+Deviations from legacy (planned rewrites):
+
+- `invalidatePublicSports` / Next `after()` / `revalidateTag` → `publishReadModels()` after each successful team persist (and after fixture-context upsert).
+- KV keys: `board:v1`, `game:v1:<routeId>` (team-perspective route id, not canonical id), `routes:v1`, `publish:version`.
+- `scheduleRefresh` → `waitUntil(env.JOBS.refresh(sport))` when the binding exists.
+- App `/api/cron/*` forwards to the `JOBS` RPC (`refreshAll`, `settle`, `enrich`); `settle()` stub returns `{ skipped: "settlement arrives in T09" }`.
+- `src/lib/server/auth-config.ts` uses `BETTER_AUTH_SECRET` (T07 wires Better Auth).
+- `tsconfig.json` `#lib/*` path for SvelteKit 3 routes; `cloudflare-workers.d.ts` declares `waitUntil`.
+
+Deviations from legacy (Workers runtime):
+
+- `defaultFetch()` binds `globalThis.fetch` (unbound fetch throws in Workers).
+- `abortSignalTimeout()` polyfill and `providerEnv()` read secrets from `cloudflare:workers` `env` with `process.env` fallback.
+- `publishReadModels()` builds a partial `board:v1` when only some teams have stored schedules (baseball-only preview before soccer tokens).
+
+Deviations from the plan:
+
+- Cron POST from curl without SvelteKit origin headers returns 403 (`Cross-site POST form submissions are forbidden`); GET with `Authorization: Bearer` matches production cron callers and was used in acceptance.
+
+Packages: `csv-parse` 7.0.3.
+
+Preview: applied remote migrations `0000` + `0001` to `matchday-preview`; deployed `matchday-jobs-preview` then `matchday-preview`; `CRON_SECRET` set on both preview Workers and written to gitignored `.dev.vars`.
+
+Acceptance (secrets redacted; `pnpm wrangler kv key get` needs the key before `--remote`):
+
+1. `pnpm check` → `CHECK OK` (short sha on this commit). `pnpm exec wrangler deploy --dry-run --config workers/jobs/wrangler.jsonc --env preview` → Total Upload ~1307 KiB, exit 0.
+2. `curl -s -H "Authorization: Bearer $CRON_SECRET" https://matchday-preview.jolyyjhon.workers.dev/api/cron/refresh` → 200, baseball `succeeded` (`refreshed: 2`), soccer `skipped` (`unconfigured`) before token; with deliberate `FOOTBALL_DATA_API_TOKEN=bad-token` on jobs, soccer `failed` (`errorCode: unauthorized`) and baseball still `succeeded`. Without header → 401 `{ "error": { "code": "unauthorized", ... } }`.
+3. After refresh, `pnpm wrangler kv key get board:v1 --remote --env preview --binding PUBLIC` → JSON with keys `new-york-yankees` and `boston-red-sox`; `publish:version` → `4` (≥ 1).
+4. Last-known-good: no soccer rows in D1/KV on preview yet; baseball `teams.schedule_payload_hash` unchanged across refreshes; failed soccer run logged `ingestion_runs` `football-data` / `failed` / `unauthorized` and jobs tail `sports_ingestion` `warn` when team persist fails.
+5. `curl -s https://matchday-preview.jolyyjhon.workers.dev/api/health` → `database.status` `healthy`.
+
+Budgets touched: `/` first-load JS gzip 30854 bytes (limit 61440). `/games/[id]` n/a. Cron refresh route bundles provider registry for RPC failure fallback only.
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Remove invalid preview `FOOTBALL_DATA_API_TOKEN` or replace when coordinator sets the real token; T04 owns hooks and shell (not created here).

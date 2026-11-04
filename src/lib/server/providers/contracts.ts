@@ -1,0 +1,118 @@
+import type {
+  GameResult,
+  GameSchedule,
+  GameSnapshot,
+  GameStatus,
+  Sport,
+  Team,
+  TeamSlug,
+} from "../domain/contracts";
+import type { ProviderErrorCode } from "./provider-error";
+
+export type CachedTeamMetadata = {
+  team: Team;
+  providerExternalId: string;
+  sourceObservedAt: Date;
+  expiresAt: Date;
+};
+
+export type ProviderSnapshot = {
+  providerGameId: string;
+  canonicalGameId: string;
+  route: {
+    id: string;
+    teamSlug: TeamSlug;
+  };
+  snapshot: GameSnapshot;
+};
+
+export type CanonicalTeamBundle = {
+  provider: string;
+  providerExternalId: string;
+  metadataRefreshed: boolean;
+  metadataObservedAt: Date;
+  schedule: GameSchedule;
+  snapshots: ProviderSnapshot[];
+};
+
+/**
+ * A known game's latest provider status, keyed on the canonical game ID.
+ * `result` is present only for a provider-confirmed final.
+ */
+export type ProviderGameUpdate = {
+  canonicalGameId: string;
+  status: GameStatus;
+  scheduledAt: string;
+  startTimeTbd?: boolean;
+  scheduledDate?: string;
+  result?: GameResult;
+};
+
+export type ProviderRefreshFailure = {
+  teamSlug?: TeamSlug;
+  code: ProviderErrorCode | "persistence_error";
+};
+
+export type ProviderDiagnostic = {
+  provider: string;
+  operation: string;
+  status: "succeeded" | "failed";
+  code?: ProviderErrorCode;
+  message?: string;
+};
+
+export type ProviderRefreshResult = {
+  bundles: CanonicalTeamBundle[];
+  failures: ProviderRefreshFailure[];
+  diagnostics?: ProviderDiagnostic[];
+};
+
+export type SportsProvider = {
+  readonly sport: Sport;
+  readonly provider: string;
+  readonly refreshOperation: string;
+  readonly refreshScope: string;
+  readonly teamSlugs: readonly TeamSlug[];
+  isConfigured(): boolean;
+  refresh(input: {
+    now: Date;
+    cachedTeams: Partial<Record<TeamSlug, CachedTeamMetadata>>;
+  }): Promise<ProviderRefreshResult>;
+  /**
+   * Re-reads specific games by provider game ID, independent of the team
+   * schedule windows — how an open wager's fixture keeps being reconciled
+   * until it reaches a terminal status.
+   */
+  fetchGameUpdates(input: {
+    providerGameIds: string[];
+    now: Date;
+  }): Promise<ProviderGameUpdate[]>;
+};
+
+/**
+ * The statuses settlement grades on: a provider-confirmed final, or a
+ * called-off game that voids. Anything else (scheduled, live, unknown) stays
+ * open, whatever score it carries.
+ */
+export const TERMINAL_STATUSES: readonly GameStatus[] = [
+  "finished",
+  "cancelled",
+  "postponed",
+];
+
+/**
+ * How far back a finished game is retained and re-snapshotted on every refresh.
+ * ponytail: bounded because football-data returns the last 20 finished matches
+ * and MLB's recent_results spans 60 days — uncapped, each refresh would rebuild
+ * and persist ~50 extra snapshots per team. Widen it only if a settlement
+ * window ever exceeds a week.
+ */
+export const RESULT_RETENTION_DAYS = 7;
+
+/**
+ * A table position off one or two matchdays is noise dressed as a fact —
+ * "15th on 0 points from 0 played" reads as a slump when it only means the
+ * season just started. Below this the standing is left out entirely rather
+ * than qualified in prose nobody would trust anyway.
+ */
+export const MIN_GAMES_FOR_STANDING = 3;
