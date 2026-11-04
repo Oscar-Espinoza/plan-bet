@@ -355,23 +355,23 @@ Deviations from legacy (planned rewrites):
 - No React `cache()` on the summary, the open count, or record slices.
 - List order is `(created_at DESC, id DESC)`. Legacy often ordered by `created_at` only, and group activity used `id ASC`.
 - Starting grant stays the T02 trigger (`reason` `signup`). App code does not insert grants.
-- Conditional inserts use `db.insert(table).select(sql\`…\`)`. A raw `db.run` inside `db.batch()` does not bind parameters on D1. `ON CONFLICT` names bare `user_id, idempotency_key` so SQLite matches `wagers_user_idempotency_uidx`. Price, line and timestamps go through `param` so the custom types and epoch columns encode them. Import-time column-order asserts throw if the schema order drifts.
+- Conditional inserts use Drizzle `insert().select()` with a SQL fragment. A raw `db.run` inside `db.batch()` does not bind parameters on D1. The conflict target names bare `user_id, idempotency_key` so SQLite matches `wagers_user_idempotency_uidx`. Price, line and timestamps go through `param` so the custom types and epoch columns encode them. Import-time column-order asserts throw if the schema order drifts.
 - Group mail is `waitUntil(notifyGroupWagerPlaced(...))` from `cloudflare:workers`, only after a fresh success with a `groupId`. Replays do not send. Resend stays the existing fetch helper. Opt-out is `notify_on_activity`. Settlement and invite mail stay for T09 and T10.
 
 Where each legacy check lives:
 
-| Check | Pre-read (message) | Batch predicate (guarantee) |
-| --- | --- | --- |
+| Check              | Pre-read (message)                                                                                           | Batch predicate (guarantee)                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Idempotency replay | Select the wager by `(user_id, idempotency_key)` before the batch. An existing row returns `replayed: true`. | `ON CONFLICT (user_id, idempotency_key) DO NOTHING`, then read back by the new id or by that key. A different id is `replayed: true`: no second stake, no email. NULL keys do not conflict. |
-| Group membership | `isGroupMember` → `not_a_group_member`. | `group_id` is null, or a `group_members` row exists for that user. |
-| Game exists | `readGameForWager` → `unavailable`. | The insert matches the canonical id from that read. If the row is gone after a failed insert, the post-read returns `unavailable`. |
-| Selection | `resolveSelection` → `invalid_selection`. | The house table is code. Stored market, selection, labels and price are the resolved house values. |
-| Availability | `evaluateWagerAvailability` → `closed` with the status. | `games.status = 'scheduled'` and `scheduled_at > now` and `json_extract(games.summary, '$.result')` is null. |
-| Price | Client price ≠ house price → `price_moved` with the house price. | The insert stores `param(selection.price, wagers.price)`, never the client number. |
-| Balance | Not used to accept or reject. | `coalesce(sum(amount), 0) >= stake` on the wager insert. Otherwise the post-read returns `insufficient_balance`. |
-| Stake row | — | Stake insert runs only `WHERE EXISTS` the new wager id. Amount is `-stake`, reason `wager placed`. |
-| Reset cap | None. | Count of `kind = 'reset'` rows in the last hour `< 5`. `meta.changes === 0` is `rate_limited`. |
-| Reset delta | — | Amount is `clamp(STARTING_CREDITS - balance, ±INT4_MAX)`. A reset inserts even at delta 0. |
+| Group membership   | `isGroupMember` → `not_a_group_member`.                                                                      | `group_id` is null, or a `group_members` row exists for that user.                                                                                                                          |
+| Game exists        | `readGameForWager` → `unavailable`.                                                                          | The insert matches the canonical id from that read. If the row is gone after a failed insert, the post-read returns `unavailable`.                                                          |
+| Selection          | `resolveSelection` → `invalid_selection`.                                                                    | The house table is code. Stored market, selection, labels and price are the resolved house values.                                                                                          |
+| Availability       | `evaluateWagerAvailability` → `closed` with the status.                                                      | `games.status = 'scheduled'` and `scheduled_at > now` and `json_extract(games.summary, '$.result')` is null.                                                                                |
+| Price              | Client price ≠ house price → `price_moved` with the house price.                                             | The insert stores `param(selection.price, wagers.price)`, never the client number.                                                                                                          |
+| Balance            | Not used to accept or reject.                                                                                | `coalesce(sum(amount), 0) >= stake` on the wager insert. Otherwise the post-read returns `insufficient_balance`.                                                                            |
+| Stake row          | —                                                                                                            | Stake insert runs only `WHERE EXISTS` the new wager id. Amount is `-stake`, reason `wager placed`.                                                                                          |
+| Reset cap          | None.                                                                                                        | Count of `kind = 'reset'` rows in the last hour `< 5`. `meta.changes === 0` is `rate_limited`.                                                                                              |
+| Reset delta        | —                                                                                                            | Amount is `clamp(STARTING_CREDITS - balance, ±INT4_MAX)`. A reset inserts even at delta 0.                                                                                                  |
 
 Post-batch, when nothing was inserted: membership, then a missing game (`unavailable`), then availability (`closed`), else `insufficient_balance`.
 
