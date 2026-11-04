@@ -974,3 +974,57 @@ Round 2 preview (coordinator): FCP **2.47 s**, LCP **3.59 s**. Round 3 preview *
   - Timeout around `env.JOBS.*` RPC calls.
   - `FOOTBALL_DATA_API_TOKEN` (soccer refresh is unconfigured).
   - After a stable week: delete `legacy/` and `scripts/verify/`, rewrite the docs, delete Neon after 30 days.
+
+## T13b First paint — 2026-11-04 — PASS (builder)
+
+Branch / PR: cf/T13b-first-paint / (not opened) Models: build Grok 4.7, verify not run
+Builder scorecard: left for the coordinator
+Files: 14 (13 plus this log). Pieces: 4
+Ported from: none. `legacy/` does not proxy crests; this ticket adds a same-origin cache because the hero crest was opening `crests.football-data.org` during first paint.
+Deviations from legacy:
+
+- Fonts are not preloaded. `font-display: swap` and the metric-matched fallbacks stay. Early Hints no longer list the three font files. `optimizePageHtml` drops any font preload that still appears and sets `fetchpriority="low"` on modulepreloads. The `/` cap of six modulepreloads is unchanged.
+- Archivo is the same `@fontsource-variable/archivo@5.3.0` file, instanced to wght 600–800 and wdth 75–118 (the weights and widths in `app.css` / `matchup.css`: 600, 700, 800, and widths 75 condensed, 100, 112, 118). 90,104 → 54,056 bytes. `@font-face` now declares that range.
+- IBM Plex Sans is `@fontsource-variable/ibm-plex-sans@5.3.0`, instanced to wght 400–700 (100–300 are unused). 45,712 → 33,464 bytes. DM Mono stayed the two static latin files (14,820 and 14,988). A glyph subset saved about 1 KB, so it was left as shipped.
+- Regenerate with fonttools and brotli: `python3 -m venv /tmp/ft && /tmp/ft/bin/pip install fonttools brotli && /tmp/ft/bin/python scripts/subset-fonts.py`. The script downloads those two fontsource 5.3.0 files and writes `static/fonts/`.
+- Football-data crests render as `/crests/fd/<file>` (`src/routes/crests/fd/[file]/+server.ts`). The route allows `[A-Za-z0-9_-]+.(svg|png)` only, follows no redirects, rejects a non-image or anything over 512 KB, and caches for 30 days (`caches.default` and `cf.cacheEverything`). The hook skips the auth lookup for that path. Tracked clubs still use the bundled SVGs. MLB crests stay on `mlbstatic.com`.
+- Inlining the stylesheet was measured and not kept. See below.
+- `pnpm check` was already failing `prettier --check` on `wrangler.jsonc`, `workers/jobs/wrangler.jsonc`, and the two Vercel redirect files. Those four were formatted so the gate can pass. No binding values changed.
+- Node is 24.20.0. `package.json` engines ask for 24.18.1. pnpm warns. The gate still passes.
+
+Preview deploys (workers.dev, no edge cache, so TTFB is not the production number): before `1b66785c-43e9-4fdd-831e-b9f3b53f6d1d`, kept result `dc17885e-87f5-4e1a-a91b-dfadfabf2886` (redeployed as `3f68b709-990d-4fe8-97a2-bbff64620c8c` after the inline trial), inline trial `0f374cac-1e2c-4061-ba16-29c90f5a992f`. Game page: `/games/football-data-575386-real-madrid`.
+
+Acceptance (`scripts/check-ok.mjs` prints the HEAD short sha; the gate below is `945a4c3`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 945a4c3`. `node scripts/budget.mjs` → `/ 60706` (limit 61440), `/games/[id] 73032` (limit 81920). No budget warning.
+
+2. Lighthouse 12 mobile ×3, median, exact command `npx -y lighthouse@12 <url> --chrome-path=/usr/bin/google-chrome --chrome-flags='--headless=new --no-sandbox' --only-categories=performance --form-factor=mobile`. Simulated metrics. Old-site column is the ticket target. Preview before is this branch before the changes. Preview after is the kept deploy.
+
+| Page | Metric      | Old site | Preview before | Preview after |
+| ---- | ----------- | -------: | -------------: | ------------: |
+| `/`  | Score       |       93 |             97 |           100 |
+| `/`  | FCP         |   0.95 s |         1.52 s |        1.07 s |
+| `/`  | LCP         |   3.20 s |         2.57 s |        1.61 s |
+| `/`  | JS transfer |   262 KB |      105,261 B |     105,452 B |
+| `/`  | Total bytes |   505 KB |      342,275 B |     294,402 B |
+| `/`  | TTFB        |   307 ms |         516 ms |        174 ms |
+| `/`  | CLS         |          |              0 |        0.0009 |
+| game | Score       |       93 |             85 |            96 |
+| game | FCP         |   0.95 s |         2.62 s |        1.13 s |
+| game | LCP         |   3.20 s |         3.83 s |        2.75 s |
+| game | JS transfer |   262 KB |       99,287 B |      99,252 B |
+| game | Total bytes |   505 KB |      319,329 B |     270,932 B |
+| game | TTFB        |   307 ms |         106 ms |        111 ms |
+| game | CLS         |          |              0 |        0.0013 |
+
+Home runs before: FCP 1.11 / 1.52 / 1.84, LCP 1.86 / 2.57 / 2.72. Home runs after: FCP 1.96 / 1.07 / 1.07, LCP 2.27 / 1.61 / 1.61. Game runs before: FCP 2.76 / 2.45 / 2.62, LCP 4.00 / 3.58 / 3.83. Game runs after: FCP 1.13 / 1.13 / 1.14, LCP 2.18 / 2.75 / 2.76.
+
+Preview deltas: home FCP −0.45 s, home LCP −0.96 s, game FCP −1.49 s, game LCP −1.08 s. Score, JS transfer, and total bytes stay ahead of the old site. LCP on both preview pages is under the old site's 3.20 s. Simulated FCP is still above 0.95 s (home 1.07 s, game 1.13 s). Observed, unthrottled FCP on the kept home runs was 0.36–0.58 s. The coordinator remeasures production, where TTFB is the edge-cache number rather than this preview.
+
+3. Inline CSS trial (`inlineStyleThreshold: 120_000`, disabled stylesheet link removed so it is not fetched twice). Not kept. Home median FCP 0.94 s (improved) and LCP 1.90 s (worse than 1.61 s). Game median FCP 0.99 s, LCP 2.71 s. The service worker still precached the CSS file (~18 KB) on top of the larger document (~24 KB). Round 2's finding stands once the fonts are out of the way: inlining does not improve FCP and LCP together.
+
+4. Visual parity. Headless Chrome screenshots before the deploy and after the kept deploy, 390×844 and 1280×800, `/` and the game page. Pixel share with a luminance delta of 8 or more: home 390 0.04%, home 1280 0.01%, game 390 0.09%, game 1280 0.03%. The visible difference is the live countdown (`in 1h`, `Kickoff in`), not the subset faces or the crest. The AEK crest is `/crests/fd/1899.png` (6,622 byte PNG, second request `cf-cache-status: HIT`). `GET /crests/fd/..` and `GET /crests/fd/not-a-file` are 404.
+
+Budgets touched: `/` first-load JS gzip 60,706 bytes (limit 61,440). `/games/[id]` 73,032 bytes (limit 81,920).
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: Production Lighthouse after this deploys to the custom domain. Simulated preview FCP is still above 0.95 s; the kept change is the before/after delta above. Inlining the stylesheet gets home FCP to 0.94 s and raises home LCP, so it is not in the branch.
