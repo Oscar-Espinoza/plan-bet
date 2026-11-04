@@ -13,6 +13,7 @@
   import LanguageLinks from "./language-links.svelte";
   import { useNavigationPreview } from "./navigation.svelte";
   import DestinationPreview from "./navigation-preview.svelte";
+  import BuddyLauncher from "./buddy-launcher.svelte";
   import TourBar from "./tour-bar.svelte";
   import LocalLink from "./fast-link/local-link.svelte";
   import NavigationLink from "./fast-link/navigation-link.svelte";
@@ -175,6 +176,6 @@
     <TourBar />
   {/if}
   {#if showBuddy}
-    <!-- T12 fills the buddy launcher. The slot stays empty. -->
+    <BuddyLauncher />
   {/if}
 </div>

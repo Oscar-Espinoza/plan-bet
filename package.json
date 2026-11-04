@@ -27,6 +27,7 @@
     "migrate:reconcile": "node --experimental-strip-types scripts/migrate/reconcile.ts",
     "verify:money": "node --experimental-strip-types scripts/verify/money-scenario.ts --base http://localhost:8787",
     "verify:groups": "node --experimental-strip-types scripts/verify/groups-scenario.ts --base http://localhost:8790",
+    "verify:buddy": "node --experimental-strip-types scripts/verify/buddy-scenario.ts",
     "jobs:dev": "wrangler dev --config workers/jobs/wrangler.jsonc --env preview",
     "jobs:deploy:preview": "wrangler deploy --config workers/jobs/wrangler.jsonc --env preview"
   },

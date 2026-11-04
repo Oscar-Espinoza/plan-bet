@@ -1545,7 +1545,8 @@ dialog.alert-content::backdrop {
   }
 }
 
-.buddy-overlay {
+.buddy-overlay,
+dialog.buddy-panel::backdrop {
   position: absolute;
   z-index: 80;
   inset: 0;
@@ -1562,9 +1563,15 @@ dialog.alert-content::backdrop {
   flex-direction: column;
   gap: var(--space-3);
   width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: none;
   border-left: 1px solid var(--rule-strong);
   background: var(--slat-raised);
   padding: var(--space-4);
+  color: var(--chalk);
   /* Floats above the page, same as .alert-content/.buddy-launcher — a
      hairline alone doesn't read as "above" on a near-black ground. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
