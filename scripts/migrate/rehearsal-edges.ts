@@ -29,6 +29,8 @@ const GAME = "14141414-1414-4414-8414-141414141472";
 const SNAP = "14141414-1414-4414-8414-141414141473";
 const FIXTURE = "14141414-1414-4414-8414-141414141474";
 const CACHE = "14141414-1414-4414-8414-141414141475";
+const CACHE_BIG = "14141414-1414-4414-8414-141414141477";
+const OVERSIZED_PAYLOAD = JSON.stringify({ blob: "x".repeat(150_000) });
 const RUN = "14141414-1414-4414-8414-141414141476";
 const BUDDY_MSG = "14141414-1414-4414-8414-141414141481";
 const BUDDY_NOTE = "14141414-1414-4414-8414-141414141482";
@@ -82,7 +84,7 @@ try {
     await tx`delete from team_games where team_id = ${TEAM}`;
     await tx`delete from games where id = ${GAME}`;
     await tx`delete from teams where id = ${TEAM}`;
-    await tx`delete from provider_cache where id = ${CACHE}`;
+    await tx`delete from provider_cache where id in (${CACHE}, ${CACHE_BIG})`;
     await tx`delete from ingestion_runs where id = ${RUN}`;
     await tx`delete from verification_tokens where token = 't14-verify-token'`;
 
@@ -220,6 +222,18 @@ try {
         'discovery',
         't14',
         ${JSON.stringify({ quote: 'she said "hi"', emoji: "🎯" })}::jsonb,
+        ${STAMP},
+        ${STAMP}
+      )
+    `;
+    await tx`
+      insert into provider_cache (id, provider, kind, scope, payload, fetched_at, expires_at)
+      values (
+        ${CACHE_BIG},
+        'rehearsal',
+        'discovery',
+        't14-oversized',
+        ${OVERSIZED_PAYLOAD}::jsonb,
         ${STAMP},
         ${STAMP}
       )

@@ -30,13 +30,22 @@ export function sqlLiteral(value: SqlValue): string {
     .join(" || char(39) || ");
 }
 
+export function oneRowInsertBytes(
+  table: string,
+  columns: readonly string[],
+  row: readonly SqlValue[],
+): number {
+  const tuple = `(${row.map((cell) => sqlLiteral(cell)).join(", ")})`;
+  return Buffer.byteLength(`${insertHeader(table, columns)}${tuple};\n`);
+}
+
 export function insertStatements(
   table: string,
   columns: readonly string[],
   rows: readonly SqlValue[][],
 ): string[] {
   if (rows.length === 0) return [];
-  const header = `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(", ")}) VALUES\n`;
+  const header = insertHeader(table, columns);
   const statements: string[] = [];
   let chunk: string[] = [];
 
@@ -73,4 +82,8 @@ export function insertStatements(
   }
   if (chunk.length > 0) flush();
   return statements;
+}
+
+function insertHeader(table: string, columns: readonly string[]): string {
+  return `INSERT INTO ${quoteIdent(table)} (${columns.map(quoteIdent).join(", ")}) VALUES\n`;
 }
