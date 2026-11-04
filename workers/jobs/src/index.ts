@@ -36,6 +36,11 @@ async function refreshAllSports(requestId: string) {
     },
     { succeeded: 0, failed: 0, skipped: 0 },
   );
+  const refreshed = operations.reduce(
+    (total, operation) => total + operation.refreshed,
+    0,
+  );
+  if (refreshed > 0) await publishReadModels();
   return {
     requestId,
     startedAt: new Date(startedAt).toISOString(),
@@ -47,7 +52,9 @@ async function refreshAllSports(requestId: string) {
 
 export class Jobs extends WorkerEntrypoint {
   async refresh(sport: Sport): Promise<RefreshOutcome> {
-    return refreshSportData(sport, crypto.randomUUID());
+    const outcome = await refreshSportData(sport, crypto.randomUUID());
+    if (outcome.refreshed > 0) await publishReadModels();
+    return outcome;
   }
 
   async settle() {

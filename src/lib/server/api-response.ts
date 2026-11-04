@@ -9,6 +9,7 @@ export const apiErrorCodes = [
   "forbidden",
   "maintenance",
   "service_unavailable",
+  "timeout",
   "internal_error",
 ] as const;
 export type ApiErrorCode = (typeof apiErrorCodes)[number];
@@ -23,6 +24,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   quota_exceeded: 429,
   internal_error: 500,
   service_unavailable: 503,
+  timeout: 504,
 };
 
 export type RouteContext = {

@@ -6,6 +6,7 @@ import {
   createRouteContext,
 } from "#lib/server/api-response";
 import { isAuthorized } from "#lib/server/cron-auth";
+import { JobsTimeoutError, withTimeout } from "#lib/server/jobs-timeout";
 import { logEvent } from "#lib/server/logger";
 import { providerErrorCode } from "#lib/server/providers/provider-error";
 
@@ -38,7 +39,7 @@ export const GET: RequestHandler = async ({ request }) => {
   }
 
   try {
-    const result = await env.JOBS.enrich();
+    const result = await withTimeout(env.JOBS.enrich(), 280_000);
     return apiSuccess(
       {
         requestId: context.requestId,
@@ -49,6 +50,21 @@ export const GET: RequestHandler = async ({ request }) => {
       context,
     );
   } catch (error) {
+    if (error instanceof JobsTimeoutError) {
+      logEvent("error", "api_request", {
+        requestId: context.requestId,
+        route: context.route,
+        status: 504,
+        code: "timeout",
+        errorCode: "timeout",
+        durationMs: Date.now() - startedAt,
+      });
+      return apiFailure(
+        "timeout",
+        "The scheduled enrichment request timed out.",
+        context,
+      );
+    }
     logEvent("error", "api_request", {
       requestId: context.requestId,
       route: context.route,
