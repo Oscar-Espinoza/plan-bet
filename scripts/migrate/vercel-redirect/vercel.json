@@ -5,7 +5,15 @@
   "buildCommand": "",
   "outputDirectory": "public",
   "redirects": [
-    { "source": "/", "destination": "https://matchday.tendo.ar/", "permanent": true },
-    { "source": "/:path*", "destination": "https://matchday.tendo.ar/:path*", "permanent": true }
+    {
+      "source": "/",
+      "destination": "https://matchday.tendo.ar/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://matchday.tendo.ar/:path*",
+      "permanent": true
+    }
   ]
 }

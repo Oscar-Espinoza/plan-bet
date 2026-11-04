@@ -42,14 +42,16 @@ export function optimizePageHtml(html: string, pathname: string): string {
     }
   }
 
+  // Fonts use font-display: swap, so a preload only competes with the
+  // stylesheet. Modulepreloads stay after CSS and at low priority: hydration
+  // can wait, first paint cannot.
   const ordered = [
     withoutLinks.trim(),
-    ...fontPreloads,
     ...stylesheets,
     ...imagePreloads,
     ...miscPreloads,
     ...otherLinks,
-    ...keptModulepreloads,
+    ...keptModulepreloads.map(deprioritize),
   ]
     .filter(Boolean)
     .join("\n\t\t");
@@ -58,4 +60,11 @@ export function optimizePageHtml(html: string, pathname: string): string {
     headMatch[0],
     `<head${attrs}>\n\t\t${ordered}\n\t</head>`,
   );
+}
+
+function deprioritize(tag: string): string {
+  if (/fetchpriority="/i.test(tag)) {
+    return tag.replace(/fetchpriority="[^"]*"/i, 'fetchpriority="low"');
+  }
+  return tag.replace(/<link\b/i, '<link fetchpriority="low"');
 }

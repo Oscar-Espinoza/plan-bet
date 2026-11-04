@@ -1,12 +1,16 @@
 @import "tailwindcss";
-/* Font wiring. The three latin faces live in static/fonts and are preloaded
-   from app.html. Fallback faces use the size-adjust metrics from the legacy
-   next/font build (legacy/.next/static/chunks CSS, size-adjust). */
+/* Font wiring. The three latin faces live in static/fonts. They are not
+   preloaded: font-display: swap and the metric-matched fallbacks paint
+   first, and a preload would compete with the render-blocking stylesheet.
+   Archivo is subset to the weights and widths the design uses (600–800,
+   wdth 75–118). IBM Plex Sans is subset to 400–700. Regenerate with
+   scripts/subset-fonts.py. Fallback faces use the size-adjust metrics from
+   the legacy next/font build (legacy/.next/static/chunks CSS, size-adjust). */
 @font-face {
   font-family: archivo;
   src: url("/fonts/archivo-latin-wdth-normal.woff2") format("woff2");
-  font-weight: 100 900;
-  font-stretch: 62% 125%;
+  font-weight: 600 800;
+  font-stretch: 75% 118%;
   font-display: swap;
 }
 @font-face {
@@ -20,7 +24,7 @@
 @font-face {
   font-family: plexSans;
   src: url("/fonts/ibm-plex-sans-latin-wght-normal.woff2") format("woff2");
-  font-weight: 100 700;
+  font-weight: 400 700;
   font-display: swap;
 }
 @font-face {
