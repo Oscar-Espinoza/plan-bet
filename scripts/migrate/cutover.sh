@@ -54,6 +54,6 @@ fi
 
 step "9. Refresh public read models"
 for j in refresh enrich; do
-  curl -s -m 150 -o /dev/null -w "$j %{http_code}\n" -H "Authorization: Bearer $(cat "$CRON_SECRET_FILE")" "$SITE/api/cron/$j" || echo "$j timed out"
+  curl -s -m 300 -o /dev/null -w "$j %{http_code}\n" -H "Authorization: Bearer $(cat "$CRON_SECRET_FILE")" "$SITE/api/cron/$j" || echo "$j timed out"
 done
 curl -s "$SITE/api/health"; echo
