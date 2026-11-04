@@ -30,6 +30,8 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 
 - T04 review (Opus): round 1 one MAJOR — SvelteKit sets `private, no-store` on every data response and the cache treated that as an opt-out, so client-navigation data was never cached. Round 2 fixed it (data requests opt out only via `x-mp-opt-out: 1`); re-verified locally: data MISS→HIT, session cookie BYPASS, HTML rules unchanged. Grok's parity measurements (0 px vs production, 320/390/1280 × en/es) and cache checks reproduced. Observation: both Grok runs kept the CLI process alive long after committing (41 min of work then idle until the 2 h limit; round 2 committed after 2 min then idle until killed); later runs use a shorter timeout and are judged by the commit. Merge into cf/main needed conflict resolution in package.json and this log (T04 branched before T02/T03). The shell alone puts `/` at 54.5 KB of 60 KB.
 
+- Vercel (Opus): pushing cf/main made Vercel build it as Next.js and fail (Oscar saw the failed preview builds). Root `vercel.json` on cf/main now has an `ignoreCommand` that exits 0, so Vercel skips those builds (status: "Canceled by Ignored Build Step"); main is unaffected. T15: when cf/main merges into main this file also stops production Vercel builds, which is intended; the 308-redirect deploy in the cutover runbook must be done from a separate branch or by removing this file in that commit.
+
 ## Tickets
 
 ## T00 Bootstrap and guardrails — 2026-11-03 — PASS

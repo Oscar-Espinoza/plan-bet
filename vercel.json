@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "echo 'cf/* migration branches deploy to Cloudflare, not Vercel; skipping this build' && exit 0"
+}
