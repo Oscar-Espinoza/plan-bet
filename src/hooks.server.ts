@@ -1,7 +1,15 @@
 import { waitUntil } from "cloudflare:workers";
+import { building } from "$app/env";
 import type { Handle } from "@sveltejs/kit/hooks";
+import { svelteKitHandler } from "better-auth/svelte-kit";
 import { requestLocale } from "#lib/shared/locale";
 import { viewerZone } from "#lib/shared/utils";
+import { getAuth, isAuthConfigured } from "#lib/server/auth";
+import { apiFailure, createRouteContext } from "#lib/server/api-response";
+import {
+  MAINTENANCE_MESSAGE,
+  maintenanceEnabled,
+} from "#lib/server/maintenance";
 import {
   cacheKey,
   hasSessionCookie,
@@ -104,20 +112,12 @@ async function store(key: string, response: Response) {
   );
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+async function resolveWithEdgeCache(
+  event: Parameters<Handle>[0]["event"],
+  resolve: Parameters<Handle>[0]["resolve"],
+): Promise<Response> {
   const requestUrl = new URL(event.request.url);
-  const signedIn = hasSessionCookie(event.request.headers.get("cookie"));
-  event.locals.signedIn = signedIn;
-  event.locals.user = null;
-  event.locals.requestTime = Date.now();
-  event.locals.locale = requestLocale(
-    event.cookies.get("locale"),
-    event.request.headers.get("accept-language"),
-  );
-  event.locals.zone = resolveZone(
-    event.cookies.get("tz"),
-    cfTimezone(event.request),
-  );
+  const signedIn = event.locals.signedIn;
 
   if (requestUrl.pathname === "/bets" || requestUrl.pathname === "/account") {
     return new Response(null, {
@@ -177,4 +177,50 @@ export const handle: Handle = async ({ event, resolve }) => {
     return decorate(response, "MISS", published, html, false);
   }
   return decorate(response, "BYPASS", published, html, signedIn);
+}
+
+export const handle: Handle = async ({ event, resolve }) => {
+  const requestUrl = new URL(event.request.url);
+  const signedIn = hasSessionCookie(event.request.headers.get("cookie"));
+  event.locals.signedIn = signedIn;
+  event.locals.user = null;
+  event.locals.session = null;
+  event.locals.requestTime = Date.now();
+  event.locals.maintenance = maintenanceEnabled();
+  event.locals.locale = requestLocale(
+    event.cookies.get("locale"),
+    event.request.headers.get("accept-language"),
+  );
+  event.locals.zone = resolveZone(
+    event.cookies.get("tz"),
+    cfTimezone(event.request),
+  );
+
+  if (
+    event.locals.maintenance &&
+    event.request.method !== "GET" &&
+    (requestUrl.pathname === "/api" || requestUrl.pathname.startsWith("/api/"))
+  ) {
+    const context = createRouteContext(requestUrl.pathname);
+    return apiFailure("maintenance", MAINTENANCE_MESSAGE, context);
+  }
+
+  if (isAuthConfigured()) {
+    const auth = getAuth();
+    const session = await auth.api.getSession({
+      headers: event.request.headers,
+    });
+    if (session) {
+      event.locals.session = session.session;
+      event.locals.user = session.user;
+    }
+    return svelteKitHandler({
+      auth,
+      event,
+      building,
+      resolve: (requestEvent) => resolveWithEdgeCache(requestEvent, resolve),
+    });
+  }
+
+  return resolveWithEdgeCache(event, resolve);
 };

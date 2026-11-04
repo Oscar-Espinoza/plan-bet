@@ -1,5 +1,10 @@
 import type { ZodType } from "zod";
 
+/**
+ * Mutation routes (T08+): call guards in this order — `isSameOrigin`, then
+ * `requireAccount`, then `readJsonBody`.
+ */
+
 const DEFAULT_CALLBACK_URL = "/you";
 // Any origin works; it exists only so a relative path can be resolved and its
 // origin compared. It is never rendered or navigated to.

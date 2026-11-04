@@ -3,9 +3,11 @@
   import "../app.css";
   import "#lib/styles/matchup.css";
   import AppShell from "#lib/components/app-shell.svelte";
+  import AccountControl from "#lib/components/account-control.svelte";
   import LanguageProvider from "#lib/components/language-provider.svelte";
   import RefreshVisiblePage from "#lib/components/refresh-visible-page.svelte";
   import RequestClock from "#lib/components/request-clock.svelte";
+  import Banner from "#lib/components/ui/banner.svelte";
   import type { LayoutData } from "./$types";
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
@@ -48,9 +50,23 @@
 
 <LanguageProvider locale={data.locale} messages={data.spanish}>
   <RequestClock zone={data.zone} now={data.requestTime}>
-    <AppShell>
+    <AppShell {accountControl}>
+      {#if data.maintenance}
+        <Banner tone="warning">{data.maintenanceMessage}</Banner>
+      {/if}
       <RefreshVisiblePage />
       {@render children()}
     </AppShell>
   </RequestClock>
 </LanguageProvider>
+
+{#snippet accountControl()}
+  <AccountControl
+    authConfigured={data.account.authConfigured}
+    signedIn={data.account.signedIn}
+    balance={data.account.signedIn ? data.account.balance : 0}
+    won={data.account.signedIn ? data.account.won : 0}
+    lost={data.account.signedIn ? data.account.lost : 0}
+    openCount={data.account.signedIn ? data.account.openCount : 0}
+  />
+{/snippet}

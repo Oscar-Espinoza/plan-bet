@@ -7,6 +7,7 @@ export const apiErrorCodes = [
   "unauthorized",
   "unauthenticated",
   "forbidden",
+  "maintenance",
   "service_unavailable",
   "internal_error",
 ] as const;
@@ -17,6 +18,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   unauthorized: 401,
   unauthenticated: 401,
   forbidden: 403,
+  maintenance: 503,
   not_found: 404,
   quota_exceeded: 429,
   internal_error: 500,
