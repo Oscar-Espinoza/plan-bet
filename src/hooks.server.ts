@@ -172,7 +172,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (!html && !data) return response;
 
   const published = version ?? (await publishVersion());
-  if (cacheable && key && isStorableResponse(response)) {
+  if (cacheable && key && isStorableResponse(response, data)) {
     defer(store(key, response.clone()));
     return decorate(response, "MISS", published, html, false);
   }

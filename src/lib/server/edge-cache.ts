@@ -14,9 +14,13 @@ import { parseSportPreference } from "../shared/sport-preference";
  * - A Better Auth session cookie (`signedIn`, or the cookie on the request)
  *   makes `isCacheableRequest` false. The hook returns the rendered response
  *   with `x-mp-cache: BYPASS` and does not call `cache.match` or `cache.put`.
- * - `isStorableResponse` is false when the response carries `Set-Cookie`
- *   (also status other than 200, `Cache-Control: private|no-store`, or
- *   `x-mp-opt-out: 1`). The hook does not `cache.put` that response.
+ * - `isStorableResponse` is false when the response carries `Set-Cookie`,
+ *   the status is not 200, or the route set `x-mp-opt-out: 1`. HTML also
+ *   opts out when `Cache-Control` contains `private` or `no-store`. A data
+ *   request does not: SvelteKit's data endpoint always sends
+ *   `private, no-store`, and that default is not an opt-out. The only way
+ *   a data request opts out is `x-mp-opt-out: 1`. The hook does not
+ *   `cache.put` a response that fails this check.
  * - A path outside the allowlist makes `isCacheableRequest` false, so the
  *   hook returns `x-mp-cache: BYPASS` and does not store.
  */
@@ -118,11 +122,20 @@ export function cacheKey({
   return `https://cache.matchday.internal/v${encodeURIComponent(version)}/${encodeURIComponent(locale)}/${encodeURIComponent(zone)}/${encodeURIComponent(sport)}${path}`;
 }
 
-/** 200, no Set-Cookie, and the route did not opt out. */
-export function isStorableResponse(response: Response): boolean {
+/**
+ * 200, no Set-Cookie, and the route did not opt out.
+ * HTML opts out via `Cache-Control: private` or `no-store`. Data requests
+ * do not: SvelteKit always sets `private, no-store` on `/__data.json`.
+ * A data request opts out only with `x-mp-opt-out: 1`.
+ */
+export function isStorableResponse(
+  response: Response,
+  dataRequest = false,
+): boolean {
   if (response.status !== 200) return false;
   if (response.headers.has("set-cookie")) return false;
   if (response.headers.get("x-mp-opt-out") === "1") return false;
+  if (dataRequest) return true;
   const cacheControl = response.headers.get("cache-control") ?? "";
   if (/\bprivate\b/i.test(cacheControl) || /\bno-store\b/i.test(cacheControl)) {
     return false;

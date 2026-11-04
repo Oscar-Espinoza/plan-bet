@@ -137,3 +137,14 @@ Acceptance:
 Budgets touched: `/` first-load JS gzip 54488 bytes (limit 61440). `/games/[id]` n/a.
 Review: gate CHECK OK 8bfd5d3 before commit; verifier, auditor, agent review, and bugbot not run (coordinator).
 FOLLOWUPS: none
+
+Round 2 (coordinator review, one MAJOR): SvelteKit's data endpoint always sends `cache-control: private, no-store`. `isStorableResponse` treated that as an opt-out, so every `/__data.json` request was `BYPASS` and never stored. Data requests now ignore that default. A data request opts out only with `x-mp-opt-out: 1`. HTML still opts out on `private` or `no-store`. Session cookie, `Set-Cookie`, non-200, and non-allowlisted paths are unchanged.
+
+Round 2 gate: `pnpm check` → `CHECK OK 5592dfa` and `/ 54488` (limit 61440). That sha is HEAD before this commit.
+
+Round 2 acceptance, fresh `pnpm preview:cf` after the rebuild:
+
+- `curl -sD- -o /dev/null 'http://localhost:8787/__data.json?x-sveltekit-invalidated=01'` → `x-mp-cache: MISS`, `cache-control: public, max-age=0, must-revalidate`.
+- The same command again → `x-mp-cache: HIT` (and `cf-cache-status: HIT`).
+- The same URL with `-H 'Cookie: better-auth.session_token=x'` → `x-mp-cache: BYPASS`, `cache-control: private, no-cache`, no `cf-cache-status` (not served from the stored data response).
+- HTML `/` → `MISS` then `HIT`, both `public, max-age=0, must-revalidate`, with `x-mp-version: 0`. Session cookie on `/` → `BYPASS`, `private, no-cache`. `Cookie: locale=es` → `MISS`. `/api/health` → `cache-control: no-store` and no `x-mp-cache`. `/bets?x=1` → `308`, `location: /you?x=1`.
