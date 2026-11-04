@@ -30,6 +30,32 @@ Spec: [cloudflare-migration-spec.md](cloudflare-migration-spec.md).
 | T14b   | A    | Grok 4.7     | yes           | 0          | 1             | 0 / 0 / 0               | 0                | 0                 | 0             | clean   | PASS                                                       | 6.2 min                                                                        | included |
 | T13    | C    | Composer 2.5 | partly        | 0          | 3             | 0 / 2 / 0               | 0                | 0                 | 0             | clean   | PASS (round 3, residual recorded)                          | 13 + 9 + 50 min                                                                | included |
 
+### Builder comparison after T14 (Opus, 2026-11-04)
+
+Counts are from the scorecard rows above. A round counts as builder-caused unless the row says otherwise.
+
+|                                  | Grok 4.7 (10 tickets)                                                 | Composer 2.5 (7 tickets)                            |
+| -------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------- |
+| Tier mix                         | 7 A (T02, T04, T08a, T08b, T10, T14, T14b), 2 B (T00, T12), 1 C (T06) | 2 A (T07, T09), 3 B (T01, T03, T11), 2 C (T05, T13) |
+| First-round passes               | 7 of 10 (8 counting T10, whose round 2 was a plan error)              | 3 of 7 (T01, T07, T09)                              |
+| Blockers / majors / minors       | 0 / 4 builder-caused (+1 plan-caused) / 11                            | 1 / 4 / 9                                           |
+| Invariant breaks                 | 0                                                                     | 1 (T05 layering)                                    |
+| SvelteKit 2 slips, invented APIs | 0, 0                                                                  | 0, 0                                                |
+| Sandbox violations               | 0                                                                     | 0                                                   |
+| Wall time, total / mean          | ~328 min / ~33 min                                                    | ~145 min / ~21 min                                  |
+
+What each did well, with rows:
+
+- **Grok** carried the riskiest tickets: schema (T02), money placement (T08a), groups (T10) and the data migration (T14, T14b). It produced the strongest evidence unprompted, such as 0 px parity measurements (T04, T06), the counting stub for the buddy (T12), and proof that removing a guard fails the scenario (T08a round 2). Its money logic passed an independent audit on the first try (T08a).
+- **Composer** was 1.6× faster per ticket and very accurate on verbatim ports (T01: zero non-import diffs). It found a real root cause quickly when sent back (T03 D1 query), and its round-2 fixes were fast (T05 2.5 min, T10-style fixes under 10 min).
+
+Repeated weaknesses, with rows:
+
+- **Grok**: the CLI process stayed alive long after committing (T04 twice), and one run overran the cap (T08b). Mitigated by caps and "commit early" in prompts; later runs (T06, T12, T14) exited cleanly.
+- **Composer**: skipped or handed acceptance items to the coordinator (T09 preview settle, T11 browser rollback, T13 five items), and once composed data sources in a route (T05). It needed an explicit "these are yours, here is how" second round each time.
+
+Suggested split for similar work: Grok for money, auth, data and other Tier A tickets; Composer for verbatim ports and UI tickets, with acceptance written as commands it must paste output for.
+
 ## Coordinator notes
 
 - T00 review (Opus): gate re-run `CHECK OK 5015ec1`; legacy demo build passes; preview health healthy (D1 `select 1` 172 ms from the São Paulo edge to the ENAM primary). Grok's note is correct: adapter-cloudflare 8 passes no `platform` to `server.respond`, so bindings come from `import { env } from "cloudflare:workers"` (and `waitUntil` from the same module). Later plans use that instead of `platform.env`/`platform.ctx`.
