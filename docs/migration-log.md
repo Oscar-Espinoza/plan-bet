@@ -822,3 +822,45 @@ Listed data diffs (not port bugs): preview demo soccer fixtures and KV/D1 freshn
 Budgets touched: `/` first-load JS gzip 60589 bytes (limit 61440). `/games/[id]` 73046 bytes (limit 81920).
 Review: not run (builder ticket; coordinator re-runs acceptance and scorecard).
 FOLLOWUPS: Coordinator Lighthouse + SW offline acceptance on preview; install Playwright or use Chrome for full parity table; run `pnpm verify:comments` with `.dev.vars` auth secret; optional CSS inline A/B.
+
+### Round 2 (coordinator acceptance) — 2026-11-04
+
+Deploy: `pnpm deploy:preview` → `https://matchday-preview.jolyyjhon.workers.dev` (final version `14d7a77a-8a6c-4f9b-a8fc-9657d5951d40` without CSS inline; brief inline trial `1c5cbba6…` reverted).
+
+**1. Lighthouse 12 mobile** (`npx -y lighthouse@12 --chrome-path=/usr/bin/google-chrome --form-factor=mobile --throttling-method=simulate`, median of 3):
+
+| Page | Perf | LCP (s) | CLS | JS transfer (B) | Legacy ref |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `/` | 84 | 3.89 | 0.000 | 105316 | perf 92, LCP 3.39, CLS 0.000 |
+| `/games/mlb-852989-new-york-yankees` | 84 | 3.91 | 0.000042 | 99325 | perf 96, LCP 2.85, CLS 0.000 |
+
+Preview beats legacy on some runs (home perf 97 once) but medians are slightly slower on LCP than the September Next baseline; CLS matches.
+
+**2. CSS inline experiment** (`inlineStyleThreshold: 120_000`, deploy `1c5cbba6…`, same Lighthouse on `/`):
+
+| Variant | Median LCP (s) | Median perf |
+| --- | ---: | ---: |
+| External CSS (kept) | 3.89 | 84 |
+| Inlined CSS (reverted) | 4.14 | 81 |
+
+Inlined CSS **not kept**; preview redeployed without threshold.
+
+**3. Service worker** (puppeteer-core + `/usr/bin/google-chrome`, script `/tmp/t13-puppeteer/sw-offline.mjs`):
+
+- SW active on preview; offline reload shows board (`Next match…` / `.next-up` text present).
+- With cookie `better-auth.session_token=x`, Cache Storage keys `['matchday-…']`; **HTML-ish entries: 0** (only immutable/JS/CSS assets listed).
+
+**4. Parity** (puppeteer-core, main-region box max diff vs production, px):
+
+| Route | 320 en | 320 es | 390 en | 390 es | 1280 en | 1280 es |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `/` | 0 | 25 (tabs) | 17 (cards) | 17 | 0 | 0 |
+| `/?sport=baseball` | 0 | 0 | 0 | 0 | 0 | 0 |
+| `/rules` | 0 | 0 | 0 | 0 | 0 | 0 |
+| `/system` | 0 | 0 | 0 | 0 | 0 | 0 |
+| `/games/mlb-852989-new-york-yankees` | 44 | 26 | 62 | 62 | **428** | **428** |
+| `/sign-in` | 10 | 10 | 10 | 10 | 77 | 77 |
+
+All samples HTTP 200/200, console errors 0/0. **Data-caused (not fixed):** game page card/scorebug stack height at 1280 (preview demo fixture / market panel content vs production); minor Spanish tab/card wrapping on `/` and sign-in card width at desktop. No port fixes applied in round 2.
+
+**5. Comments verify:** gitignored `.dev.vars` (`BETTER_AUTH_SECRET`, dummy GitHub OAuth pair, `PUBLIC_SITE_URL=http://localhost:8780`); `wrangler dev --env preview --port 8780` (stopped PID 284954) → `pnpm verify:comments` → **COMMENTS SCENARIO OK**.
