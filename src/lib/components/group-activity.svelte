@@ -7,6 +7,7 @@
   import NavigationLink from "#lib/components/fast-link/navigation-link.svelte";
   import { useTranslation } from "#lib/components/language.svelte";
   import LocalDateTime from "#lib/components/local-date-time.svelte";
+  import { fadeAdded } from "#lib/components/motion";
   import TeamLogo from "#lib/components/team-logo.svelte";
   import StatusTag from "#lib/components/ui/status-tag.svelte";
   import type {
@@ -42,6 +43,7 @@
   const i18n = useTranslation();
   let expandedMatches = $state<Record<string, boolean>>({});
   let standingsExpanded = $state(false);
+  let leaderboardRoot = $state<HTMLOListElement | null>(null);
 
   const collapsed = $derived(entries.length > 6 && !standingsExpanded);
   const shown = $derived(
@@ -73,7 +75,7 @@
     </h2>
     <span>{i18n.t("Net credits")}</span>
   </div>
-  <ol id="group-standings-list">
+  <ol id="group-standings-list" bind:this={leaderboardRoot}>
     {#each shown as row (row.entry.userId)}
       <li
         class={row.entry.userId === viewerId
@@ -112,7 +114,19 @@
       class="group-expand"
       aria-expanded={standingsExpanded}
       aria-controls="group-standings-list"
-      onclick={() => (standingsExpanded = !standingsExpanded)}
+      onclick={() => {
+        if (standingsExpanded) {
+          standingsExpanded = false;
+          return;
+        }
+        void fadeAdded(
+          leaderboardRoot,
+          () => {
+            standingsExpanded = true;
+          },
+          "li",
+        );
+      }}
     >
       {i18n.t(standingsExpanded ? "Show fewer" : "Show all")}
     </button>
@@ -278,8 +292,22 @@
                 class="group-expand"
                 aria-expanded={expanded}
                 aria-controls="picks-{match.canonicalGameId}"
-                onclick={() =>
-                  (expandedMatches[match.canonicalGameId] = !expanded)}
+                onclick={() => {
+                  if (expanded) {
+                    expandedMatches[match.canonicalGameId] = false;
+                    return;
+                  }
+                  const picksRoot = document.getElementById(
+                    `picks-${match.canonicalGameId}`,
+                  );
+                  void fadeAdded(
+                    picksRoot,
+                    () => {
+                      expandedMatches[match.canonicalGameId] = true;
+                    },
+                    ".group-pick",
+                  );
+                }}
               >
                 {i18n.t(expanded ? "Show fewer bets" : "Show all bets")}
               </button>

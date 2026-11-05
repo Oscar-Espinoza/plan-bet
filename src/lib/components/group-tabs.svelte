@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { tick } from "svelte";
   import { page } from "$app/state";
   import { useTranslation } from "#lib/components/language.svelte";
+  import { fade } from "#lib/components/motion";
 
   let {
     overview,
@@ -56,7 +58,14 @@
         aria-controls="{uid}-panel-{index}"
         aria-selected={active === index}
         tabindex={active === index ? 0 : -1}
-        onclick={() => (active = index)}
+        data-label={i18n.t(label)}
+        onclick={(event) => {
+          active = index;
+          if (event.detail > 0)
+            void tick().then(() =>
+              fade(document.getElementById(`${uid}-panel-${index}`), 0.6),
+            );
+        }}
         onkeydown={(event) => onKeydown(event, index)}
       >
         {i18n.t(label)}

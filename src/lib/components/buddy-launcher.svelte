@@ -8,15 +8,31 @@
   const i18n = useTranslation();
   let opened = $state(false);
   let loading = $state(false);
-  let Dialog = $state<Component<{ initiallyOpen?: boolean }> | null>(null);
+  let showOpening = $state(false);
+  type BuddyModule = { default: Component<{ initiallyOpen?: boolean }> };
+  let Dialog = $state<BuddyModule["default"] | null>(null);
+  let buddyImport: Promise<BuddyModule> | null = null;
+
+  function warmBuddy() {
+    buddyImport ??= import("./buddy.svelte");
+    return buddyImport;
+  }
 
   async function open() {
     if (opened || loading) return;
     loading = true;
-    const module = await import("./buddy.svelte");
-    Dialog = module.default;
-    opened = true;
-    loading = false;
+    const reveal = setTimeout(() => {
+      showOpening = true;
+    }, 150 /* --dur-swap */);
+    try {
+      const module = await warmBuddy();
+      Dialog = module.default;
+      opened = true;
+    } finally {
+      clearTimeout(reveal);
+      showOpening = false;
+      loading = false;
+    }
   }
 </script>
 
@@ -28,12 +44,14 @@
     <Button
       variant="secondary"
       size="sm"
-      class="buddy-launcher"
-      disabled={loading}
-      aria-busy={loading || undefined}
+      class="buddy-launcher buddy-launcher-enter"
+      disabled={showOpening}
+      aria-busy={showOpening || undefined}
+      onpointerdown={warmBuddy}
+      onfocus={warmBuddy}
       onclick={open}
     >
-      {#if loading}
+      {#if showOpening}
         {i18n.t("Opening Buddy…")}
       {:else}
         <MessageCircle aria-hidden="true" size={15} />

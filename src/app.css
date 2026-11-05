@@ -154,6 +154,12 @@
 
   /* Shared easing, promoted from .mp (matchup.css --mp-ease). */
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 120ms;
+  --dur-swap: 150ms;
+  --dur-enter: 200ms;
+  --dur-expand: 240ms;
+  --dur-sheet: 280ms;
 
   /* Lets `block-size: auto` be a transition endpoint — required for the
      disclosure animation below, and inherited, so setting it at the root
@@ -168,7 +174,6 @@
 html {
   background: var(--ink);
   color-scheme: dark;
-  scroll-behavior: smooth;
 }
 
 body {
@@ -253,7 +258,7 @@ a {
   display: none;
 }
 .navigation-preview {
-  animation: navigation-enter 120ms ease-out;
+  animation: navigation-enter 120ms /* --dur-fast */ var(--ease);
 }
 @keyframes navigation-enter {
   from {
@@ -391,6 +396,12 @@ a {
 .main-content {
   max-width: 100rem;
   margin: 0 auto;
+  transition: opacity 150ms /* --dur-swap */ var(--ease);
+}
+
+html.locale-pending .main-content {
+  opacity: 0.6;
+  transition-duration: var(--dur-fast);
 }
 
 .tour-bar {
@@ -409,6 +420,23 @@ a {
   border-top: 1px solid var(--rule-strong);
   background: var(--slat-raised);
   padding: 0.65rem 1rem;
+  transition:
+    transform 240ms /* --dur-expand */ var(--ease-drawer),
+    opacity 150ms /* --dur-swap */ var(--ease);
+}
+
+@starting-style {
+  .tour-bar {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.tour-bar.tour-bar-leaving {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: var(--dur-enter);
 }
 
 .tour-bar .button {
@@ -417,6 +445,7 @@ a {
 
 .tour-bar-copy {
   min-width: 0;
+  min-height: 2lh;
   margin: 0;
   color: var(--chalk);
   font-size: var(--text-base);
@@ -436,7 +465,7 @@ a {
 }
 
 .mobile-nav {
-  position: static;
+  position: relative;
   width: 100%;
   /* Three nav items (Games / You / Groups) — a fourth dead column left the
      nav sitting left-of-centre on every phone. */
@@ -673,8 +702,10 @@ a {
   cursor: pointer;
 }
 
-.button:hover:not(:disabled) {
-  background: #e4ff6b;
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled) {
+    background: #e4ff6b;
+  }
 }
 
 .button:disabled {
@@ -760,21 +791,20 @@ a {
 
 /* Every tone class is emitted by <Banner> in response to an action (an
    error, a confirmation), so the entry animation lives on the tone classes,
-   not the base .banner skin. */
-.banner-neutral,
-.banner-positive,
-.banner-warning,
-.banner-negative {
+   not the base .banner skin. The SSR maintenance banner carries
+   .banner-static and stays at rest for first paint. */
+:is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative):not(
+  .banner-static
+) {
   transition:
-    opacity 200ms var(--ease),
-    transform 200ms var(--ease);
+    opacity 200ms /* --dur-enter */ var(--ease),
+    transform 200ms /* --dur-enter */ var(--ease);
 }
 
 @starting-style {
-  .banner-neutral,
-  .banner-positive,
-  .banner-warning,
-  .banner-negative {
+  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative):not(
+    .banner-static
+  ) {
     opacity: 0;
     transform: translateY(-4px);
   }
@@ -1000,8 +1030,10 @@ a {
   background: var(--club);
 }
 
-.game-row-next:hover {
-  background: var(--club);
+@media (hover: hover) and (pointer: fine) {
+  .game-row-next:hover {
+    background: var(--club);
+  }
 }
 
 .game-row-next .team-logo {
@@ -1018,8 +1050,10 @@ a {
   color: var(--club-on);
 }
 
-.game-row:hover {
-  background: var(--slat-raised);
+@media (hover: hover) and (pointer: fine) {
+  .game-row:hover {
+    background: var(--slat-raised);
+  }
 }
 
 .game-time {
@@ -1275,6 +1309,8 @@ a {
   color: var(--muted);
   font-size: var(--text-sm);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms /* --dur-fast */ var(--ease);
 }
 .bet-list-empty-cta {
   display: inline-flex;
@@ -1284,8 +1320,10 @@ a {
   color: var(--club);
   font-weight: var(--weight-semibold);
 }
-.bet-list-empty:hover {
-  background: var(--slat-raised);
+@media (hover: hover) and (pointer: fine) {
+  .bet-list-empty:hover {
+    background: var(--slat-raised);
+  }
 }
 
 .side-form {
@@ -1422,9 +1460,11 @@ a {
   cursor: pointer;
 }
 
-.stake-chips button:hover {
-  border-color: var(--club-lit);
-  color: var(--club-lit);
+@media (hover: hover) and (pointer: fine) {
+  .stake-chips button:hover {
+    border-color: var(--club-lit);
+    color: var(--club-lit);
+  }
 }
 
 .filter-bar {
@@ -1493,6 +1533,7 @@ dialog.alert-content::backdrop {
   z-index: 80;
   inset: 0;
   background: rgba(2, 5, 8, 0.8);
+  transition: opacity var(--dur-enter) var(--ease);
 }
 
 .alert-content {
@@ -1503,6 +1544,9 @@ dialog.alert-content::backdrop {
   width: min(calc(100vw - 2rem), 28rem);
   margin: 0;
   transform: translate(-50%, -50%);
+  transition:
+    opacity var(--dur-enter) var(--ease),
+    transform var(--dur-enter) var(--ease);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-md);
   background: var(--slat-raised);
@@ -1513,6 +1557,28 @@ dialog.alert-content::backdrop {
      as "above" on a near-black ground — do not remove this for
      consistency with the flat surfaces. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+}
+
+@starting-style {
+  dialog.alert-content[open] {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+
+  dialog.alert-content[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+dialog.alert-content[data-closing] {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.98);
+  transition-duration: var(--dur-swap);
+}
+
+dialog.alert-content[data-closing]::backdrop {
+  opacity: 0;
+  transition-duration: var(--dur-swap);
 }
 
 .alert-title {
@@ -1553,6 +1619,25 @@ dialog.alert-content::backdrop {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
+.buddy-launcher-slot {
+  display: contents;
+}
+
+.button.buddy-launcher-enter {
+  transition:
+    opacity var(--dur-enter) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+@starting-style {
+  .button.buddy-launcher-enter {
+    opacity: 0;
+  }
+}
+
 @media (min-width: 1024px) {
   .buddy-launcher {
     bottom: calc(var(--tour-h) + 1rem);
@@ -1565,10 +1650,21 @@ dialog.buddy-panel::backdrop {
   z-index: 80;
   inset: 0;
   background: rgba(2, 5, 8, 0.8);
+  transition: opacity var(--dur-enter) var(--ease);
+}
+
+dialog.buddy-panel[data-closing]::backdrop {
+  opacity: 0;
+  transition-duration: var(--dur-swap);
 }
 
 /* Full-height sheet below 1024px; a right sheet above it, see the media
-   query further down. */
+   query further down. display:flex would otherwise show a closed dialog,
+   because an author display beats the UA dialog:not([open]) rule. */
+dialog.buddy-panel:not([open]) {
+  display: none;
+}
+
 .buddy-panel {
   position: absolute;
   z-index: 90;
@@ -1589,6 +1685,22 @@ dialog.buddy-panel::backdrop {
   /* Floats above the page, same as .alert-content/.buddy-launcher — a
      hairline alone doesn't read as "above" on a near-black ground. */
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+  transition: transform var(--dur-sheet) var(--ease-drawer);
+}
+
+@starting-style {
+  dialog.buddy-panel[open] {
+    transform: translateY(100%);
+  }
+
+  dialog.buddy-panel[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+dialog.buddy-panel[data-closing] {
+  transform: translateY(100%);
+  transition-duration: var(--dur-enter);
 }
 
 .buddy-panel-header {
@@ -1624,6 +1736,19 @@ dialog.buddy-panel::backdrop {
   padding: var(--space-3) 0;
 }
 
+.buddy-panel-live .buddy-turn {
+  transition:
+    opacity var(--dur-swap) var(--ease),
+    transform var(--dur-swap) var(--ease);
+}
+
+@starting-style {
+  .buddy-panel-live .buddy-turn {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 .buddy-turn .eyebrow {
   font-family: var(--font-mono);
 }
@@ -1632,6 +1757,7 @@ dialog.buddy-panel::backdrop {
   margin: 0;
   color: var(--chalk);
   font-size: var(--text-base);
+  transition: color var(--dur-enter) var(--ease);
 }
 
 /* Provisional until the terminal frame confirms it — dimmed with a caret,
@@ -1672,6 +1798,16 @@ dialog.buddy-panel::backdrop {
     inset-block: 0;
     inset-inline-start: auto;
     width: min(24rem, 100vw);
+  }
+
+  @starting-style {
+    dialog.buddy-panel[open] {
+      transform: translateX(100%);
+    }
+  }
+
+  dialog.buddy-panel[data-closing] {
+    transform: translateX(100%);
   }
 }
 
@@ -1749,10 +1885,17 @@ dialog.buddy-panel::backdrop {
   font-weight: var(--weight-bold);
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.shell-back:hover {
-  color: var(--chalk);
+.shell-back svg {
+  transition: transform 120ms /* --dur-fast */ var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shell-back:hover {
+    color: var(--chalk);
+  }
 }
 
 /* Balance and record, ambient in the topbar rather than only on /you. */
@@ -1803,6 +1946,8 @@ dialog.buddy-panel::backdrop {
 .enter
   :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
 .enter-pop
+  :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative),
+.bet-confirmation
   :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative) {
   transition: none;
 }
@@ -1816,9 +1961,9 @@ details::details-content {
   opacity: 0;
   overflow: clip;
   transition:
-    block-size 240ms var(--ease),
-    opacity 160ms ease-out,
-    content-visibility 240ms allow-discrete;
+    block-size 240ms /* --dur-expand */ var(--ease),
+    opacity 150ms /* --dur-swap */ var(--ease),
+    content-visibility 240ms /* --dur-expand */ allow-discrete;
 }
 
 details[open]::details-content {
@@ -1826,33 +1971,85 @@ details[open]::details-content {
   opacity: 1;
 }
 
+details:not([open])::details-content {
+  transition-duration:
+    200ms /* --dur-enter */,
+    150ms /* --dur-swap */,
+    200ms /* --dur-enter */;
+}
+
 .button:active:not(:disabled),
-.selection-button:active,
-.stake-chips button:active {
-  transform: translateY(1px);
+.stake-chips button:active:not(:disabled),
+.slate-chip:active {
+  transform: scale(0.97);
+}
+
+.button.w-full:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.mobile-nav-link:active svg,
+.shell-back:active svg {
+  transform: scale(0.94);
+}
+
+.game-row:active,
+.group-card:active {
+  background: var(--slat-raised);
+}
+
+.group-expand:active,
+.group-discussion-link:active,
+.bet-list-empty:active,
+a.settings-row:active {
+  background-color: var(--slat-raised);
 }
 
 .nav-link,
 .slate-chip,
-.game-row,
 .stake-chips button,
 .button,
-.app-footer a {
+.app-footer a,
+.mobile-nav-link,
+.section-tabs [role="tab"],
+.group-tabs [role="tab"] {
+  -webkit-tap-highlight-color: transparent;
   transition:
-    background-color 120ms var(--ease),
-    border-color 120ms var(--ease),
-    color 120ms var(--ease);
+    background-color 120ms /* --dur-fast */ var(--ease),
+    border-color 120ms /* --dur-fast */ var(--ease),
+    color 120ms /* --dur-fast */ var(--ease),
+    opacity 120ms /* --dur-fast */ var(--ease),
+    transform 120ms /* --dur-fast */ var(--ease);
+}
+
+.stale-area {
+  transition: opacity 150ms /* --dur-swap */ var(--ease);
+}
+
+.stale-area[aria-busy="true"] {
+  opacity: 0.6;
+  transition-duration: 120ms /* --dur-fast */;
+}
+
+.label-swap {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.label-swap > * {
+  grid-area: 1 / 1;
+  transition: opacity 150ms /* --dur-swap */ var(--ease);
+}
+
+.label-swap > [aria-hidden="true"] {
+  opacity: 0;
+  transition-duration: 90ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
     transition-property:
       opacity, background-color, color, border-color !important;
     transition-duration: 120ms !important;
@@ -1863,12 +2060,36 @@ details[open]::details-content {
   .banner-neutral,
   .banner-positive,
   .banner-warning,
-  .banner-negative {
+  .banner-negative,
+  .tour-bar-leaving,
+  .bet-bar-leaving,
+  dialog.buddy-panel[data-closing],
+  .button:active,
+  .stake-chips button:active,
+  .slate-chip:active,
+  .market-filters button:active,
+  .mobile-nav-link:active svg,
+  .shell-back:active svg {
     transform: none !important;
   }
 
-  details::details-content {
-    transition: none;
+  dialog.alert-content[data-closing] {
+    transform: translate(-50%, -50%);
+  }
+
+  dialog.buddy-panel[data-closing] {
+    opacity: 0;
+  }
+
+  @starting-style {
+    dialog.buddy-panel[open] {
+      opacity: 0;
+    }
+  }
+
+  details::details-content,
+  details:not([open])::details-content {
+    transition: opacity 120ms /* --dur-fast */ var(--ease);
   }
 
   .loading-panel {
@@ -1959,6 +2180,12 @@ body {
 
 .account-standing,
 .topbar-controls .button {
+  transition:
+    opacity 200ms /* --dur-enter */ var(--ease),
+    background-color 120ms /* --dur-fast */ var(--ease),
+    border-color 120ms /* --dur-fast */ var(--ease),
+    color 120ms /* --dur-fast */ var(--ease),
+    transform 120ms /* --dur-fast */ var(--ease);
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -1973,6 +2200,12 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
   text-decoration: none;
+}
+
+@starting-style {
+  .topbar-controls > * {
+    opacity: 0;
+  }
 }
 
 .account-standing svg {
@@ -2018,13 +2251,10 @@ body {
   width: 25px;
   height: 25px;
   stroke-width: 1.7;
+  transition: transform 120ms /* --dur-fast */ var(--ease);
 }
 
-.mobile-nav-link-active {
-  color: var(--club);
-}
-
-.mobile-nav-link-active::before {
+.mobile-nav-link::before {
   position: absolute;
   top: 0;
   left: 24%;
@@ -2033,6 +2263,16 @@ body {
   border-radius: 0 0 2px 2px;
   background: var(--club);
   content: "";
+  opacity: 0;
+  transition: opacity 120ms /* --dur-fast */ var(--ease);
+}
+
+.mobile-nav-link-active {
+  color: var(--club);
+}
+
+.mobile-nav-link-active::before {
+  opacity: 1;
 }
 
 .board {
@@ -2304,6 +2544,7 @@ body {
   border-bottom: 1px solid var(--rule);
   color: var(--chalk);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .game-time {
@@ -2804,10 +3045,13 @@ body {
   background: linear-gradient(135deg, var(--slat), var(--slat-muted));
   color: var(--chalk);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.group-card:hover {
-  border-color: var(--club);
-  background: var(--slat-raised);
+@media (hover: hover) and (pointer: fine) {
+  .group-card:hover {
+    border-color: var(--club);
+    background: var(--slat-raised);
+  }
 }
 .group-card-icon {
   display: grid;
@@ -3066,6 +3310,8 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms /* --dur-fast */ var(--ease);
 }
 .group-discussion-link > :last-child {
   margin-inline-start: auto;
@@ -3080,10 +3326,14 @@ body {
   font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms /* --dur-fast */ var(--ease);
 }
-.group-expand:hover,
-.group-discussion-link:hover {
-  background: var(--slat-raised);
+@media (hover: hover) and (pointer: fine) {
+  .group-expand:hover,
+  .group-discussion-link:hover {
+    background: var(--slat-raised);
+  }
 }
 .group-standings {
   border: 1px solid var(--rule);
@@ -3168,7 +3418,8 @@ body {
    than a name cut to "MATCHDAY PL…". */
 @media (max-width: 430px) {
   .shell-back + .brand .brand-name,
-  .topbar-inner:has(.account-standing) .brand-name {
+  .topbar-inner:has(.account-standing) .brand-name,
+  .topbar-inner[data-account] .brand-name {
     display: none;
   }
 }
@@ -3196,6 +3447,8 @@ body {
   border-top: 1px solid var(--rule);
   color: var(--chalk);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms /* --dur-fast */ var(--ease);
 }
 
 .settings-row > span {
@@ -3217,7 +3470,9 @@ body {
 }
 .section-tabs [role="tab"] {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-height: 3rem;
   padding: 0.65rem 0.25rem;
   border: 0;
@@ -3226,6 +3481,17 @@ body {
   color: var(--muted);
   font: inherit;
   cursor: pointer;
+}
+
+.section-tabs [role="tab"]::after,
+.group-tabs [role="tab"]::after {
+  content: attr(data-label) / "";
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 700;
+  pointer-events: none;
 }
 .section-tabs [aria-selected="true"] {
   border-bottom-color: var(--club);
@@ -3294,8 +3560,10 @@ body {
   padding-inline-end: var(--space-4);
 }
 
-a.settings-row:hover {
-  background: var(--slat-raised);
+@media (hover: hover) and (pointer: fine) {
+  a.settings-row:hover {
+    background: var(--slat-raised);
+  }
 }
 
 a.settings-row svg {
@@ -3324,7 +3592,11 @@ a.settings-row svg {
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation-duration: 0.15s;
-    animation-timing-function: ease;
+    animation-duration: 150ms; /* --dur-swap */
+    animation-timing-function: var(--ease);
+  }
+
+  ::view-transition {
+    pointer-events: none;
   }
 }

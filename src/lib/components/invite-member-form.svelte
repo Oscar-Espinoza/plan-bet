@@ -4,18 +4,18 @@
   import Banner from "#lib/components/ui/banner.svelte";
   import Button from "#lib/components/ui/button.svelte";
 
-  let { slug }: { slug: string } = $props();
+  let { slug, onSent }: { slug: string; onSent?: () => void | Promise<void> } =
+    $props();
   const i18n = useTranslation();
   let email = $state("");
   let error = $state("");
   let message = $state("");
   let pending = $state(false);
+  let attempt = $state(0);
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     pending = true;
-    error = "";
-    message = "";
     const invited = email;
     const response = await fetch(`/api/groups/${slug}/invite`, {
       method: "POST",
@@ -32,17 +32,21 @@
               (payload as { error: { message?: string } }).error?.message ?? "",
             )
           : "";
+      message = "";
       error = text || "The invite did not go through. Try again.";
+      attempt += 1;
       return;
     }
     const payload = (await response.json().catch(() => null)) as {
       data?: { emailed?: boolean };
     } | null;
+    error = "";
     message = payload?.data?.emailed
       ? `Invited ${invited}. The invite link is on its way.`
       : `Invited ${invited}. Email delivery is not configured here, so no message was sent.`;
+    attempt += 1;
     email = "";
-    await refreshAll();
+    await (onSent ? onSent() : refreshAll());
   }
 </script>
 
@@ -60,10 +64,15 @@
   />
 
   {#if error}
-    <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {#key attempt}
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
+    {/key}
   {/if}
   {#if message}
-    <Banner tone="positive">{i18n.t(message)}</Banner>
+    {#key attempt}
+      <Banner class="enter" tone="positive">{i18n.t(message)}</Banner>
+    {/key}
   {/if}
 
   <Button type="submit" size="sm" disabled={pending || !email.trim()}>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Component } from "svelte";
+  import { fullCssReady } from "./full-css";
 
   type Props = {
     authConfigured: boolean;
@@ -15,7 +16,10 @@
 
   $effect(() => {
     if (!Control) {
-      void import("./account-control.svelte").then((module) => {
+      void Promise.all([
+        import("./account-control.svelte"),
+        fullCssReady(),
+      ]).then(([module]) => {
         Control = module.default;
       });
     }

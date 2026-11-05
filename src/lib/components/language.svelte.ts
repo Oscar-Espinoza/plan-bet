@@ -58,9 +58,11 @@ export function useSetLocale() {
       selected = next;
       document.cookie = localeCookie(next);
       pending = true;
+      document.documentElement.classList.add("locale-pending");
       try {
         await refreshAll();
       } finally {
+        document.documentElement.classList.remove("locale-pending");
         pending = false;
       }
     },

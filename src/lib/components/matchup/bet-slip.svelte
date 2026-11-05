@@ -1,7 +1,7 @@
 <script lang="ts">
   import { refreshAll } from "$app/navigation";
   import { page } from "$app/state";
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import Ticket from "@lucide/svelte/icons/ticket";
   import NavigationLink from "../fast-link/navigation-link.svelte";
   import { useTranslation } from "../language.svelte";
@@ -23,6 +23,7 @@
     settlementLabel,
   } from "#lib/shared/wager-copy";
   import type { SlipWager, WagerPanelData } from "#lib/shared/wager-view";
+  import { afterExit, DURATION, fade } from "../motion";
   import Banner from "../ui/banner.svelte";
   import Button from "../ui/button.svelte";
   import StatusTag from "../ui/status-tag.svelte";
@@ -99,10 +100,14 @@
   let confirmation = $state("");
   let error = $state("");
   let pending = $state(false);
+  let attempt = $state(0);
   let confirmationNode = $state<HTMLDivElement | null>(null);
+  let root = $state<HTMLElement | null>(null);
+  let leaving = $state(false);
+  let cancelLeave: (() => void) | null = null;
   // One key per unchanged intent. A second Place with the same selection,
   // price, stake, and group resends it (replay). It rotates when any of
-  // those change, and Done clears it after a confirmed success.
+  // those change. Done clears it at the tap, before the bar finishes leaving.
   let placement: { intent: string; key: string } | null = null;
 
   const potentialReturn = $derived(
@@ -138,11 +143,27 @@
     return Math.min(ceiling, Math.max(MIN_STAKE, value));
   }
 
+  function reset() {
+    confirmation = "";
+    armed = undefined;
+    stakeText = String(MIN_STAKE);
+    groupId = "";
+    error = "";
+  }
+
   function arm(marketId: string, selectionId: string) {
+    if (leaving) {
+      cancelLeave?.();
+      cancelLeave = null;
+      leaving = false;
+      placement = null;
+    }
     armed = { marketId, selectionId };
     confirmation = "";
     error = "";
   }
+
+  $effect(() => () => cancelLeave?.());
 
   function addStake(amount: number) {
     stakeText = String(clampStake(stake + amount, balance));
@@ -226,7 +247,6 @@
     if (!market || !selection || pending || insufficientCredits) return;
     if (!stakeEntered) return;
     pending = true;
-    error = "";
     // Price is echoed for the server's price_moved check. Potential return
     // is never sent; the house table computes it.
     const request = {
@@ -248,6 +268,7 @@
     }).catch(() => null);
     const payload: unknown = await response?.json().catch(() => null);
     pending = false;
+    attempt += 1;
     if (!response?.ok) {
       error = errorText(payload) || ambiguous;
       return;
@@ -257,6 +278,7 @@
       error = ambiguous;
       return;
     }
+    error = "";
     overlay = {
       balance: result.balance,
       wagers: [
@@ -279,18 +301,24 @@
   }
 
   function done() {
-    confirmation = "";
     placement = null;
-    armed = undefined;
-    stakeText = String(MIN_STAKE);
-    groupId = "";
-    error = "";
+    if (leaving) return;
+    leaving = true;
+    cancelLeave = afterExit(DURATION.enter, () => {
+      leaving = false;
+      cancelLeave = null;
+      reset();
+    });
   }
 
   const categories = ["popular", "totals", "teams"] as const;
 </script>
 
-<section class="panel wager-panel" aria-labelledby="wager-heading">
+<section
+  class="panel wager-panel bet-slip"
+  bind:this={root}
+  aria-labelledby="wager-heading"
+>
   <div class="panel-header">
     <div>
       <h2 class="panel-title" id="wager-heading">
@@ -338,7 +366,16 @@
           <button
             type="button"
             aria-pressed={category === value}
-            onclick={() => (category = value)}
+            onclick={() => {
+              if (category === value) return;
+              category = value;
+              void tick().then(() =>
+                fade(
+                  root?.querySelectorAll(".selection-market:not([hidden])"),
+                  0.6,
+                ),
+              );
+            }}
           >
             {i18n.t(
               value === "popular"
@@ -450,7 +487,12 @@
   {/if}
 
   {#if view.state.kind === "open" && (selection || confirmation || error)}
-    <div class="bet-bar" role="region" aria-label={i18n.t("Bet slip")}>
+    <div
+      class="bet-bar"
+      class:bet-bar-leaving={leaving}
+      role="region"
+      aria-label={i18n.t("Bet slip")}
+    >
       <div class="wager-feedback" aria-live="polite" aria-atomic="true">
         {#if confirmation}
           <div
@@ -465,7 +507,9 @@
           </div>
         {/if}
         {#if error}
-          <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+          {#key attempt}
+            <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+          {/key}
         {/if}
         {#if insufficientCredits && selection}
           <Banner tone="negative" role="alert">

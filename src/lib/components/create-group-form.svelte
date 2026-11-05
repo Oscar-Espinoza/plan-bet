@@ -10,11 +10,11 @@
   let name = $state("");
   let error = $state("");
   let pending = $state(false);
+  let attempt = $state(0);
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     pending = true;
-    error = "";
     const response = await fetch("/api/groups", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -31,8 +31,10 @@
             )
           : "";
       error = text || "The group was not created. Try again.";
+      attempt += 1;
       return;
     }
+    error = "";
     const payload = (await response.json()) as {
       data: { group: { slug: string } };
     };
@@ -53,10 +55,16 @@
   />
 
   {#if error}
-    <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {#key attempt}
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
+    {/key}
   {/if}
 
   <Button type="submit" class="w-full" disabled={pending || !name.trim()}>
-    {i18n.t(pending ? "Creating…" : "Create group")}
+    <span class="label-swap">
+      <span aria-hidden={pending}>{i18n.t("Create group")}</span>
+      <span aria-hidden={!pending}>{i18n.t("Creating…")}</span>
+    </span>
   </Button>
 </form>
