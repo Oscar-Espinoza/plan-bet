@@ -1577,11 +1577,11 @@ Deviations from the plan:
 
 Local production-shaped documents, `npx wrangler dev --env preview --port 8706`, dummy auth in an uncommitted `.dev.vars`, preview `board:v1` and the two game snapshots copied into local KV. Gzip body is `curl -H 'accept-encoding: gzip' | wc -c`. Inline size is the raw `<style>` text.
 
-| Page | Before gzip | Before inline | After gzip | After inline | Gate |
-| ---- | ----------: | ------------: | ---------: | -----------: | ---- |
-| `/` | 12,356 B | 28,843 B | 12,237 B | 28,272 B | ≤ 12,800, pass |
-| Finished `football-data-575386-real-madrid` | 13,851 B | 38,583 B | 12,458 B | 30,246 B | ≤ 12,800, pass |
-| Upcoming `football-data-564741-real-madrid` | 13,452 B | 37,905 B | 12,063 B | 29,568 B | ≤ 12,800, pass |
+| Page                                        | Before gzip | Before inline | After gzip | After inline | Gate           |
+| ------------------------------------------- | ----------: | ------------: | ---------: | -----------: | -------------- |
+| `/`                                         |    12,356 B |      28,843 B |   12,237 B |     28,272 B | ≤ 12,800, pass |
+| Finished `football-data-575386-real-madrid` |    13,851 B |      38,583 B |   12,458 B |     30,246 B | ≤ 12,800, pass |
+| Upcoming `football-data-564741-real-madrid` |    13,452 B |      37,905 B |   12,063 B |     29,568 B | ≤ 12,800, pass |
 
 The finished page before the change matched production's 13,844 B within 7 B, and its inline sheet matched production's 38,598 B within 15 B. After the change that page is 12,458 B, 342 B under 12,800. A production document a few hundred bytes larger still clears 12,800 and the 13,000 B script. `node scripts/doc-budget.mjs` on the three local URLs printed `OK 12237`, `OK 12458`, `OK 12063`, all gzip, status 200. The script is documented under "Keeping it fast" in `docs/workflow.md` and is not part of `pnpm check`, because it needs a running server.
 
@@ -1593,23 +1593,23 @@ Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `39255f8`,
 
 2. Lighthouse 12 mobile ×5, median of each metric, one `flock /home/oscar/Projects/plan-bet-wt/locks/preview.lock` session. Before worktree `/tmp/m6-before` at `cd0b2bf`, version `e30033d6-2047-4751-aa60-91194ad935da`. After is this branch, version `bcad51cb-36a9-4e7f-b46e-0a78f41a0f62`. Queries `?m6=before` and `?m6=after`, so a cache HIT cannot serve the other build. Simulated. Chrome `/usr/bin/google-chrome`, headless. Every run scored 100. `non-composited-animations` has 0 items on every run. No runtime error and no NO_LCP. LCP node stays `section.next-up` on `/` and `header.mp-bug` on both games. Every session curl was `x-mp-cache: MISS`. A later curl of the after finished page returned `cache-control: public, max-age=0, must-revalidate, no-transform`, `content-encoding: gzip`, `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`, `x-mp-version: 58`.
 
-| Page | Metric | Before | After | Gate |
-| ---- | ------ | -----: | ----: | ---- |
-| `/` | FCP | 0.795 s | 0.789 s | ≤ 0.82 s, pass |
-| `/` | LCP | 1.358 s | 1.365 s | ≤ base + 0.05 s, pass (+0.007) |
-| `/` | CLS | 0.00082 | 0.00075 | ≤ 0.002, pass |
-| `/` | TBT | 6.5 ms | 15.5 ms | ≤ 10 ms; after misses, see deviations |
-| `/` | Document | 12,354 B | 12,239 B | preview, no wager panel |
-| finished | FCP | 0.786 s | 0.785 s | ≤ 0.82 s, pass |
-| finished | LCP | 1.214 s | 1.213 s | ≤ base + 0.05 s, pass |
-| finished | CLS | 0.00090 | 0.00158 | ≤ 0.002, pass |
-| finished | TBT | 0 ms | 0 ms | ≤ 10 ms, pass |
-| finished | Document | 11,724 B | 11,600 B | preview, no wager panel |
-| upcoming | FCP | 0.784 s | 0.783 s | ≤ 0.82 s, pass |
-| upcoming | LCP | 1.216 s | 1.212 s | ≤ base + 0.05 s, pass |
-| upcoming | CLS | 0.00126 | 0.00126 | ≤ 0.002, pass |
-| upcoming | TBT | 0 ms | 0 ms | ≤ 10 ms, pass |
-| upcoming | Document | 11,321 B | 11,201 B | preview, no wager panel |
+| Page     | Metric   |   Before |    After | Gate                                  |
+| -------- | -------- | -------: | -------: | ------------------------------------- |
+| `/`      | FCP      |  0.795 s |  0.789 s | ≤ 0.82 s, pass                        |
+| `/`      | LCP      |  1.358 s |  1.365 s | ≤ base + 0.05 s, pass (+0.007)        |
+| `/`      | CLS      |  0.00082 |  0.00075 | ≤ 0.002, pass                         |
+| `/`      | TBT      |   6.5 ms |  15.5 ms | ≤ 10 ms; after misses, see deviations |
+| `/`      | Document | 12,354 B | 12,239 B | preview, no wager panel               |
+| finished | FCP      |  0.786 s |  0.785 s | ≤ 0.82 s, pass                        |
+| finished | LCP      |  1.214 s |  1.213 s | ≤ base + 0.05 s, pass                 |
+| finished | CLS      |  0.00090 |  0.00158 | ≤ 0.002, pass                         |
+| finished | TBT      |     0 ms |     0 ms | ≤ 10 ms, pass                         |
+| finished | Document | 11,724 B | 11,600 B | preview, no wager panel               |
+| upcoming | FCP      |  0.784 s |  0.783 s | ≤ 0.82 s, pass                        |
+| upcoming | LCP      |  1.216 s |  1.212 s | ≤ base + 0.05 s, pass                 |
+| upcoming | CLS      |  0.00126 |  0.00126 | ≤ 0.002, pass                         |
+| upcoming | TBT      |     0 ms |     0 ms | ≤ 10 ms, pass                         |
+| upcoming | Document | 11,321 B | 11,201 B | preview, no wager panel               |
 
 Home FCP after, ms: 788.940, 788.670, 814.310, 788.699, 785.320. Before: 829.709, 782.189, 787.122, 794.922, 795.878. Home LCP after: 1363.880, 1369.340, 1366.620, 1363.398, 1364.640. Before: 1022.709, 1358.378, 1358.244, 1434.844, 1213.756. Home TBT after: 4, 16.5, 32.5, 5.5, 15.5. Before: 4, 7.5, 4.5, 6.5, 12.5. Finished FCP after: 784.593, 786.174, 780.841, 784.343, 785.861. Before: 786.184, 789.664, 784.282, 787.054, 785.546. Finished LCP after: 1213.186, 1212.348, 1203.682, 1212.686, 1213.722. Before: 1214.368, 1217.328, 1210.564, 1214.108, 1213.092. Finished TBT after: 0, 0, 0, 0, 1.5. Before: 0, 1.5, 1, 0, 0. Upcoming FCP after: 782.216, 784.217, 784.980, 781.438, 783.392. Before: 787.058, 780.620, 784.146, 780.017, 787.905. Upcoming LCP after: 1208.432, 1214.434, 1211.960, 1208.876, 1214.784. Before: 1218.116, 1213.240, 1287.292, 1212.034, 1215.810. Upcoming TBT after: 0, 0, 1, 0, 0. Before: 0, 0, 0, 0, 0.
 
