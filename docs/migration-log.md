@@ -1478,18 +1478,18 @@ Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `d404776`,
 
 2. Lighthouse 12 mobile ×5, median of each metric, same session. Simulated. Chrome `/usr/bin/google-chrome`, headless. Document is the Worker gzip body. The four runs opened (finished 4 before and after, upcoming 5 before, upcoming 3 after) each scored 100.
 
-| Page     | Metric   |   Before |   After | Gate                           |
-| -------- | -------- | -------: | ------: | ------------------------------ |
-| finished | FCP      |  0.792 s | 0.793 s | ≤ 0.82 s, pass                 |
-| finished | LCP      |  1.213 s | 1.219 s | ≤ base + 0.05 s, pass (+0.007) |
-| finished | CLS      |  0.00090 | 0.00090 | ≤ 0.002, pass                  |
-| finished | TBT      |     5 ms |    0 ms | ≤ 10 ms, pass                  |
-| finished | Document | 11,653 B | 11,720 B | ≤ 14,000 and ≤ +90, pass      |
-| upcoming | FCP      |  0.790 s | 0.786 s | ≤ 0.82 s, pass                 |
-| upcoming | LCP      |  1.366 s | 1.216 s | ≤ base + 0.05 s, pass          |
-| upcoming | CLS      |  0.00126 | 0.00126 | ≤ 0.002, pass                  |
-| upcoming | TBT      |    22 ms |  0.5 ms | ≤ 10 ms; the base misses, after passes |
-| upcoming | Document | 11,252 B | 11,320 B | ≤ 14,000 and ≤ +90, pass      |
+| Page     | Metric   |   Before |    After | Gate                                   |
+| -------- | -------- | -------: | -------: | -------------------------------------- |
+| finished | FCP      |  0.792 s |  0.793 s | ≤ 0.82 s, pass                         |
+| finished | LCP      |  1.213 s |  1.219 s | ≤ base + 0.05 s, pass (+0.007)         |
+| finished | CLS      |  0.00090 |  0.00090 | ≤ 0.002, pass                          |
+| finished | TBT      |     5 ms |     0 ms | ≤ 10 ms, pass                          |
+| finished | Document | 11,653 B | 11,720 B | ≤ 14,000 and ≤ +90, pass               |
+| upcoming | FCP      |  0.790 s |  0.786 s | ≤ 0.82 s, pass                         |
+| upcoming | LCP      |  1.366 s |  1.216 s | ≤ base + 0.05 s, pass                  |
+| upcoming | CLS      |  0.00126 |  0.00126 | ≤ 0.002, pass                          |
+| upcoming | TBT      |    22 ms |   0.5 ms | ≤ 10 ms; the base misses, after passes |
+| upcoming | Document | 11,252 B | 11,320 B | ≤ 14,000 and ≤ +90, pass               |
 
 Finished FCP after, ms: 809.060, 786.625, 787.882, 792.634, 793.065. Before: 828.043, 819.001, 792.369, 792.307, 786.351. Finished LCP after: 1224.120, 1219.250, 1215.764, 1213.268, 1222.130. Before: 945.043, 1216.002, 908.738, 1212.614, 1216.702. Finished TBT after: 0, 0, 1, 2.5, 0. Before: 9.5, 9.5, 4.5, 3, 5. Upcoming FCP after: 782.145, 786.497, 796.893, 785.815, 799.593. Before: 788.226, 786.771, 795.489, 816.050, 790.281. Upcoming LCP after: 914.290, 1216.994, 1209.786, 1215.630, 1225.186. Before: 2337.452, 1365.542, 1230.978, 1368.100, 1216.562. Upcoming TBT after: 2.5, 0.5, 0, 0, 4.5. Before: 3, 22, 33, 33, 5.5. `non-composited-animations` has 0 items on every run. No NO_LCP. LCP node stays `header.mp-bug`. Shift culprits stay `.mp-side` plus a side name, the kickoff `<time>`, or `.mp-clock-figure`.
 
