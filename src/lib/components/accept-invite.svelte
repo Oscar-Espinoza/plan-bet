@@ -19,10 +19,10 @@
   const i18n = useTranslation();
   let error = $state("");
   let pending = $state(false);
+  let attempt = $state(0);
 
   async function join() {
     pending = true;
-    error = "";
     const response = await fetch("/api/groups/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,9 +39,11 @@
             )
           : "";
       error = text || "That invite could not be accepted. Try again.";
+      attempt += 1;
       return;
     }
 
+    error = "";
     const data = (payload as { data: { groupSlug: string } }).data;
     await refreshAll();
     await goto(resolve(asRoute(`/groups/${data.groupSlug}`)));
@@ -65,7 +67,11 @@
       )}
     </p>
     {#if error}
-      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+      {#key attempt}
+        <Banner class="enter" tone="negative" role="alert"
+          >{i18n.t(error)}</Banner
+        >
+      {/key}
     {/if}
     <Button type="button" class="mt-5" onclick={join} disabled={pending}>
       {i18n.t("Join")}
