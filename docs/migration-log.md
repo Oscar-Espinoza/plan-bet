@@ -1395,34 +1395,45 @@ Home FCP runs after, ms: 844.954, 831.735, 816.239, 865.53, 808.463. Before: 857
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: FCP and TBT miss the absolute caps on the unchanged base in this session, so they are not a reason to cut the motion CSS. Group tabs still need a column flex or grid before `data-label` can reserve width. No phone, and no 25% recordings.
 
-## M4 Home slate, /you and groups motion — 2026-11-05 — PASS (builder)
+## M4 Home slate, /you and groups motion — 2026-11-05 — finished by Codex
 
-Branch: `motion/m4-home-groups`. No PR. No production deploy.
-Files: 13 Svelte (`slate`, `section-tabs`, `group-tabs`, `reset-bankroll-dialog`, `you/+page`, `bets-history` untouched, `join-link`, `submit-button`, `create-group-form`, `invite-member-form`, `accept-invite`, `notify-toggle`, `group-activity`, `groups/[slug]/+page`) plus this log. No CSS edits; no new dependency; `slate.svelte` does not import `motion.ts`.
+Branch: `motion/m4-home-groups`, based on `motion/m1-foundation` (`38c4457`). Completed the implementation left in `574bc30`; fixes in `a802ebd` and `59b7407`. No PR, production deploy, dependency change, or CSS-file edit. Performance exceptions are recorded below; this entry supersedes the builder's incomplete PASS.
 
-Deviations from the plan:
+Implementation and review:
 
-- Hero next-up text fade on filter swap was dropped (plan fallback when `/` JS is over budget). Board sections still swap at 150 ms / 120 ms reduced.
-- `/` first-load JS gzip is **+282 B** vs `motion/m1-foundation` (`60757` → `61039`), above the **+150 B** ticket cap. `/games/[id]` is **+65 B** (`73083` → `73148`) with no game-route source edits (likely shared chunk layout).
-- Preview Lighthouse “before” and “after” query variants in the second batch both hit the M4 Worker after redeploy; use the lock-session document bytes and local budget for build comparison. Medians from that batch (same build, cache-bust only): home FCP 0.795 s, LCP 1.511 s, CLS 0.00078, TBT 36.5 ms; game FCP 0.788 s, LCP 1.206 s, CLS 0.00090, TBT 0.0 ms.
-- V5 hold, V6 frame matrix, V7 reduced-motion matrix, V8 video, and signed-in `/you` SSR were not fully re-run in this session (coordinator / manual follow-up). Local SSR on `wrangler dev :8704`: `/`, redirecting `/you`, and `/groups` bodies contain no `enter` class.
-- Form `attempt` / `{#key}` banner replay, label swaps, tab `data-label` + pointer fades, reset dialog exit, slate `chosen` filter fix, `/you` hold-last lists, `fadeAdded` inserts, and join-link copy timer match the plan.
+- Home chips keep their selection locally, set the cookie and replace the URL without fetching. The initial value comes from the already validated server load (URL, then cookie, then all), avoiding duplicated client parsing. A microtask follows Svelte's queued DOM flush. Board fades cancel earlier animations; empty panels, the hero frame, crests and CTA stay still. The permitted hero-text fade fallback remains omitted.
+- Simplified fixture filtering, date parsing and prefetch bookkeeping to recover the byte budget. Prefetch still selects at most four fixtures, live first and then upcoming. Slate imports no motion helper, statically or dynamically.
+- Client response banners now actually receive the existing `enter` hook. Identical errors replay via their attempt keys; errors remain visible during retries. A failed invitation clears the previous success message when its response settles.
+- Copy resets before each successful copy, restarts its two-second timer and clears it on destruction. An unavailable clipboard no longer falsely reports success. Notification labels remain visible and accessible while saving.
+- History keeps its last list while navigation and its replacement promise are pending; an obsolete promise can no longer clear a newer request's busy state. Background refresh does not dim it.
+- Reset dialog entry/exit uses the existing tokens. Its client-only inline token values cap the inherited backdrop fades at 120 ms under reduced motion, including preference changes while open. This fixes M1's `*::before`/`*::after` rule missing `::backdrop`, without editing CSS.
+- No transition-library imports, SSR entry hooks, money animation, logic waiting for animation, or new dependency. Pointer tabs fade; keyboard panel changes stay instant. Existing M1 colour transitions still run on the selected tab.
 
-Preview lock (`flock …/preview.lock`). M1 worktree deploy (before): version `0456a186-228d-4f50-9abe-367b8486a931`. M4 deploy (after): version `85acb79b-924c-415b-bad1-2fd17fd0ff5a`.
+Acceptance evidence:
 
-`curl -H 'accept-encoding: gzip' | wc -c`: home **12,373 B** before, **12,355 B** after (**−18 B**). Game **11,654 B** before, **11,636 B** after (**−18 B**). Both under 14,000 B and inside the +20 B home allocation.
+1. **V1:** `pnpm check` printed `CHECK OK`; no BUDGET WARN. Clean M1 first-load gzip: `/` **60,757 B**, game **73,083 B**. Final M4: `/` **60,902 B (+145 B, passes +150 B cap)**; game **73,149 B (+66 B)**. The home route chunk itself is 5,078 B versus 5,000 B; the remaining +67 B comes from shared/runtime chunks and changed import hashes. The original M4 home result was 61,039 B (+282 B). The game source is unchanged, but its literal byte-equality gate misses because of the shared chunk changes.
 
-Acceptance:
+2. **V2 / V3:** One complete `flock /home/oscar/Projects/plan-bet-wt/locks/preview.lock bash /tmp/m4-codex-pair.sh` session: clean checkout `/tmp/m4-codex-base` at M1, `pnpm deploy:preview`, five Lighthouse 12 mobile runs on each page, M4 `pnpm deploy:preview`, then five runs on each page. Query variants were `?m4=before` and `?m4=after`. Base version `3a5f081a-e399-4daa-a340-04b815dfb71c`; M4 version `ecc75a23-baa8-4543-ba86-e470f2c11aa3`. An initial attempt failed before deployment because pnpm rejected a symlinked dependency directory; the complete session used a clean, independently installed checkout.
 
-1. `pnpm check` → `CHECK OK` (short sha at commit time). `node scripts/budget.mjs` → `/ 61039`, `/games/[id] 73148`. No BUDGET WARN.
+   | Page / variant     |     FCP |     LCP |     CLS |     TBT |
+   | ------------------ | ------: | ------: | ------: | ------: |
+   | Home / M1          | 0.797 s | 1.096 s | 0.00082 |  6.5 ms |
+   | Home / M4          | 0.803 s | 1.100 s | 0.00086 | 14.0 ms |
+   | Finished game / M1 | 0.799 s | 0.948 s | 0.00130 |  6.5 ms |
+   | Finished game / M4 | 0.799 s | 0.948 s | 0.00130 |  3.0 ms |
 
-2. Document bytes: see above (−18 B home and game vs M1 preview deploy).
+   These are five-run medians, not the previous builder's same-build comparison. All 20 runs had zero non-composited-animation items, no runtime/NO_LCP error, and the expected LCP node (`SECTION.next-up` at home, `HEADER.mp-bug` on the game). FCP, LCP delta and CLS pass. **Home median TBT misses the 10 ms gate by 4 ms**; game TBT passes. Gzip documents: home **12,355 → 12,358 B (+3 B)**; game **11,636 → 11,638 B (+2 B)**. Both are below 14,000 B; home passes its +20 B allocation. The game's literal unchanged-byte requirement misses by 2 B.
 
-3. Lighthouse: same-build medians logged under deviations; absolute FCP/LCP/TBT gates need a clean M1→M4 redeploy pair for coordinator sign-off.
+3. **V5:** Final production-shaped local builds on port 8704, viewport 390×844, CDP holds the full CSS request. Both have FCP, no lower computed opacities, no running animations, and no client-only `enter` or `label-swap` selector in the critical style. Hero hold-versus-settled: **0 pixels** at luminance delta ≥8 for each build. Base/M4 held hero PNGs are byte-identical. No new inline selector.
 
-4–8. Partial — see deviations.
+4. **V6:** CDP pointer inputs, rAF samples and long-animation-frame observers at 4× and 6× CPU cover chips/double taps, both tab systems, reset open/Cancel/Escape/success, Show all/fewer, Copy twice, invite banner/row, History filter reload and notification labels. Separate Chrome timeline traces captured the chip sequence at both rates. At 1× all measured flows had max rAF delta **16.8 ms**, no dropped frame and no long animation frame. At 4× normal-motion chip interaction duration was **120 ms** (under the 200 ms gate), but a long animation frame reached **113.5 ms**. At 6× normal-motion chip interaction duration reached **448 ms**, with a **427.3 ms** long animation frame. Other 4× normal-motion flows recorded no long animation frames; throttled History reloads and some 6× interactions exceeded the frame allowance. **V6 fails its frame/long-frame gates**; these are full filter/list rendering and navigation samples, not proof of compositor-only painting. CPU throttling on this shared host is not an Android/iOS device result; neither device was available.
 
-9. Review: no CSS edited; no forbidden imports on `/` static path; money untouched.
+5. **Behaviour / SSR:** Authenticated local curl/fetch of `/`, `/you`, `/groups`, and the created group all returned 200 with no `enter` class and no join-link input in server HTML. Pointer tab x positions were identical across switches. A forced 60-second focus refresh retained the Open, Just settled and History roots, with zero animations and no History busy state; the unrelated Slices await block still inserts its existing loading panel. An intercepted identical failed invite retained the same error node throughout pending, then replaced it and ran its entry again, with no stale positive banner. Chip changes produced no fetch and updated active selection/URL/cookie. A second local-only fixture set added 24 wagers plus matching stake ledger entries: enabled Next/Prev kept the same History holder, changed the URL to page 2 and back, and toggled `aria-busy` true then clear. Show all bets expanded 3 → 24 picks and Show fewer returned to 3, at both 4×/6× and with reduced motion; inserted picks used 150 ms normally and 120 ms reduced.
 
-Review: not run (builder ticket).
-FOLLOWUPS: Coordinator should re-measure `/` JS budget (282 B delta), run V5–V8 on `:8704`, and pair Lighthouse before (M1 deploy) / after (M4 deploy) in one lock session. Optional CSS for coordinator: none required from M4.
+6. **V7:** Final 4×/6× reduced-motion matrix recorded only fades/colour transitions at **120 ms or less**, with no animated translate or scale. Reset dialog and backdrop close with a fade. Home reduced-motion checks recorded zero view-transition calls; M1's layout also guards navigations under reduced motion. First-arrival lists use the reviewed shared helper's 120 ms cap.
+
+7. **V8:** Local 390×844 screen recordings of chips, both tab systems, reset, Show all/fewer, link/Copy, invite and History reload at 1× and 25% playback: `/tmp/m4-codex-local/video-1.mp4` and `video-0.25.mp4`. Frame timestamps preserve recording time. Normal first-load filmstrips of both local builds are captured under `load-base/` and `load-after/`, with timestamps in `filmstrip.json`; V5 separately establishes identical first-painted heroes.
+
+8. **V9:** Only ticket-owned source files and this log changed. `.cursor/plans` remains untracked. No CSS for the coordinator is required.
+
+Raw local evidence: `/tmp/m4-codex-local/` (`hold-summary.json`, `auth-frames.json`, `trace-4.json`, `trace-6.json`, `trace-summary.json`, videos). Preview evidence: `/tmp/m4-codex-evidence/`. Cleanup: local Worker/esbuild and Chrome process trees were stopped using their recorded PIDs (Chrome also closed through CDP); the final process audit found no remaining matching process. The preview lock is released.
