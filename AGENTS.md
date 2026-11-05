@@ -34,3 +34,4 @@ Read the doc for the area you're changing; nothing else is needed up front.
 | Deploying                                                       | [docs/architecture.md › Deployment order](docs/architecture.md#deployment-order)        |
 | Optimising load or navigation                                   | [PERFORMANCE.md](PERFORMANCE.md)                                                        |
 | Adding a market                                                 | [docs/market-data-coverage.md](docs/market-data-coverage.md)                            |
+| Adding or changing motion                                       | [docs/design/motion.md](docs/design/motion.md)                                          |
