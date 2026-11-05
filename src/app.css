@@ -2087,7 +2087,8 @@ a.settings-row:active {
     }
   }
 
-  details::details-content {
+  details::details-content,
+  details:not([open])::details-content {
     transition: opacity 120ms /* --dur-fast */ var(--ease);
   }
 
