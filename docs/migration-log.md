@@ -1555,3 +1555,68 @@ Acceptance evidence:
 8. **V9:** Only ticket-owned source files and this log changed. `.cursor/plans` remains untracked. No CSS for the coordinator is required.
 
 Raw local evidence: `/tmp/m4-codex-local/` (`hold-summary.json`, `auth-frames.json`, `trace-4.json`, `trace-6.json`, `trace-summary.json`, videos). Preview evidence: `/tmp/m4-codex-evidence/`. Cleanup: local Worker/esbuild and Chrome process trees were stopped using their recorded PIDs (Chrome also closed through CDP); the final process audit found no remaining matching process. The preview lock is released.
+
+## M6 Game document back in one round trip — 2026-11-05 — PASS (builder)
+
+Branch: `motion/m6-game-bytes`. Implementation is `39255f8`. No PR. No production deploy. Models: build Grok 4.7, verify not run.
+Files: 6 (the five below plus this log). Pieces: 4 (pruner, slip paint gate, document-size script, the two doc sentences).
+No new dependency. No CSS-file edit. Money, ledger and settlement are untouched.
+
+`WHEN_WAGER_PANEL` is gone. The pruner keeps a rule when its classes are in the server HTML, when the class is in `ALWAYS_PRESENT`, or when it is a `::view-transition-*` rule. `ALWAYS_PRESENT` is now the tour bar plus `button-secondary` and `button-sm`, because the tour mounts after hydration and before the full sheet. Navigation preview, the account chip, and `button-ghost` / `button-danger` / `button-icon` are no longer force-kept; those mounts already wait for the full sheet or open from a later tap. The arming form, the bet bar, the confirmation and the banners in `bet-slip.svelte` wait for `fullCssReady()` before they mount. The armed `selection-button-active` class is still applied on the tap, so the selection updates immediately and nothing unstyled is inserted. `$effect` does not run on the server, so that markup stays out of the document, including `?pick=`.
+
+Deviations from the plan:
+
+- Preview has no OAuth secrets, so a signed-out preview game page has no `wager-panel` element. The slip-byte win is the local production-shaped measurement below, not the preview document. Preview only shows the smaller `ALWAYS_PRESENT` trim (about 120 B gzip).
+- Home median TBT on the after build is 15.5 ms, over the 10 ms gate. The five runs are 4, 16.5, 32.5, 5.5 and 15.5 ms. The before build already had a 12.5 ms run (median 6.5 ms). Both game pages are 0 ms before and after. This is the same host noise M1 and M4 recorded on the home graph. The home route's JavaScript did not grow for this ticket.
+- Finished CLS median moved from 0.00090 to 0.00158 because three after runs landed on the 0.001585 cluster that one before run also hit. It stays under 0.002.
+- While the full sheet was paused, `document.getAnimations()` was 2 outside the scorebug crop. The bug itself had opacity 1 and zero animations. Those two are the tour bar transitions, which stay in the critical sheet on purpose.
+- `.app-shell:has(.buddy-launcher)` and `.topbar-inner:has(.account-standing)` remain (about 66 B and 62 B). `:has` is a state pseudo, so the pruner does not require the argument class to be in the HTML. Left alone.
+- Three stake-6 wagers exist only in this worktree's local D1, from the behaviour run. Starting grant 1000, balance after the third place 982. Nothing was written to preview or production D1.
+- `pnpm` warns that the engine wants Node 24.18.1 and the machine has 24.20.0. `pnpm check` still prints CHECK OK.
+- `/` first-load JS is 61,289 B of a 61,440 B limit (151 B left). No home-graph bytes were added.
+
+Local production-shaped documents, `npx wrangler dev --env preview --port 8706`, dummy auth in an uncommitted `.dev.vars`, preview `board:v1` and the two game snapshots copied into local KV. Gzip body is `curl -H 'accept-encoding: gzip' | wc -c`. Inline size is the raw `<style>` text.
+
+| Page | Before gzip | Before inline | After gzip | After inline | Gate |
+| ---- | ----------: | ------------: | ---------: | -----------: | ---- |
+| `/` | 12,356 B | 28,843 B | 12,237 B | 28,272 B | ≤ 12,800, pass |
+| Finished `football-data-575386-real-madrid` | 13,851 B | 38,583 B | 12,458 B | 30,246 B | ≤ 12,800, pass |
+| Upcoming `football-data-564741-real-madrid` | 13,452 B | 37,905 B | 12,063 B | 29,568 B | ≤ 12,800, pass |
+
+The finished page before the change matched production's 13,844 B within 7 B, and its inline sheet matched production's 38,598 B within 15 B. After the change that page is 12,458 B, 342 B under 12,800. A production document a few hundred bytes larger still clears 12,800 and the 13,000 B script. `node scripts/doc-budget.mjs` on the three local URLs printed `OK 12237`, `OK 12458`, `OK 12063`, all gzip, status 200. The script is documented under "Keeping it fast" in `docs/workflow.md` and is not part of `pnpm check`, because it needs a running server.
+
+The finished inline sheet after the change has 70 classes in the HTML and 75 names in the CSS. The extras are the tour and secondary-button classes in `ALWAYS_PRESENT`, the `:is(.game-row, .wager-panel, .group-match-card)` group (kept because `wager-panel` is in the signed-out HTML), the two `:has` rules above, and the false positives `avif`, `webp`, `woff2` and `com`. `side-form` and `w-full` stay, because they are in the signed-out panel. Bet-bar, selection-button, banner, navigation-preview and the three dropped button variants are absent.
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `39255f8`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 39255f8`. `node scripts/budget.mjs` → `/ 61289` (limit 61440), `/games/[id] 74579` (limit 81920). No BUDGET WARN. The pre-existing `state_referenced_locally` warnings in buddy, join-link, notify-toggle and slate are still the only typecheck warnings.
+
+2. Lighthouse 12 mobile ×5, median of each metric, one `flock /home/oscar/Projects/plan-bet-wt/locks/preview.lock` session. Before worktree `/tmp/m6-before` at `cd0b2bf`, version `e30033d6-2047-4751-aa60-91194ad935da`. After is this branch, version `bcad51cb-36a9-4e7f-b46e-0a78f41a0f62`. Queries `?m6=before` and `?m6=after`, so a cache HIT cannot serve the other build. Simulated. Chrome `/usr/bin/google-chrome`, headless. Every run scored 100. `non-composited-animations` has 0 items on every run. No runtime error and no NO_LCP. LCP node stays `section.next-up` on `/` and `header.mp-bug` on both games. Every session curl was `x-mp-cache: MISS`. A later curl of the after finished page returned `cache-control: public, max-age=0, must-revalidate, no-transform`, `content-encoding: gzip`, `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`, `x-mp-version: 58`.
+
+| Page | Metric | Before | After | Gate |
+| ---- | ------ | -----: | ----: | ---- |
+| `/` | FCP | 0.795 s | 0.789 s | ≤ 0.82 s, pass |
+| `/` | LCP | 1.358 s | 1.365 s | ≤ base + 0.05 s, pass (+0.007) |
+| `/` | CLS | 0.00082 | 0.00075 | ≤ 0.002, pass |
+| `/` | TBT | 6.5 ms | 15.5 ms | ≤ 10 ms; after misses, see deviations |
+| `/` | Document | 12,354 B | 12,239 B | preview, no wager panel |
+| finished | FCP | 0.786 s | 0.785 s | ≤ 0.82 s, pass |
+| finished | LCP | 1.214 s | 1.213 s | ≤ base + 0.05 s, pass |
+| finished | CLS | 0.00090 | 0.00158 | ≤ 0.002, pass |
+| finished | TBT | 0 ms | 0 ms | ≤ 10 ms, pass |
+| finished | Document | 11,724 B | 11,600 B | preview, no wager panel |
+| upcoming | FCP | 0.784 s | 0.783 s | ≤ 0.82 s, pass |
+| upcoming | LCP | 1.216 s | 1.212 s | ≤ base + 0.05 s, pass |
+| upcoming | CLS | 0.00126 | 0.00126 | ≤ 0.002, pass |
+| upcoming | TBT | 0 ms | 0 ms | ≤ 10 ms, pass |
+| upcoming | Document | 11,321 B | 11,201 B | preview, no wager panel |
+
+Home FCP after, ms: 788.940, 788.670, 814.310, 788.699, 785.320. Before: 829.709, 782.189, 787.122, 794.922, 795.878. Home LCP after: 1363.880, 1369.340, 1366.620, 1363.398, 1364.640. Before: 1022.709, 1358.378, 1358.244, 1434.844, 1213.756. Home TBT after: 4, 16.5, 32.5, 5.5, 15.5. Before: 4, 7.5, 4.5, 6.5, 12.5. Finished FCP after: 784.593, 786.174, 780.841, 784.343, 785.861. Before: 786.184, 789.664, 784.282, 787.054, 785.546. Finished LCP after: 1213.186, 1212.348, 1203.682, 1212.686, 1213.722. Before: 1214.368, 1217.328, 1210.564, 1214.108, 1213.092. Finished TBT after: 0, 0, 0, 0, 1.5. Before: 0, 1.5, 1, 0, 0. Upcoming FCP after: 782.216, 784.217, 784.980, 781.438, 783.392. Before: 787.058, 780.620, 784.146, 780.017, 787.905. Upcoming LCP after: 1208.432, 1214.434, 1211.960, 1208.876, 1214.784. Before: 1218.116, 1213.240, 1287.292, 1212.034, 1215.810. Upcoming TBT after: 0, 0, 1, 0, 0. Before: 0, 0, 0, 0, 0.
+
+3. Local Chrome, port 9460, profile `/tmp/m6-chrome-hold`, viewport 390×844, signed in, `locale=en`, upcoming game. CDP paused `http://127.0.0.1:8706/_app/immutable/assets/0.CaT2wTxM.css`. The LCP crop is `header.mp-bug` at x 0, y 148.1875, width 390, height 251.21875. First frame versus the settled frame while the sheet stayed paused: 0 px at luminance delta ≥ 8. Bug opacity 1, bug `getAnimations()` 0, console empty. A tap while the sheet was held mounted nothing: `.bet-bar` 0, `form.enter` 0, `.banner` 0, `.bet-confirmation` 0, `.stake-chips` 0. `.selection-button-active` was 1, so the price armed without painting the slip. After release the bar samples run translateY 259.8 → none over about 265 ms, opacity 0 → 1, `position: sticky`, `transition-duration` `0.24s, 0.15s`, bottom 65.7812 px (the tour offset).
+
+4. Behaviour on that same signed-in upcoming page. Goals filter: visible `.selection-market` 6 → 5 (the totals category is one market smaller than popular; existing `inMarketCategory`). Stake chip +5: the input reads 1 in the same turn and 6 after two animation frames. Two intercepted POSTs to `/api/bets` returned 409 `{error:{message:"The price moved. Check it and try again."}}`. The banner kept that string and `.bet-bar` stayed at 1. The third POST was the real place. Focus moved into `.bet-confirmation`. Text: "Placed 6 on Home → returns 14. New balance: 982. Done". Soccer match-result home is 2.40, so stake 6 returns 14. Reduced motion after reload: bar `transform: none`, opacity about 0.968 mid-fade, duration `0.12s`, property `opacity, background-color, color, border-color`. Signed-out finished page: overflow 0 at 320, 390 and 1280, English "Sign in", Spanish "Iniciar sesión", `documentElement.lang` matched, console empty.
+
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: none for the coordinator. Preview cannot show the slip-byte drop until OAuth secrets exist there; the local 12,458 B finished document is the production-shaped proof. Home TBT on this host is noisy and is not a reason to put slip CSS back into the first document. `/` JS has 151 B of headroom.
+Raw evidence: `/tmp/m6-lh/` (`before-summary.json`, `after-summary.json`, the thirty Lighthouse JSON files). Held-CSS crops: `/tmp/m6-shots/held-first.png`, `held-settled.png`.
