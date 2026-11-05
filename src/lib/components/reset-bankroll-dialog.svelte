@@ -2,7 +2,7 @@
   import { refreshAll } from "$app/navigation";
   import { onDestroy, tick } from "svelte";
   import { accountChip } from "#lib/state/account-chip.svelte";
-  import { afterExit, DURATION } from "#lib/components/motion";
+  import { afterExit, DURATION, reducedMotion } from "#lib/components/motion";
   import { useTranslation } from "./language.svelte";
   import Banner from "./ui/banner.svelte";
   import Button from "./ui/button.svelte";
@@ -15,6 +15,15 @@
   let error = $state<string | null>(null);
   let attempt = $state(0);
   let closing = $state(false);
+  let reduce = $state(reducedMotion());
+  // ::backdrop is outside M1's universal reduced-motion selector. Override the
+  // existing tokens on this client-only dialog so it inherits the same cap.
+  $effect(() => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => (reduce = media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  });
   let cancelExit: (() => void) | null = null;
 
   $effect(() => {
@@ -103,6 +112,8 @@
   bind:this={dialog}
   tabindex="-1"
   data-closing={closing || undefined}
+  style:--dur-enter={reduce ? "120ms" : undefined}
+  style:--dur-swap={reduce ? "120ms" : undefined}
   aria-labelledby="reset-bankroll-title"
   aria-describedby="reset-bankroll-copy"
   oncancel={onCancel}
