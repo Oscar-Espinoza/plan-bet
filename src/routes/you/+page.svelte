@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigating } from "$app/state";
+  import { navigating, page } from "$app/state";
   import { tick } from "svelte";
   import { SvelteURLSearchParams } from "svelte/reactivity";
   import AlertTriangle from "@lucide/svelte/icons/alert-triangle";
@@ -33,11 +33,11 @@
   let openRoot = $state<HTMLElement | null>(null);
   let settledRoot = $state<HTMLElement | null>(null);
   let historyRoot = $state<HTMLElement | null>(null);
-  let reloading = $state(false);
-
-  $effect(() => {
-    if (navigating.to?.url.pathname === "/you") reloading = true;
-  });
+  let historyLoading = $state(false);
+  const reloading = $derived(
+    navigating.to?.url.pathname === "/you" || historyLoading,
+  );
+  let seenHistorySearch: string | undefined;
 
   $effect(() => {
     if (data.status !== "ready") return;
@@ -78,12 +78,14 @@
   $effect(() => {
     if (data.status !== "ready") return;
     const request = data.history;
-    void request.finally(() => {
-      reloading = false;
-    });
+    const search = page.url.search;
+    historyLoading =
+      seenHistorySearch !== undefined && seenHistorySearch !== search;
+    seenHistorySearch = search;
     let active = true;
     void request.then((value) => {
       if (!active) return;
+      historyLoading = false;
       const first = historyShown === undefined;
       historyShown = value;
       if (first && !historyArrived) {

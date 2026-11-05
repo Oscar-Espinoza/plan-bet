@@ -56,7 +56,8 @@
 
   {#if error}
     {#key attempt}
-      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
     {/key}
   {/if}
 

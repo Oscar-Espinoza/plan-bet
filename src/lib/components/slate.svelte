@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
-  import { page } from "$app/state";
   import { SvelteDate } from "svelte/reactivity";
   import CalendarDays from "@lucide/svelte/icons/calendar-days";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -36,8 +34,8 @@
     { value: "baseball", label: "Baseball", href: "/?sport=baseball" },
   ];
 
-  function matchPreview(game: GameSummary, board: BoardData): PreviewMetadata {
-    const team = board[game.teamSlug].team;
+  function matchPreview(game: GameSummary): PreviewMetadata {
+    const team = data[game.teamSlug].team;
     return {
       match: {
         identity: {
@@ -62,14 +60,6 @@
     };
   }
 
-  function isDuplicate(game: GameSummary) {
-    return Boolean(
-      game.homeTeamSlug &&
-      game.awayTeamSlug &&
-      game.teamSlug !== game.homeTeamSlug,
-    );
-  }
-
   function dayKey(value: string, tz?: string) {
     return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(
       new Date(value),
@@ -86,60 +76,57 @@
     const key = dayKey(value, tz);
     if (key === todayKey) return "Today";
     if (key === tomorrowKey) return "Tomorrow";
-    const label = new Intl.DateTimeFormat(intlLocale(locale), {
+    const language = intlLocale(locale);
+    const label = new Intl.DateTimeFormat(language, {
       timeZone: tz,
       weekday: "long",
       month: "short",
       day: "numeric",
     }).format(new Date(value));
-    return (
-      label.charAt(0).toLocaleUpperCase(intlLocale(locale)) + label.slice(1)
-    );
+    return label.charAt(0).toLocaleUpperCase(language) + label.slice(1);
   }
 
-  const filterParam = $derived(page.url.searchParams.get("sport"));
-  let chosen = $state<SportFilter | null>(null);
-  const sport = $derived(
-    chosen ??
-      (filterParam === "soccer" || filterParam === "baseball"
-        ? filterParam
-        : filterParam === null
-          ? initialSport === "soccer" || initialSport === "baseball"
-            ? initialSport
-            : "all"
-          : "all"),
-  );
-
-  let board = $state<HTMLDivElement | null>(null);
+  // The server already resolves URL > cookie > all. Capture it once: subsequent
+  // same-route navigations must not reset the user's local selection.
+  let sport = $state(initialSport);
+  let board: HTMLDivElement;
 
   function selectSport(value: SportFilter) {
     document.cookie = sportPreferenceCookie(value);
     if (value === sport) return;
-    chosen = value;
-    void tick().then(() => {
-      if (!board) return;
-      const ms = matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? 120
-        : 150; /* --dur-swap */
+    sport = value;
+    // Svelte queues its DOM flush when sport changes, before this microtask.
+    queueMicrotask(() => {
       for (const el of board.querySelectorAll(
-        ":scope > :is(.live-section, .slate-groups, .panel, .slate-freshness)",
-      ))
-        el.animate([{ opacity: 0.6 }, { opacity: 1 }], {
-          duration: ms,
-          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
-        });
+        ".live-section,.slate-groups,.slate-freshness",
+      )) {
+        for (const animation of el.getAnimations()) animation.cancel();
+        el.animate(
+          { opacity: [0.6, 1] },
+          {
+            duration: matchMedia("(prefers-reduced-motion)").matches
+              ? 120
+              : 150 /* --dur-swap */,
+            easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+          },
+        );
+      }
     });
   }
 
   const games = $derived(
     Object.values(data)
       .flatMap((schedule) => schedule.games)
-      .filter((game) => !isDuplicate(game))
-      .filter((game) => sport === "all" || game.sport === sport)
-      .sort(
-        (a, b) =>
-          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-      ),
+      .filter(
+        (game) =>
+          !(
+            game.homeTeamSlug &&
+            game.awayTeamSlug &&
+            game.teamSlug !== game.homeTeamSlug
+          ) &&
+          (sport === "all" || game.sport === sport),
+      )
+      .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt)),
   );
 
   const liveGames = $derived(games.filter((game) => game.status === "live"));
@@ -192,18 +179,9 @@
     );
   });
 
-  const viewportPrefetchIds = $derived.by(() => {
-    const ids: string[] = [];
-    for (const game of liveGames) ids.push(game.id);
-    for (const group of dayBuckets) {
-      for (const game of group.games) ids.push(game.id);
-    }
-    return new Set(ids.slice(0, 4));
-  });
-
-  function visiblePrefetch(gameId: string) {
-    return viewportPrefetchIds.has(gameId);
-  }
+  const viewportPrefetchGames = $derived(
+    [...liveGames, ...scheduledGames].slice(0, 4),
+  );
 </script>
 
 <div class="board" bind:this={board}>
@@ -245,7 +223,7 @@
         eager
         class="button next-up-cta"
         href={`/games/${nextUp.id}`}
-        preview={matchPreview(nextUp, data)}
+        preview={matchPreview(nextUp)}
       >
         {i18n.t("View Match & Place Bet")}
         <ChevronRight aria-hidden="true" size={20} />
@@ -307,8 +285,8 @@
           <MatchLink
             class="game-row game-row-live"
             href={`/games/${game.id}`}
-            preview={matchPreview(game, data)}
-            visiblePrefetch={visiblePrefetch(game.id)}
+            preview={matchPreview(game)}
+            visiblePrefetch={viewportPrefetchGames.includes(game)}
           >
             <div class="game-time">{i18n.t("LIVE")}</div>
             <div class="game-opponent game-matchup-stacked">
@@ -350,8 +328,8 @@
                   game.id === nextUp?.id && "game-row-next",
                 )}
                 href={`/games/${game.id}`}
-                preview={matchPreview(game, data)}
-                visiblePrefetch={visiblePrefetch(game.id)}
+                preview={matchPreview(game)}
+                visiblePrefetch={viewportPrefetchGames.includes(game)}
               >
                 <div class="game-time">
                   <KickoffTime

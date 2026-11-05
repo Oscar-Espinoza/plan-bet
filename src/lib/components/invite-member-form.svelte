@@ -32,6 +32,7 @@
               (payload as { error: { message?: string } }).error?.message ?? "",
             )
           : "";
+      message = "";
       error = text || "The invite did not go through. Try again.";
       attempt += 1;
       return;
@@ -64,12 +65,13 @@
 
   {#if error}
     {#key attempt}
-      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
     {/key}
   {/if}
   {#if message}
     {#key attempt}
-      <Banner tone="positive">{i18n.t(message)}</Banner>
+      <Banner class="enter" tone="positive">{i18n.t(message)}</Banner>
     {/key}
   {/if}
 

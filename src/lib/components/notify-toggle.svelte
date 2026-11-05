@@ -43,8 +43,8 @@
   >
     {i18n.t("Email me group activity:")}
     <span class="label-swap">
-      <span aria-hidden={pending || !on}>{i18n.t("enabled")}</span>
-      <span aria-hidden={pending || on}>{i18n.t("disabled")}</span>
+      <span aria-hidden={!on}>{i18n.t("enabled")}</span>
+      <span aria-hidden={on}>{i18n.t("disabled")}</span>
     </span>
   </Button>
   <p class="fine-print">
@@ -61,7 +61,8 @@
   </p>
   {#if error}
     {#key attempt}
-      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
     {/key}
   {/if}
 </div>

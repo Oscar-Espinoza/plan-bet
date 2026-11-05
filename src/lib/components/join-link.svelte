@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, tick } from "svelte";
   import { refreshAll } from "$app/navigation";
   import { useTranslation } from "#lib/components/language.svelte";
   import Banner from "#lib/components/ui/banner.svelte";
@@ -23,6 +24,8 @@
   let pending = $state(false);
   let attempt = $state(0);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  onDestroy(() => clearTimeout(copyTimer));
 
   async function createLink() {
     pending = true;
@@ -52,7 +55,9 @@
 
   async function copy() {
     try {
-      await navigator.clipboard?.writeText(url);
+      await navigator.clipboard.writeText(url);
+      copied = false;
+      await tick();
       copied = true;
       if (copyTimer !== undefined) clearTimeout(copyTimer);
       copyTimer = setTimeout(() => {
@@ -158,7 +163,8 @@
   {/if}
   {#if error}
     {#key attempt}
-      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+      <Banner class="enter" tone="negative" role="alert">{i18n.t(error)}</Banner
+      >
     {/key}
   {/if}
 </div>
