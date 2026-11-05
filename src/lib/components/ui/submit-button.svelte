@@ -46,9 +46,10 @@
   aria-busy={pending}
   bind:element={button}
 >
-  {#if pending}
-    {pendingLabel}
-  {:else}
-    {@render children?.()}
-  {/if}
+  <span class="label-swap">
+    <span aria-hidden={pending}>
+      {@render children?.()}
+    </span>
+    <span aria-hidden={!pending}>{pendingLabel}</span>
+  </span>
 </Button>

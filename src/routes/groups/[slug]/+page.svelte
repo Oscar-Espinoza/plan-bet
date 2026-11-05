@@ -1,12 +1,14 @@
 <script lang="ts">
   import UserPlus from "@lucide/svelte/icons/user-plus";
   import Users from "@lucide/svelte/icons/users";
+  import { refreshAll } from "$app/navigation";
   import Breadcrumb from "#lib/components/breadcrumb.svelte";
   import GroupActivity from "#lib/components/group-activity.svelte";
   import GroupTabs from "#lib/components/group-tabs.svelte";
   import InviteMemberForm from "#lib/components/invite-member-form.svelte";
   import JoinLink from "#lib/components/join-link.svelte";
   import { useTranslation } from "#lib/components/language.svelte";
+  import { fadeAdded } from "#lib/components/motion";
   import NotifyToggle from "#lib/components/notify-toggle.svelte";
   import RevokeInviteButton from "#lib/components/revoke-invite-button.svelte";
   import Button from "#lib/components/ui/button.svelte";
@@ -15,6 +17,7 @@
 
   let { data }: { data: PageData } = $props();
   const i18n = useTranslation();
+  let invitesSlot = $state<HTMLDivElement | null>(null);
   const memberWord = $derived(
     data.memberCount === 1 ? i18n.t("member") : i18n.t("members"),
   );
@@ -93,19 +96,25 @@
           <JoinLink slug={data.slug} />
         </div>
         <div class="form-block">
-          <InviteMemberForm slug={data.slug} />
+          <InviteMemberForm
+            slug={data.slug}
+            onSent={() =>
+              fadeAdded(invitesSlot, refreshAll, ".form-block, .stat-row")}
+          />
         </div>
-        {#if data.pendingEmailInvites.length > 0}
-          <div class="form-block">
-            <span class="field-label">{i18n.t("Outstanding invites")}</span>
-            {#each data.pendingEmailInvites as invite (invite.id)}
-              <div class="stat-row">
-                <span>{invite.email}</span>
-                <RevokeInviteButton slug={data.slug} inviteId={invite.id} />
-              </div>
-            {/each}
-          </div>
-        {/if}
+        <div bind:this={invitesSlot}>
+          {#if data.pendingEmailInvites.length > 0}
+            <div class="form-block">
+              <span class="field-label">{i18n.t("Outstanding invites")}</span>
+              {#each data.pendingEmailInvites as invite (invite.id)}
+                <div class="stat-row">
+                  <span>{invite.email}</span>
+                  <RevokeInviteButton slug={data.slug} inviteId={invite.id} />
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </Card>
     {/snippet}
   </GroupTabs>

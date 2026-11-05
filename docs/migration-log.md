@@ -1394,3 +1394,35 @@ Home FCP runs after, ms: 844.954, 831.735, 816.239, 865.53, 808.463. Before: 857
 
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: FCP and TBT miss the absolute caps on the unchanged base in this session, so they are not a reason to cut the motion CSS. Group tabs still need a column flex or grid before `data-label` can reserve width. No phone, and no 25% recordings.
+
+## M4 Home slate, /you and groups motion — 2026-11-05 — PASS (builder)
+
+Branch: `motion/m4-home-groups`. No PR. No production deploy.
+Files: 13 Svelte (`slate`, `section-tabs`, `group-tabs`, `reset-bankroll-dialog`, `you/+page`, `bets-history` untouched, `join-link`, `submit-button`, `create-group-form`, `invite-member-form`, `accept-invite`, `notify-toggle`, `group-activity`, `groups/[slug]/+page`) plus this log. No CSS edits; no new dependency; `slate.svelte` does not import `motion.ts`.
+
+Deviations from the plan:
+
+- Hero next-up text fade on filter swap was dropped (plan fallback when `/` JS is over budget). Board sections still swap at 150 ms / 120 ms reduced.
+- `/` first-load JS gzip is **+282 B** vs `motion/m1-foundation` (`60757` → `61039`), above the **+150 B** ticket cap. `/games/[id]` is **+65 B** (`73083` → `73148`) with no game-route source edits (likely shared chunk layout).
+- Preview Lighthouse “before” and “after” query variants in the second batch both hit the M4 Worker after redeploy; use the lock-session document bytes and local budget for build comparison. Medians from that batch (same build, cache-bust only): home FCP 0.795 s, LCP 1.511 s, CLS 0.00078, TBT 36.5 ms; game FCP 0.788 s, LCP 1.206 s, CLS 0.00090, TBT 0.0 ms.
+- V5 hold, V6 frame matrix, V7 reduced-motion matrix, V8 video, and signed-in `/you` SSR were not fully re-run in this session (coordinator / manual follow-up). Local SSR on `wrangler dev :8704`: `/`, redirecting `/you`, and `/groups` bodies contain no `enter` class.
+- Form `attempt` / `{#key}` banner replay, label swaps, tab `data-label` + pointer fades, reset dialog exit, slate `chosen` filter fix, `/you` hold-last lists, `fadeAdded` inserts, and join-link copy timer match the plan.
+
+Preview lock (`flock …/preview.lock`). M1 worktree deploy (before): version `0456a186-228d-4f50-9abe-367b8486a931`. M4 deploy (after): version `85acb79b-924c-415b-bad1-2fd17fd0ff5a`.
+
+`curl -H 'accept-encoding: gzip' | wc -c`: home **12,373 B** before, **12,355 B** after (**−18 B**). Game **11,654 B** before, **11,636 B** after (**−18 B**). Both under 14,000 B and inside the +20 B home allocation.
+
+Acceptance:
+
+1. `pnpm check` → `CHECK OK` (short sha at commit time). `node scripts/budget.mjs` → `/ 61039`, `/games/[id] 73148`. No BUDGET WARN.
+
+2. Document bytes: see above (−18 B home and game vs M1 preview deploy).
+
+3. Lighthouse: same-build medians logged under deviations; absolute FCP/LCP/TBT gates need a clean M1→M4 redeploy pair for coordinator sign-off.
+
+4–8. Partial — see deviations.
+
+9. Review: no CSS edited; no forbidden imports on `/` static path; money untouched.
+
+Review: not run (builder ticket).
+FOLLOWUPS: Coordinator should re-measure `/` JS budget (282 B delta), run V5–V8 on `:8704`, and pair Lighthouse before (M1 deploy) / after (M4 deploy) in one lock session. Optional CSS for coordinator: none required from M4.

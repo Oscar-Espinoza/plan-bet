@@ -1,7 +1,8 @@
 <script lang="ts">
   import { refreshAll } from "$app/navigation";
-  import { tick } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import { accountChip } from "#lib/state/account-chip.svelte";
+  import { afterExit, DURATION } from "#lib/components/motion";
   import { useTranslation } from "./language.svelte";
   import Banner from "./ui/banner.svelte";
   import Button from "./ui/button.svelte";
@@ -12,6 +13,9 @@
   let dialog = $state<HTMLDialogElement | null>(null);
   let pending = $state(false);
   let error = $state<string | null>(null);
+  let attempt = $state(0);
+  let closing = $state(false);
+  let cancelExit: (() => void) | null = null;
 
   $effect(() => {
     const node = dialog;
@@ -27,6 +31,10 @@
     };
   });
 
+  onDestroy(() => {
+    cancelExit?.();
+  });
+
   function readBalance(payload: unknown) {
     if (!payload || typeof payload !== "object" || !("data" in payload))
       return null;
@@ -37,16 +45,23 @@
   }
 
   function requestClose() {
-    if (pending) return;
-    dialog?.close();
+    if (pending || closing) return;
+    closing = true;
+    cancelExit = afterExit(DURATION.swap, () => dialog?.close());
   }
 
   function onCancel(event: Event) {
-    if (pending) event.preventDefault();
+    if (pending) {
+      event.preventDefault();
+      return;
+    }
+    if (event.cancelable) {
+      event.preventDefault();
+      requestClose();
+    }
   }
 
   async function handleReset() {
-    error = null;
     pending = true;
     const response = await fetch("/api/bets/reset", {
       method: "POST",
@@ -59,17 +74,27 @@
         response?.status === 429
           ? "Reset limit reached. Try again later."
           : "The reset did not go through. Try again.";
+      attempt += 1;
       return;
     }
     const payload: unknown = await response.json().catch(() => null);
     const balance = readBalance(payload);
     if (balance === null) {
       error = "The reset did not go through. Try again.";
+      attempt += 1;
       return;
     }
+    error = null;
     accountChip.setBalance(balance);
-    dialog?.close();
+    requestClose();
     void refreshAll();
+  }
+
+  function handleClose() {
+    cancelExit?.();
+    cancelExit = null;
+    closing = false;
+    onClose();
   }
 </script>
 
@@ -77,10 +102,11 @@
   class="alert-content"
   bind:this={dialog}
   tabindex="-1"
+  data-closing={closing || undefined}
   aria-labelledby="reset-bankroll-title"
   aria-describedby="reset-bankroll-copy"
   oncancel={onCancel}
-  onclose={() => onClose()}
+  onclose={handleClose}
 >
   <h2 class="alert-title" id="reset-bankroll-title">
     {i18n.t("Reset your bankroll?")}
@@ -91,7 +117,9 @@
     )}
   </p>
   {#if error}
-    <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {#key attempt}
+      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {/key}
   {/if}
   <div class="alert-actions">
     <Button variant="secondary" disabled={pending} onclick={requestClose}>
@@ -102,7 +130,10 @@
       disabled={pending}
       onclick={() => void handleReset()}
     >
-      {i18n.t(pending ? "Resetting…" : "Reset bankroll")}
+      <span class="label-swap">
+        <span aria-hidden={pending}>{i18n.t("Reset bankroll")}</span>
+        <span aria-hidden={!pending}>{i18n.t("Resetting…")}</span>
+      </span>
     </Button>
   </div>
 </dialog>

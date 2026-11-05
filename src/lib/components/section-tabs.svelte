@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { tick } from "svelte";
   import { page } from "$app/state";
   import { useTranslation } from "./language.svelte";
+  import { fade } from "#lib/components/motion";
   import type { Message } from "#lib/shared/locale";
 
   type Panel = { key: string; label: Message; content: Snippet };
@@ -77,6 +79,9 @@
     active = target.key;
     document.getElementById(`${uid}-tab-${target.key}`)?.focus();
   }
+  function select(key: string) {
+    active = key;
+  }
 </script>
 
 <div class="section-tabs" role="tablist" aria-label={i18n.t(label)}>
@@ -88,7 +93,14 @@
       aria-controls={`${uid}-panel-${panel.key}`}
       aria-selected={active === panel.key}
       tabindex={active === panel.key ? 0 : -1}
-      onclick={() => (active = panel.key)}
+      data-label={i18n.t(panel.label)}
+      onclick={(event) => {
+        select(panel.key);
+        if (event.detail > 0)
+          void tick().then(() =>
+            fade(document.getElementById(`${uid}-panel-${panel.key}`), 0.6),
+          );
+      }}
       onkeydown={(event) => onKeydown(event, index)}
     >
       {i18n.t(panel.label)}

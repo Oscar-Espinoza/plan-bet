@@ -9,11 +9,11 @@
   let on = $state(enabled);
   let error = $state("");
   let pending = $state(false);
+  let attempt = $state(0);
 
   async function toggle() {
     const next = !on;
     pending = true;
-    error = "";
     const response = await fetch(`/api/groups/${slug}/notifications`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -23,8 +23,10 @@
 
     if (!response?.ok) {
       error = "That setting did not save. Try again.";
+      attempt += 1;
       return;
     }
+    error = "";
     on = next;
     await refreshAll();
   }
@@ -40,16 +42,26 @@
     aria-pressed={on}
   >
     {i18n.t("Email me group activity:")}
-    {on ? i18n.t("enabled") : i18n.t("disabled")}
+    <span class="label-swap">
+      <span aria-hidden={pending || !on}>{i18n.t("enabled")}</span>
+      <span aria-hidden={pending || on}>{i18n.t("disabled")}</span>
+    </span>
   </Button>
   <p class="fine-print">
-    {on
-      ? i18n.t(
+    <span class="label-swap">
+      <span aria-hidden={!on}>
+        {i18n.t(
           "You get an email when a member places a wager here and when group wagers settle.",
-        )
-      : i18n.t("You get no group emails. Activity still shows on this page.")}
+        )}
+      </span>
+      <span aria-hidden={on}>
+        {i18n.t("You get no group emails. Activity still shows on this page.")}
+      </span>
+    </span>
   </p>
   {#if error}
-    <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {#key attempt}
+      <Banner tone="negative" role="alert">{i18n.t(error)}</Banner>
+    {/key}
   {/if}
 </div>

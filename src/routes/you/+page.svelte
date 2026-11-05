@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { navigating } from "$app/state";
+  import { tick } from "svelte";
   import { SvelteURLSearchParams } from "svelte/reactivity";
   import AlertTriangle from "@lucide/svelte/icons/alert-triangle";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -7,15 +9,92 @@
   import NavigationLink from "#lib/components/fast-link/navigation-link.svelte";
   import LanguageSwitch from "#lib/components/language-switch.svelte";
   import { useTranslation } from "#lib/components/language.svelte";
+  import { arrive } from "#lib/components/motion";
   import ResetBankroll from "#lib/components/reset-bankroll.svelte";
   import SectionTabs from "#lib/components/section-tabs.svelte";
   import Button from "#lib/components/ui/button.svelte";
   import Card from "#lib/components/ui/card.svelte";
   import StatusTag from "#lib/components/ui/status-tag.svelte";
+  import type { HistoryView, OpenWagersView } from "#lib/shared/wager-view";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
   const i18n = useTranslation();
+
+  const openMountedAt = performance.now();
+  const settledMountedAt = performance.now();
+  const historyMountedAt = performance.now();
+  let openShown = $state<OpenWagersView | undefined>();
+  let settledShown = $state<HistoryView | undefined>();
+  let historyShown = $state<HistoryView | undefined>();
+  let openArrived = $state(false);
+  let settledArrived = $state(false);
+  let historyArrived = $state(false);
+  let openRoot = $state<HTMLElement | null>(null);
+  let settledRoot = $state<HTMLElement | null>(null);
+  let historyRoot = $state<HTMLElement | null>(null);
+  let reloading = $state(false);
+
+  $effect(() => {
+    if (navigating.to?.url.pathname === "/you") reloading = true;
+  });
+
+  $effect(() => {
+    if (data.status !== "ready") return;
+    const request = data.open;
+    let active = true;
+    void request.then((value) => {
+      if (!active) return;
+      const first = openShown === undefined;
+      openShown = value;
+      if (first && !openArrived) {
+        openArrived = true;
+        void tick().then(() => arrive(openRoot, openMountedAt, 0.6));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  });
+
+  $effect(() => {
+    if (data.status !== "ready") return;
+    const request = data.settled;
+    let active = true;
+    void request.then((value) => {
+      if (!active) return;
+      const first = settledShown === undefined;
+      settledShown = value;
+      if (first && !settledArrived) {
+        settledArrived = true;
+        void tick().then(() => arrive(settledRoot, settledMountedAt, 0.6));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  });
+
+  $effect(() => {
+    if (data.status !== "ready") return;
+    const request = data.history;
+    void request.finally(() => {
+      reloading = false;
+    });
+    let active = true;
+    void request.then((value) => {
+      if (!active) return;
+      const first = historyShown === undefined;
+      historyShown = value;
+      if (first && !historyArrived) {
+        historyArrived = true;
+        void tick().then(() => arrive(historyRoot, historyMountedAt, 0.6));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  });
 
   function hitRateLabel(won: number, lost: number) {
     const decided = won + lost;
@@ -200,64 +279,70 @@
 {#snippet overviewPanel()}
   {#if data.status === "ready"}
     <div class="section-grid">
-      {#await data.open}
+      {#if openShown}
+        {@const open = openShown}
+        <div bind:this={openRoot}>
+          <Card titleId="open-wagers-heading">
+            {#snippet title()}{i18n.t("Open wagers")}{/snippet}
+            {#snippet headerExtra()}
+              {#if open.count > 5}
+                <NavigationLink
+                  class="card-link"
+                  href="/you?tab=bets&outcome=open"
+                >
+                  {i18n.t("See all")} ({open.count})
+                  <ChevronRight aria-hidden="true" size={16} />
+                </NavigationLink>
+              {:else}
+                <StatusTag>{open.count} {i18n.t("open")}</StatusTag>
+              {/if}
+            {/snippet}
+            <BetsHistory
+              compact
+              items={open.items}
+              emptyState={{
+                title: "No open wagers",
+                copy: "Place a free-to-play wager from a game page to see it here.",
+              }}
+            />
+          </Card>
+        </div>
+      {:else}
         <div
           class="panel loading-panel"
           role="status"
           aria-label={i18n.t("Loading…")}
         ></div>
-      {:then open}
-        <Card titleId="open-wagers-heading">
-          {#snippet title()}{i18n.t("Open wagers")}{/snippet}
-          {#snippet headerExtra()}
-            {#if open.count > 5}
-              <NavigationLink
-                class="card-link"
-                href="/you?tab=bets&outcome=open"
-              >
-                {i18n.t("See all")} ({open.count})
+      {/if}
+
+      {#if settledShown}
+        {@const settled = settledShown}
+        <div bind:this={settledRoot}>
+          <Card titleId="just-settled-heading">
+            {#snippet title()}{i18n.t("Just settled")}{/snippet}
+            {#snippet headerExtra()}
+              <NavigationLink class="card-link" href="/you?tab=bets">
+                {i18n.t("History")}
                 <ChevronRight aria-hidden="true" size={16} />
               </NavigationLink>
-            {:else}
-              <StatusTag>{open.count} {i18n.t("open")}</StatusTag>
-            {/if}
-          {/snippet}
-          <BetsHistory
-            compact
-            items={open.items}
-            emptyState={{
-              title: "No open wagers",
-              copy: "Place a free-to-play wager from a game page to see it here.",
-            }}
-          />
-        </Card>
-      {/await}
-
-      {#await data.settled}
+            {/snippet}
+            <BetsHistory
+              compact
+              items={settled.items}
+              emptyState={{
+                title: "Nothing settled yet",
+                copy: "Settled wagers land here once a game finishes.",
+              }}
+            />
+          </Card>
+        </div>
+      {:else}
         <div
           class="panel loading-panel"
           role="status"
           aria-label={i18n.t("Loading…")}
         ></div>
-      {:then settled}
-        <Card titleId="just-settled-heading">
-          {#snippet title()}{i18n.t("Just settled")}{/snippet}
-          {#snippet headerExtra()}
-            <NavigationLink class="card-link" href="/you?tab=bets">
-              {i18n.t("History")}
-              <ChevronRight aria-hidden="true" size={16} />
-            </NavigationLink>
-          {/snippet}
-          <BetsHistory
-            compact
-            items={settled.items}
-            emptyState={{
-              title: "Nothing settled yet",
-              copy: "Settled wagers land here once a game finishes.",
-            }}
-          />
-        </Card>
-      {/await}
+      {/if}
 
       {#await data.slices}
         <div
@@ -362,59 +447,66 @@
         {/each}
         <Button type="submit" size="sm">{i18n.t("Apply filters")}</Button>
       </form>
-      {#await data.history}
-        <div
-          class="panel loading-panel"
-          role="status"
-          aria-label={i18n.t("Loading…")}
-        ></div>
-      {:then history}
+      {#if historyShown}
+        {@const history = historyShown}
         {@const filtersActive =
           data.filters.sport !== "all" ||
           data.filters.outcome !== "all" ||
           data.filters.range !== "all" ||
           data.filters.scope !== "all"}
-        <BetsHistory
-          items={history.items}
-          emptyState={filtersActive
-            ? {
-                title: "No wagers match these filters",
-                copy: "Try a different sport, outcome, or time range.",
-              }
-            : {
-                title: "No wagers yet",
-                copy: "Place a free-to-play wager from a game page to see your history here.",
-              }}
-        />
-        <div class="panel-body flex items-center justify-between">
-          {#if data.page > 1}
-            <Button
-              href={historyHref(data.page - 1)}
-              variant="secondary"
-              size="sm"
-            >
-              {i18n.t("Prev")}
-            </Button>
-          {:else}
-            <Button variant="secondary" size="sm" disabled
-              >{i18n.t("Prev")}</Button
-            >
-          {/if}
-          {#if history.hasMore}
-            <Button
-              href={historyHref(data.page + 1)}
-              variant="secondary"
-              size="sm"
-            >
-              {i18n.t("Next")}
-            </Button>
-          {:else}
-            <Button variant="secondary" size="sm" disabled
-              >{i18n.t("Next")}</Button
-            >
-          {/if}
+        <div
+          class="stale-area"
+          aria-busy={reloading || undefined}
+          bind:this={historyRoot}
+        >
+          <BetsHistory
+            items={history.items}
+            emptyState={filtersActive
+              ? {
+                  title: "No wagers match these filters",
+                  copy: "Try a different sport, outcome, or time range.",
+                }
+              : {
+                  title: "No wagers yet",
+                  copy: "Place a free-to-play wager from a game page to see your history here.",
+                }}
+          />
+          <div class="panel-body flex items-center justify-between">
+            {#if data.page > 1}
+              <Button
+                href={historyHref(data.page - 1)}
+                variant="secondary"
+                size="sm"
+              >
+                {i18n.t("Prev")}
+              </Button>
+            {:else}
+              <Button variant="secondary" size="sm" disabled
+                >{i18n.t("Prev")}</Button
+              >
+            {/if}
+            {#if history.hasMore}
+              <Button
+                href={historyHref(data.page + 1)}
+                variant="secondary"
+                size="sm"
+              >
+                {i18n.t("Next")}
+              </Button>
+            {:else}
+              <Button variant="secondary" size="sm" disabled
+                >{i18n.t("Next")}</Button
+              >
+            {/if}
+          </div>
         </div>
-      {/await}
+      {:else}
+        <div
+          class="panel loading-panel"
+          role="status"
+          aria-label={i18n.t("Loading…")}
+        ></div>
+      {/if}
     </section>
   {/if}
 {/snippet}

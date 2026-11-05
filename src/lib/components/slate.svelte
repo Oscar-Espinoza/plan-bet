@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { page } from "$app/state";
   import { SvelteDate } from "svelte/reactivity";
   import CalendarDays from "@lucide/svelte/icons/calendar-days";
@@ -6,7 +7,6 @@
   import Radio from "@lucide/svelte/icons/radio";
   import LocalLink from "#lib/components/fast-link/local-link.svelte";
   import MatchLink from "#lib/components/fast-link/match-link.svelte";
-  import NavigationLink from "#lib/components/fast-link/navigation-link.svelte";
   import DemoStamp from "#lib/components/demo-stamp.svelte";
   import KickoffTime from "#lib/components/kickoff-time.svelte";
   import LocalDateTime from "#lib/components/local-date-time.svelte";
@@ -98,15 +98,38 @@
   }
 
   const filterParam = $derived(page.url.searchParams.get("sport"));
+  let chosen = $state<SportFilter | null>(null);
   const sport = $derived(
-    filterParam === "soccer" || filterParam === "baseball"
-      ? filterParam
-      : filterParam === null
-        ? initialSport === "soccer" || initialSport === "baseball"
-          ? initialSport
-          : "all"
-        : "all",
+    chosen ??
+      (filterParam === "soccer" || filterParam === "baseball"
+        ? filterParam
+        : filterParam === null
+          ? initialSport === "soccer" || initialSport === "baseball"
+            ? initialSport
+            : "all"
+          : "all"),
   );
+
+  let board = $state<HTMLDivElement | null>(null);
+
+  function selectSport(value: SportFilter) {
+    document.cookie = sportPreferenceCookie(value);
+    if (value === sport) return;
+    chosen = value;
+    void tick().then(() => {
+      if (!board) return;
+      const ms = matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? 120
+        : 150; /* --dur-swap */
+      for (const el of board.querySelectorAll(
+        ":scope > :is(.live-section, .slate-groups, .panel, .slate-freshness)",
+      ))
+        el.animate([{ opacity: 0.6 }, { opacity: 1 }], {
+          duration: ms,
+          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+        });
+    });
+  }
 
   const games = $derived(
     Object.values(data)
@@ -183,7 +206,7 @@
   }
 </script>
 
-<div class="board">
+<div class="board" bind:this={board}>
   {#if nextUp}
     <h1 class="sr-only">{i18n.t("Upcoming games")}</h1>
     <section class="next-up" aria-labelledby="next-match-heading">
@@ -259,9 +282,7 @@
         replaceHistory
         class={cn("slate-chip", sport === filter.value && "slate-chip-active")}
         aria-current={sport === filter.value ? "page" : undefined}
-        onclick={() => {
-          document.cookie = sportPreferenceCookie(filter.value);
-        }}
+        onclick={() => selectSport(filter.value)}
       >
         <span>{i18n.t(filter.label)}</span>
       </LocalLink>
@@ -371,7 +392,11 @@
         <p>
           {i18n.t("No upcoming games were provided for this filter.")}
           {#if sport !== "all"}
-            <NavigationLink href="/">{i18n.t("Show all sports")}</NavigationLink
+            <LocalLink
+              href="/"
+              replaceHistory
+              onclick={() => selectSport("all")}
+              >{i18n.t("Show all sports")}</LocalLink
             >
           {/if}
         </p>
