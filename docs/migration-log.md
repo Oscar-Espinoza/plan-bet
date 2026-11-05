@@ -1331,3 +1331,66 @@ FOLLOWUPS: Home simulated LCP is 1.30 s, still above T13b's 1.13 s. The edge pru
 | Old site |    93 | 0.95 s | 3.20 s |             |      |        | 307 ms | 505 KB |                 |
 | `/`      |   100 | 0.79 s | 1.30 s |      0.99 s | 6 ms | 0.0007 |  95 ms | 281 KB |        11,987 B |
 | game     |   100 | 0.79 s | 1.22 s |      0.94 s | 0 ms | 0.0016 |  79 ms | 271 KB |        13,386 B |
+
+## M1 Motion foundation — 2026-11-04 — PASS (builder)
+
+Branch: `motion/m1-foundation`. No PR. No production deploy. Models: build Grok 4.7, verify not run.
+Files: 6 (`src/app.css`, `src/lib/components/motion.ts`, `DESIGN.md`, `docs/design/motion.md`, `AGENTS.md`, this log). Pieces: 5.
+Ported from: none. No new dependency. Nothing imports `motion.ts`.
+
+Deviations from the plan:
+
+- `.group-tabs [role="tab"]` is not a flex row, so it did not gain `flex-direction: column`. The shared `::after` width reservation is on section tabs and group tabs. Section tabs are `inline-flex` and did gain the column alignment. A group tab will not reserve its bold label width until it is a column flex or grid. M4 should know that.
+- Hover gating followed the listed rules. `.button-secondary:hover`, `.button-ghost:hover`, `.button-danger:hover` and `.selection-button:hover` were not in that list and stay as they were.
+- The reduced-motion `details::details-content` shorthand lost to the more specific close duration. The reduce rule now also names `details:not([open])::details-content`, so a closed disclosure stays on opacity at 120 ms. That commit is `c97322f`, after the preview measurement. Neither measured document contains a `details` element, so the extra selector is not in those inlined sheets and the byte deltas below still stand.
+- No CSS was cut. The document deltas are inside the allocation.
+- FCP ≤ 0.82 s and TBT ≤ 10 ms miss on the base build and on this build, in the same session. The same-session deltas are inside the run spread. LCP, CLS, the LCP element, the shift culprits and non-composited animations pass.
+- A second local Worker cannot start: the local D1 socket is already taken. The paused-stylesheet check is the after build only. Local pages are the demo board (`/games/mlb-nyy-01`), not the football-data id used for Lighthouse.
+- No iOS or Android device. The row-gesture check is a CDP touch in desktop Chrome. No 25% playback recordings. The font and `start`-import gate (V4) was not re-measured; this ticket does not change that code.
+
+Preview, one lock session. Before version `4b3de058-55f8-4e62-8d1d-101735c706e8` (cf/main `df77bd8`). After version `5f7ed27b-da6a-48ee-be2b-8a32d3c1b855`. Game page `/games/football-data-575386-real-madrid`. Queries `?m1=before` and `?m1=after`. Every body was `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`, `x-mp-version: 54`.
+
+`curl -H 'accept-encoding: gzip' | wc -c`: home 12,233 B before, 12,372 B after (+139). Game 11,541 B before, 11,653 B after (+112). Both under 14,000 B. Home is inside +220 B and the game is inside +210 B.
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `c97322f`, before this log commit):
+
+1. `pnpm check` → `CHECK OK c97322f`. `node scripts/budget.mjs` → `/ 60757` (limit 61440), `/games/[id] 73083` (limit 81920). Those are the cf/main figures. No budget warning.
+
+2. Lighthouse 12 mobile ×5, median of each metric, same session. Simulated. Document is the Worker gzip body.
+
+| Page | Metric   |   Before |    After | Gate                             |
+| ---- | -------- | -------: | -------: | -------------------------------- |
+| `/`  | Score    |      100 |      100 |                                  |
+| `/`  | FCP      |  0.827 s |  0.832 s | ≤ 0.82 s, missed by the base too |
+| `/`  | LCP      |  1.357 s |  1.368 s | ≤ base + 0.05 s, pass (+0.011)   |
+| `/`  | CLS      |  0.00081 |  0.00078 | ≤ 0.002, pass                    |
+| `/`  | TBT      |    71 ms |  56.5 ms | ≤ 10 ms, missed by the base too  |
+| `/`  | Document | 12,233 B | 12,372 B | ≤ 14,000 and ≤ +220, pass        |
+| game | Score    |      100 |      100 |                                  |
+| game | FCP      |  0.829 s |  0.833 s | ≤ 0.82 s, missed by the base too |
+| game | LCP      |  1.281 s |  1.207 s | ≤ base + 0.05 s, pass            |
+| game | CLS      |  0.00088 |  0.00105 | ≤ 0.002, pass                    |
+| game | TBT      |  25.5 ms |  33.5 ms | ≤ 10 ms, missed by the base too  |
+| game | Document | 11,541 B | 11,653 B | ≤ 14,000 and ≤ +210, pass        |
+
+Home FCP runs after, ms: 844.954, 831.735, 816.239, 865.53, 808.463. Before: 857.477, 846.834, 827.267, 803.666, 819.351. Game FCP after: 806.423, 833.024, 832.661, 788.962, 844.534. Before: 823.519, 838.333, 829.08, 831.398, 800.301. Home TBT before 63.5–85 ms, after 47–81.5 ms. Game TBT before 16–31.5 ms, after 18–67.5 ms. `non-composited-animations` has 0 items on every run. LCP node stays `section.next-up` on `/` and `header.mp-bug` on the game. Shift culprits stay the next-up header and the slate timezone on `/`, and `.mp-side` (plus a side name or the kickoff time) on the game.
+
+3. Tour copy, plexSans, fresh profile. Line counts: 360 en 2/2/2, 360 es 2/2/2, 390 en 2/2/1, 390 es 2/2/2. English step 3 at 390 is one line (21.39 px against a 20.4 px line). `.tour-bar-copy` has `min-height: 2lh`. The bar was already 65.78 px tall, button-driven, on the one-line step.
+
+4. Local Chrome on `npx wrangler dev --env preview --port 8701`, 390×844 unless noted.
+
+- Forced `:active` after 200 ms: `a.button` and `.slate-chip` are `matrix(0.97, 0, 0, 0.97, 0, 0)` with a 120 ms transition. `.game-row` stays `transform: none`, `transition-duration: 0s`, and `background-color` `#14212d` (`--slat-raised`) with the gradient gone.
+- A touch drag that starts on a game row leaves `offsetTop` at 579 and `transform: none`.
+- Disclosure `::details-content`, no preference. Closed computed duration is `0.2s, 0.15s, 0.2s` on block-size, opacity, content-visibility. Open height at 20 ms steps: 0, 23, 42, 56, 71, 75, 78, 80 px. Close: 80, 53, 32, 18, 5, 2.7, 0.6, 0.2, 0 px. The close reaches rest sooner.
+- Frames during that disclosure. 1×: 23 frames, 0 over 34 ms, max 17 ms. 4×: 19 frames, 2 over 34 ms, max 217 ms as the throttle engaged on the block-size transition. 6× close: 37 frames, 0 over 34 ms, max 17 ms.
+- Reduced motion. Pressed button transform is `none`. Opening the disclosure snaps block-size to 80 px on the first sample and stays there. Closing snaps to 0 px. The computed transition is then `opacity` at `0.12s`.
+- Desktop 1280: `.mobile-nav` is `display: none` and `0×0`. The 1024 px hide is unchanged.
+- Fine pointer at 1280: a hovered game row keeps `linear-gradient(135deg, …)` across five samples, duration `0s`. No interpolated dark dip.
+- A synthetic `.section-tabs` bar with `data-label`. Tab x positions 12, 98, 182 stay put when the middle label changes from "Settled" to "Done".
+- Tour entry at 390. Nav is `position: relative`, z-index 40, y 768, height 76. The bar comes to rest at y 702.22, height 65.78, bottom on the nav top. `elementFromPoint` across the nav never hit `.tour-bar` (`tour-covers-nav: false`).
+- A `.banner-static` warning spliced into the inlined sheet paints at opacity 1 with no transform and no animation. The ordinary banner next to it paints at opacity 0 and `translateY(-4px)`.
+- Stylesheet paused on the demo home: first paint is true, `getAnimations()` is empty, and the `section.next-up` box matches the settled frame (x 12, y 85, w 366, h 298.625). A luminance spike on the first pair was the away crest still decoding, not a fade.
+- The five client hooks (`tour-bar-leaving`, `buddy-panel-live`, `buddy-launcher-enter`, `buddy-launcher-slot`, `locale-pending`) are absent from the preview game's inlined sheet. `::view-transition` and `2lh` are present. `details:not([open])` is absent, which matches a document with no `details`.
+
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: FCP and TBT miss the absolute caps on the unchanged base in this session, so they are not a reason to cut the motion CSS. Group tabs still need a column flex or grid before `data-label` can reserve width. No phone, and no 25% recordings.
