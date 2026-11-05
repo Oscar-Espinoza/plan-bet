@@ -31,6 +31,7 @@ Node 24.18.1 / pnpm 11 are pinned in `engines`. Scripts load `.env.local` via `-
 - Images: size assets to their largest rendered size (crests 160px, stadium 800px on phones); lazy-load anything below the hero; preload the LCP image from the page.
 - Fonts go through `next/font/local` (`src/app/fonts.ts`), never a CSS `@import`.
 - Measure with Lighthouse mobile against a production build before and after a performance change; see [PERFORMANCE.md](../PERFORMANCE.md).
+- Document size: `node scripts/doc-budget.mjs <url> [url...]` requests each URL with `accept-encoding: gzip` and exits non-zero when any encoded body is over 13,000 bytes. Local signed-out pages should stay at or under 12,800 bytes, because a production document runs a few hundred bytes larger.
 
 ## UI conventions
 

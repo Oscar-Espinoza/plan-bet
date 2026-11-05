@@ -23,6 +23,7 @@
     settlementLabel,
   } from "#lib/shared/wager-copy";
   import type { SlipWager, WagerPanelData } from "#lib/shared/wager-view";
+  import { fullCssReady } from "../full-css";
   import { afterExit, DURATION, fade } from "../motion";
   import Banner from "../ui/banner.svelte";
   import Button from "../ui/button.svelte";
@@ -103,6 +104,20 @@
   let attempt = $state(0);
   let confirmationNode = $state<HTMLDivElement | null>(null);
   let root = $state<HTMLElement | null>(null);
+  // The arming form, the bet bar, the confirmation and the banners are
+  // absent from the server HTML. Hold that markup until the full sheet is
+  // applied. The armed selection updates at the tap, and the wait is
+  // already resolved once the post-paint stylesheet has loaded.
+  let slipPainted = $state(false);
+  $effect(() => {
+    let current = true;
+    void fullCssReady().then(() => {
+      if (current) slipPainted = true;
+    });
+    return () => {
+      current = false;
+    };
+  });
   let leaving = $state(false);
   let cancelLeave: (() => void) | null = null;
   // One key per unchanged intent. A second Place with the same selection,
@@ -445,7 +460,7 @@
     </div>
   {/if}
 
-  {#if view.state.kind === "open" && market && selection}
+  {#if slipPainted && view.state.kind === "open" && market && selection}
     <form id={formId} class="side-form enter" onsubmit={submit}>
       {#if hasReaction && reaction}
         <p class="fine-print">
@@ -486,7 +501,7 @@
     </form>
   {/if}
 
-  {#if view.state.kind === "open" && (selection || confirmation || error)}
+  {#if slipPainted && view.state.kind === "open" && (selection || confirmation || error)}
     <div
       class="bet-bar"
       class:bet-bar-leaving={leaving}
