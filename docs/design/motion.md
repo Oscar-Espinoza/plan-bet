@@ -39,7 +39,7 @@ These go in the existing `:root` rule of src/app.css, next to `--ease`:
 
 Two fixed values have no token. The pending dim is always opacity 0.6. The outgoing label in a label swap clears in 90 ms.
 
-**How to write durations.** Some rules are copied into the inline `<style>` of a document: those whose selector can match server HTML, those whose classes are in ALWAYS_PRESENT or WHEN_WAGER_PANEL in src/lib/server/critical-css.ts, and every `::view-transition-*` rule. These rules use the literal value with a comment, for example `120ms /* --dur-fast */`. The build strips the comment, so the critical CSS stays small. Rules that only match markup mounted on the client, or classes set by JS, ship in the full sheet after first paint and use `var(--dur-*)`. `var(--ease)` and `var(--ease-drawer)` are fine anywhere.
+**How to write durations.** Some rules are copied into the inline `<style>` of a document: those whose selector can match server HTML, those whose classes are in ALWAYS_PRESENT in src/lib/server/critical-css.ts, and every `::view-transition-*` rule. Slip markup that a tap adds (the arming form, the bet bar, the confirmation, the banners) waits for `fullCssReady()` and is not force-inlined. These rules use the literal value with a comment, for example `120ms /* --dur-fast */`. The build strips the comment, so the critical CSS stays small. Rules that only match markup mounted on the client, or classes set by JS, ship in the full sheet after first paint and use `var(--dur-*)`. `var(--ease)` and `var(--ease-drawer)` are fine anywhere.
 
 **JS mirror.** src/lib/components/motion.ts is imported only by route chunks and lazily loaded chunks. Modules that `/` imports statically use literal values instead, so `/` pays no bytes for it.
 

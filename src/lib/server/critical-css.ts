@@ -83,53 +83,19 @@ const STATE_ATTRS = new Set([
 
 const STATE_SUFFIXES = ["-active", "-open", "-selected", "-current"];
 
-/** Mounted after first paint on the shell, before the full sheet can be assumed. */
+/**
+ * Mounted after first paint, before the full sheet can be assumed.
+ * The navigation preview and the account chip wait for `fullCssReady()`,
+ * so their classes are not listed. Ghost, danger and icon buttons open
+ * from a later tap. Slip markup that a tap adds is not listed either:
+ * the slip holds that markup until the full sheet is applied.
+ */
 const ALWAYS_PRESENT = [
-  "navigation-preview",
   "tour-bar",
   "tour-bar-copy",
   "tour-bar-count",
   "button-secondary",
   "button-sm",
-  "button-ghost",
-  "button-danger",
-  "button-icon",
-];
-
-/**
- * The open bet slip is not in the server HTML until a price is armed.
- * Keep its rules when the panel itself is on the page.
- */
-const WHEN_WAGER_PANEL = [
-  "bet-bar",
-  "bet-bar-pick",
-  "bet-bar-stake",
-  "bet-bar-returns",
-  "bet-bar-place",
-  "bet-confirmation",
-  "bet-group",
-  "bet-balance",
-  "bet-hint",
-  "bet-ticket-icon",
-  "stake-chips",
-  "selection-button",
-  "selection-button-active",
-  "selection-grid",
-  "selection-market",
-  "selection-row",
-  "market-filters",
-  "side-form",
-  "enter",
-  "enter-pop",
-  "wager-feedback",
-  "return-figure",
-  "w-full",
-  "banner",
-  "banner-positive",
-  "banner-negative",
-  "banner-warning",
-  "banner-neutral",
-  "field",
 ];
 
 type Profile = {
@@ -250,9 +216,6 @@ function profileDocument(html: string): Profile {
     readAttributes(match[2], classes, ids, attrs);
   }
   for (const name of ALWAYS_PRESENT) classes.add(name);
-  if (classes.has("wager-panel")) {
-    for (const name of WHEN_WAGER_PANEL) classes.add(name);
-  }
   return { classes, tags, ids, attrs };
 }
 
