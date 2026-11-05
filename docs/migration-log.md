@@ -1394,3 +1394,59 @@ Home FCP runs after, ms: 844.954, 831.735, 816.239, 865.53, 808.463. Before: 857
 
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: FCP and TBT miss the absolute caps on the unchanged base in this session, so they are not a reason to cut the motion CSS. Group tabs still need a column flex or grid before `data-label` can reserve width. No phone, and no 25% recordings.
+
+## M2 Shell and navigation — 2026-11-05 — PASS (builder)
+
+Branch: `motion/m2-shell`. No PR. No production deploy. Models: build Grok 4.7, verify not run.
+Files: 11 (10 source files plus this log). Pieces: 10. No new dependency. No CSS edited.
+`motion.ts` is imported only by `account-control.svelte` and `buddy.svelte`, both lazy. `+layout.svelte`, `shell-content.svelte`, `tour-bar.svelte`, `account-control-lazy.svelte` and `language.svelte.ts` use literal milliseconds. `interaction-hooks.ts` is a dynamic import from `onMount` (built chunk `Mdir36ZT.js`); it is not in the document's scripts and not on the `/` first-load graph.
+
+CSS for the coordinator: none.
+
+Deviations from the plan:
+
+- The home silhouette uses the live hero's classes, a transparent wrapping "New York Yankees", the freshness row and the timezone line. A fixed bar cannot match a two-line phone name and a one-line desktop name at once. The static `.breadcrumb` in the heading is there because the real breadcrumb paints one copy in the heading. A short team name on a phone would leave the hero about one line tall. The first panel is three 76 px bars, so its height is taller than a two-row board; the top edge matches.
+- `fade()`'s duration parameter is inferred as the literal `150`. The balance call casts `DURATION.enter` at the call site. `motion.ts` was not edited.
+- `motion/m1-foundation` is checked out in another worktree, so the base was deployed from a detached worktree of `38c4457`, under the same lock, then this branch was deployed. Nothing in the M1 worktree was edited.
+- Local auth is unconfigured. The chip, the balance settle, `data-account` on a signed-in first frame, and signed-in You / Groups / group-detail parity were not exercised in a session. The chip import still waits on `fullCssReady()`.
+- No iOS device, so `hasUAVisualTransition` was not observed. No fallback was added. No phone, and no 25% recordings.
+
+Preview, one lock session. Before version `e0c66345-294c-4efc-a0a3-d494b0fde923` (`38c4457`). After version `053a39ba-6e59-4e41-8dc0-ad375f1a59c0` (`1985c0f`). Game page `/games/football-data-575386-real-madrid`. Queries `?m2=before` and `?m2=after`. Every body was `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`, `x-mp-version: 56`. The signed-out HTML differs only by the kit hash, the app chunk hash and `requestTime`.
+
+`curl -H 'accept-encoding: gzip' | wc -c`: home 12,355 B before, 12,357 B after (+2). Game 11,635 B before, 11,637 B after (+2). Both under 14,000 B and inside +10 B.
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `1985c0f`, before this log commit):
+
+1. `pnpm check` → `CHECK OK 1985c0f`. `node scripts/budget.mjs` → `/ 61116` (M1 60757, +359, limit +400) and `/games/[id] 73445` (M1 73083, +362, limit +400). No budget warning. `/` headroom left is 324 B of the 683 B shared with M4.
+
+2. Lighthouse 12 mobile ×5, median of each metric, same session. Simulated. Document is the Worker gzip body.
+
+| Page | Metric   |   Before |    After | Gate                     |
+| ---- | -------- | -------: | -------: | ------------------------ |
+| `/`  | Score    |      100 |      100 |                          |
+| `/`  | FCP      |  0.790 s |  0.794 s | ≤ 0.82 s, pass           |
+| `/`  | LCP      |  1.363 s |  1.354 s | ≤ base + 0.05 s, pass    |
+| `/`  | CLS      |  0.00076 |  0.00075 | ≤ 0.002, pass            |
+| `/`  | TBT      |     5 ms |     7 ms | ≤ 10 ms, pass            |
+| `/`  | Document | 12,355 B | 12,357 B | ≤ 14,000 and ≤ +10, pass |
+| game | Score    |      100 |      100 |                          |
+| game | FCP      |  0.793 s |  0.787 s | ≤ 0.82 s, pass           |
+| game | LCP      |  1.285 s |  1.215 s | ≤ base + 0.05 s, pass    |
+| game | CLS      |  0.00090 |  0.00090 | ≤ 0.002, pass            |
+| game | TBT      |     0 ms |     0 ms | ≤ 10 ms, pass            |
+| game | Document | 11,635 B | 11,637 B | ≤ 14,000 and ≤ +10, pass |
+
+Home FCP runs after, ms: 793.744, 794.029, 789.46, 786.272, 795.172. Before: 788.608, 789.586, 800.228, 798.373, 786.491. Game FCP after: 790.34, 790.328, 785.58, 787.401, 786.469. Before: 796.938, 792.788, 791.783, 783.008, 795.938. Home TBT before 5–10 ms, after 5–45.5 ms (median 7). Game TBT before 0–21 ms, after 0–3.5 ms. `non-composited-animations` has 0 items on every run. No `NO_LCP`. LCP node stays `section.next-up` on `/` and `header.mp-bug` on the game. Shift culprits stay the next-up header and the slate timezone on `/`, and `.mp-side` (plus a side name or the kickoff time) on the game.
+
+3. Local Chrome on `npx wrangler dev --env preview --port 8702`.
+
+- Paint gate, unthrottled home. FCP at 68 ms. The full sheet and `entry/start.js` start at 92 ms and 93 ms. `interaction-hooks` is not a document script. This headless Chrome did not expose `largest-contentful-paint` entries. The five client hooks are absent from the preview HTML; `data-account` and `navigation-preview` are the M1 selectors and are in both documents.
+- Stylesheet paused at 390. First paint has `section.next-up` at x 12, y 85, w 366, h 298.625, the same box as the settled frame. `getAnimations()` held one nameless animation while the request was paused and none after it was released. No account chip and no Sign in, because auth is unconfigured.
+- Show-delay, fetch held 2 s. The mobile-nav indicator moved at 5 ms. `.navigation-preview` appeared at 103 ms. The main was never blank. The route was hidden only once the preview was up, and the launcher slot was `inert`. A cached board-to-game navigation finished with no preview frame.
+- Preview against the settled page, landmarks within 0 px. Home at 390: next-up y 12 h 298.63, filters y 359.42, first panel y 458.42. Home at 1280: next-up y 28 h 285.52, first panel y 461.31. Unconfigured `/you` and `/groups` at 1280 match the heading and the first panel edge. At 390 the heading is 0 tall, the title is 1×1, and the panel edge is y 12. Group detail was not measured.
+- Frames over a 600 ms home-to-you navigation. 1×: 37 frames, 0 over 34 ms, max 33 ms. 4×: 34 frames, 1 over 34 ms, max 67 ms. 6×: 29 frames, 1 over 34 ms, max 150 ms. The long frame is the route commit.
+- Behaviour. A second click of the current tab adds 0 `startViewTransition` calls. One crossfade runs for a real navigation. Under reduced motion the count stays 0 and `.navigation-preview` computes `animation-name: none`. A hit-test 60 ms into the crossfade returns the new document (`HTML`), on the new path. Board-to-game keeps `.tour-bar`. Groups-to-you keeps `.buddy-launcher`. The tour unmounts only when the shell leaves home and games. Skip sets `tour-bar-leaving` immediately, opacity and translate run, and the bar is gone between 183 ms and 216 ms. Escape sets `data-closing`, the dialog is gone after the exit, and a second synthetic cancel throws nothing. "Opening Buddy…" is absent at 80 ms when the chunk is cached. The forget control is a `.label-swap` whose hidden label is "Forgotten". Choosing Español adds `locale-pending` and the class is gone after the refresh. The balance fade was not run: the chip does not mount when auth is unconfigured.
+- Reduced motion on the open sheet: transition 0.12 s, property opacity and colours, transform `none`. Closing opacity is mid-fade at 30 ms with transform `none`.
+
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: no iOS device and no signed-in session, so the chip fade, the balance settle and `hasUAVisualTransition` are unmeasured. No 25% recordings. A short opponent name on a phone will not match the two-line silhouette.

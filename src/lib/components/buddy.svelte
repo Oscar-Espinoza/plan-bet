@@ -5,6 +5,7 @@
   import X from "@lucide/svelte/icons/x";
   import { matchday } from "#lib/state/store.svelte";
   import { useTranslation } from "./language.svelte";
+  import { afterExit, DURATION } from "./motion";
   import Button from "./ui/button.svelte";
 
   let { initiallyOpen = false }: { initiallyOpen?: boolean } = $props();
@@ -60,7 +61,26 @@
   let forgotten = $state(false);
   let dialog = $state<HTMLDialogElement | null>(null);
   let launcher = $state<HTMLButtonElement | HTMLAnchorElement | null>(null);
+  let transcript = $state<HTMLDivElement | null>(null);
+  let closing = $state(false);
+  let live = $state(false);
+  let cancelExit: (() => void) | null = null;
+  let seenTurns = 0;
   let inFlight = false;
+
+  function transcriptNearBottom() {
+    const node = transcript;
+    if (!node) return true;
+    return node.scrollHeight - node.clientHeight - node.scrollTop <= 24;
+  }
+
+  async function keepTranscriptPinned(pinned: boolean) {
+    if (!pinned) return;
+    await tick();
+    const node = transcript;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior: "auto" });
+  }
 
   const pathname = $derived(page.url.pathname);
   const gameMatch = $derived(pathname.match(/^\/games\/([^/?#]+)\/?$/));
@@ -71,24 +91,53 @@
     const node = dialog;
     if (!node) return;
     let active = true;
+    let liveTimer: ReturnType<typeof setTimeout> | undefined;
     void tick().then(() => {
       if (!active || !node.isConnected) return;
       if (!node.open) node.showModal();
       node.querySelector<HTMLElement>("#buddy-question")?.focus();
+      liveTimer = setTimeout(() => {
+        if (active) live = true;
+      }, DURATION.sheet);
     });
     return () => {
       active = false;
+      clearTimeout(liveTimer);
+      cancelExit?.();
+      cancelExit = null;
     };
   });
 
+  // A new turn scrolls to the end. Streamed deltas do not: those stay
+  // pinned only when the reader was already at the bottom.
+  $effect(() => {
+    const count = turns.length;
+    const node = transcript;
+    if (!node) return;
+    if (count > seenTurns) {
+      node.scrollTo({ top: node.scrollHeight, behavior: "auto" });
+    }
+    seenTurns = count;
+  });
+
   function finishClose() {
+    cancelExit?.();
+    cancelExit = null;
+    closing = false;
+    live = false;
     open = false;
     launcher?.focus();
   }
 
   function closePanel() {
-    if (dialog?.open) dialog.close();
-    else finishClose();
+    if (dialog?.open && !closing) {
+      closing = true;
+      cancelExit = afterExit(DURATION.enter, () => {
+        dialog?.close();
+      });
+      return;
+    }
+    if (!dialog?.open) finishClose();
   }
 
   async function ask(event: SubmitEvent) {
@@ -138,11 +187,13 @@
             ?.message === "string"
             ? (payload as { error: { message: string } }).error.message
             : "The buddy didn't respond. Try again.";
+        const pinned = transcriptNearBottom();
         turns = updateLast(turns, {
           text: message,
           streaming: false,
           ok: false,
         });
+        await keepTranscriptPinned(pinned);
         return;
       }
 
@@ -181,10 +232,13 @@
           if (payload.type === "delta" && payload.text) {
             accumulated += payload.text;
             const shown = visibleStream(accumulated);
+            const pinned = transcriptNearBottom();
             turns = updateLast(turns, { text: shown });
+            await keepTranscriptPinned(pinned);
           } else if (payload.type === "done") {
             finalized = true;
             const prose = payload.prose;
+            const pinned = transcriptNearBottom();
             turns = updateLast(
               turns,
               payload.ok === true && typeof prose === "string" && prose
@@ -199,22 +253,27 @@
                   }
                 : { text: RETRACTED_MESSAGE, streaming: false, ok: false },
             );
+            await keepTranscriptPinned(pinned);
           }
         }
       }
       if (!finalized) {
+        const pinned = transcriptNearBottom();
         turns = updateLast(turns, {
           text: CONNECTION_DROPPED_MESSAGE,
           streaming: false,
           ok: false,
         });
+        await keepTranscriptPinned(pinned);
       }
     } catch {
+      const pinned = transcriptNearBottom();
       turns = updateLast(turns, {
         text: CONNECTION_DROPPED_MESSAGE,
         streaming: false,
         ok: false,
       });
+      await keepTranscriptPinned(pinned);
     } finally {
       inFlight = false;
       pending = false;
@@ -252,8 +311,16 @@
 {#if open}
   <dialog
     class="buddy-panel"
+    class:buddy-panel-live={live}
+    data-closing={closing || undefined}
     bind:this={dialog}
     aria-labelledby="buddy-title"
+    oncancel={(event) => {
+      if (event.cancelable) {
+        event.preventDefault();
+        closePanel();
+      }
+    }}
     onclose={finishClose}
   >
     <div class="buddy-panel-header">
@@ -272,7 +339,7 @@
         "Casual takes on fictional credits, grounded in what’s on this page. Never advice about real-money wagering.",
       )}
     </p>
-    <div class="buddy-transcript" aria-live="polite">
+    <div class="buddy-transcript" aria-live="polite" bind:this={transcript}>
       {#if turns.length === 0}
         <p class="fine-print">
           {i18n.t(
@@ -345,9 +412,14 @@
       disabled={forgetting}
       onclick={forget}
     >
-      {forgotten
-        ? i18n.t("Forgotten")
-        : i18n.t("Forget what you know about me")}
+      <span class="label-swap">
+        <span aria-hidden={forgotten ? "true" : undefined}>
+          {i18n.t("Forget what you know about me")}
+        </span>
+        <span aria-hidden={forgotten ? undefined : "true"}>
+          {i18n.t("Forgotten")}
+        </span>
+      </span>
     </Button>
   </dialog>
 {/if}

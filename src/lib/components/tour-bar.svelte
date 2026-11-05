@@ -14,6 +14,16 @@
   const i18n = useTranslation();
   const pathname = $derived(page.url.pathname);
   const step = $derived(STEPS[matchday.tourStep]);
+  let leaving = $state(false);
+
+  function skipTour() {
+    if (leaving) return;
+    leaving = true;
+    setTimeout(() => {
+      matchday.finishTour();
+      leaving = false;
+    }, 200 /* --dur-enter */);
+  }
 
   $effect(() => {
     if (!matchday.hydrated) return;
@@ -25,6 +35,7 @@
 {#if matchday.hydrated && matchday.tourStep < STEPS.length && step}
   <div
     class="tour-bar"
+    class:tour-bar-leaving={leaving}
     use:bandHeight={"--tour-h"}
     role="region"
     aria-label={i18n.t("Getting started tour")}
@@ -38,7 +49,7 @@
     <Button
       variant="secondary"
       size="sm"
-      onclick={() => matchday.finishTour()}
+      onclick={skipTour}
       aria-label={i18n.t("Skip the tour")}
     >
       {i18n.t("Skip")}
