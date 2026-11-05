@@ -1620,3 +1620,15 @@ Home FCP after, ms: 788.940, 788.670, 814.310, 788.699, 785.320. Before: 829.709
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: none for the coordinator. Preview cannot show the slip-byte drop until OAuth secrets exist there; the local 12,458 B finished document is the production-shaped proof. Home TBT on this host is noisy and is not a reason to put slip CSS back into the first document. `/` JS has 151 B of headroom.
 Raw evidence: `/tmp/m6-lh/` (`before-summary.json`, `after-summary.json`, the thirty Lighthouse JSON files). Held-CSS crops: `/tmp/m6-shots/held-first.png`, `held-settled.png`.
+
+## Motion pass production check (Opus, 2026-11-05)
+
+- First production deploy of the merged motion pass (`7a2166e4`) put the signed-out finished game document at 14,651 B transferred, over the TCP initial window. FCP went to 0.98 s. Preview missed it because it renders no wager panel. Rolled back to `552de82e` within minutes. M6 removed the force-inlined slip CSS and gates slip markup on `fullCssReady()`.
+- A second deploy shipped a stale bundle: `pnpm check` failed on Prettier, but the deploy still ran, because `| tail` hid the exit code. Rolled back again. The deploy now runs only after `CHECK OK`, with `pipefail` set.
+- Live version `05408995`. Documents (gzip): `/` 12,206 B, finished game 12,451 B, upcoming game 12,057 B. Lighthouse 12 mobile ×5 medians:
+
+| Page          | Score |    FCP |    LCP |    CLS |  TBT |  TTFB | Non-composited |
+| ------------- | ----: | -----: | -----: | -----: | ---: | ----: | -------------: |
+| `/`           |   100 | 0.79 s | 1.36 s | 0.0007 | 5 ms | 72 ms |              0 |
+| finished game |   100 | 0.78 s | 1.21 s | 0.0009 | 0 ms | 55 ms |              0 |
+| upcoming game |   100 | 0.78 s | 1.21 s | 0.0012 | 1 ms | 64 ms |              0 |
