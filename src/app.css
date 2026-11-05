@@ -445,6 +445,7 @@ html.locale-pending .main-content {
 
 .tour-bar-copy {
   min-width: 0;
+  min-height: 2lh;
   margin: 0;
   color: var(--chalk);
   font-size: var(--text-base);
