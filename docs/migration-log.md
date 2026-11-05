@@ -1450,3 +1450,65 @@ Home FCP runs after, ms: 793.744, 794.029, 789.46, 786.272, 795.172. Before: 788
 
 Review: not run (builder ticket; coordinator re-runs acceptance).
 FOLLOWUPS: no iOS device and no signed-in session, so the chip fade, the balance settle and `hasUAVisualTransition` are unmeasured. No 25% recordings. A short opponent name on a phone will not match the two-line silhouette.
+
+## M3 Game slip, tabs and replies — 2026-11-05 — PASS (builder)
+
+Branch: `motion/m3-game`. No PR. No production deploy. Models: build Grok 4.7, verify not run.
+Files: 8 (the seven below plus this log). Pieces: 7 (discussion hold, market arrival, bet bar, confirmation, in-bar feedback, tabs, replies).
+Ported from: none. No new dependency. No `svelte/transition`, `animate`, `motion` or `easing` import. No CSS for the coordinator. `src/app.css` is untouched.
+
+Implementation is `d404776`. `discussion-panel.svelte` holds the discussion promise and calls `arrive` on the first resolve. The slip, the market filters, the bar, the confirmation and the error banner animate after paint from `bet-slip.svelte` and `matchup.css`. Tab changes from a pointer fade the panel; arrow keys and Enter/Space do not. Reply disclosure uses the client-only `.discussion-replies` block-size transition. `class="bet-slip"` is only on the real slip section.
+
+Deviations from the plan:
+
+- `/` first-load JS is 60,758 B gzip against M1's 60,757 B. The extra byte is `match-chrome.svelte` (`data-label` and the pointer/keyboard argument), which the home layout loads through the navigation preview. The 61,440 B limit holds and `budget.mjs` prints no warning. `/games/[id]` is 73,809 B, +726 B against M1's 73,083 B, inside +1,000 B and under 81,920 B.
+- The home document shrank by 19 B. Finished grew by 67 B and upcoming by 68 B. Both game documents stay under 14,000 B and inside +90 B. Nothing was cut.
+- Upcoming TBT on the M1 build in this session is 22 ms, over the 10 ms cap (runs 3, 22, 33, 33, 5.5). The same page after this branch is 0.5 ms. Finished TBT is 0 ms against a 5 ms base. Both are inside the run spread of the base, so this is not a reason to cut the motion CSS.
+- Upcoming LCP on the M1 build has one 2.337 s sample, so that median is 1.366 s. After is 1.216 s.
+- The paused-stylesheet baseball scorebug was 23 px taller on the first frame than after the sheet and fonts settled (274.45 vs 251.22). x, y and width matched, opacity was 1, and `getAnimations()` was empty. The soccer scorebug matched exactly. The baseball delta is the fallback font wrapping the long names while the sheet is paused.
+- No paint-flashing trace. The bar and the confirmation animate `transform` and `opacity` only. The 25% replies recording is 4 frames; the other 25% and 1× recordings are listed below. No phone and no iOS.
+
+Preview, one lock session. Before version `e573a548-2795-4154-80aa-8d590356783c` (M1 worktree). After version `ecbe2b5e-9c77-427c-b7cc-2d26ff78e6d9`. Finished game `/games/football-data-575386-real-madrid`. Upcoming game `/games/football-data-564741-real-madrid` (still scheduled 2026-11-07). Queries `?m3=before` and `?m3=after`. Every body was `x-mp-cache: MISS`, `x-mp-critical-ms: 0.00`, `x-mp-version: 56`.
+
+`curl -H 'accept-encoding: gzip' | wc -c`: home 12,371 B before, 12,352 B after (−19). Finished 11,653 B before, 11,720 B after (+67). Upcoming 11,252 B before, 11,320 B after (+68).
+
+Acceptance (`pnpm check` prints the HEAD short sha; the gate below is `d404776`, before this log commit):
+
+1. `pnpm check` → `CHECK OK d404776`. `node scripts/budget.mjs` → `/ 60758` (limit 61440), `/games/[id] 73809` (limit 81920). No budget warning. The pre-existing `state_referenced_locally` warnings in buddy, join-link and notify-toggle are still the only typecheck warnings.
+
+2. Lighthouse 12 mobile ×5, median of each metric, same session. Simulated. Chrome `/usr/bin/google-chrome`, headless. Document is the Worker gzip body. The four runs opened (finished 4 before and after, upcoming 5 before, upcoming 3 after) each scored 100.
+
+| Page     | Metric   |   Before |   After | Gate                           |
+| -------- | -------- | -------: | ------: | ------------------------------ |
+| finished | FCP      |  0.792 s | 0.793 s | ≤ 0.82 s, pass                 |
+| finished | LCP      |  1.213 s | 1.219 s | ≤ base + 0.05 s, pass (+0.007) |
+| finished | CLS      |  0.00090 | 0.00090 | ≤ 0.002, pass                  |
+| finished | TBT      |     5 ms |    0 ms | ≤ 10 ms, pass                  |
+| finished | Document | 11,653 B | 11,720 B | ≤ 14,000 and ≤ +90, pass      |
+| upcoming | FCP      |  0.790 s | 0.786 s | ≤ 0.82 s, pass                 |
+| upcoming | LCP      |  1.366 s | 1.216 s | ≤ base + 0.05 s, pass          |
+| upcoming | CLS      |  0.00126 | 0.00126 | ≤ 0.002, pass                  |
+| upcoming | TBT      |    22 ms |  0.5 ms | ≤ 10 ms; the base misses, after passes |
+| upcoming | Document | 11,252 B | 11,320 B | ≤ 14,000 and ≤ +90, pass      |
+
+Finished FCP after, ms: 809.060, 786.625, 787.882, 792.634, 793.065. Before: 828.043, 819.001, 792.369, 792.307, 786.351. Finished LCP after: 1224.120, 1219.250, 1215.764, 1213.268, 1222.130. Before: 945.043, 1216.002, 908.738, 1212.614, 1216.702. Finished TBT after: 0, 0, 1, 2.5, 0. Before: 9.5, 9.5, 4.5, 3, 5. Upcoming FCP after: 782.145, 786.497, 796.893, 785.815, 799.593. Before: 788.226, 786.771, 795.489, 816.050, 790.281. Upcoming LCP after: 914.290, 1216.994, 1209.786, 1215.630, 1225.186. Before: 2337.452, 1365.542, 1230.978, 1368.100, 1216.562. Upcoming TBT after: 2.5, 0.5, 0, 0, 4.5. Before: 3, 22, 33, 33, 5.5. `non-composited-animations` has 0 items on every run. No NO_LCP. LCP node stays `header.mp-bug`. Shift culprits stay `.mp-side` plus a side name, the kickoff `<time>`, or `.mp-clock-figure`.
+
+The finished-game filmstrip frame at 1.125 s is the settled scorebug on both builds: PAE AEK 2–3 Real Madrid CF, FULL TIME, Overview selected. LCP is that `.mp-bug`.
+
+3. Local Chrome on `npx wrangler dev --env preview --port 8703`, 390×844, signed in on `/games/mlb-nyy-01` unless noted. `soc-rma-01` is the second game page. Both seed games are scheduled. The preview finished fixture is the Lighthouse target above.
+
+- SSR `curl` of both local game pages: no element carries `bet-slip`, and there is no `.bet-bar` element. The inline style has neither `bet-slip` nor `bet-bar-leaving`. The string `bet-bar` appears only as the pre-existing inlined `.bet-bar` rule, because the skeleton's `wager-panel` class keeps that block.
+- Stylesheet paused. Opacity 1, `getAnimations()` empty, client hooks absent. Soccer `.mp-bug` box matches the settled frame (height 258.09). Tab boxes stay within 4 px of the full sheet. Tab x positions are `[2, 114, 202, 305]` before and after a selection change. The indicator crossfades: at 40 ms the leaving `::after` is 0.18 and the entering one is 0.82.
+- A pointer tab switch leaves `mp-fade` on the panel only. ArrowRight and a `detail` 0 click leave `getAnimations()` empty on the panel. Discussion and slip are unmounted with the overview panel, so they have no animation of their own.
+- Discussion mounts on the first resolve. Replies open to about 161 px, opacity 1, `overflow: clip`. Close samples: 161, 107, 36, 11, 5.5, 1.2, 0.1, 0. A vote, a post, and a simulated 60 s refresh (`Date.now` + 61 s, then `visibilitychange`) remove 0 nodes. The thread stays connected and `aria-expanded` stays true. Focus inside the open replies is not clipped (outline 3 px), so `overflow-clip-margin` was left off.
+- Bar dock after `.bet-slip` mounts, translateY: 260, 214, 83, 46, 19, 8, 3, 0.8, then `none` at opacity 1. Switching prices leaves `transform: none` across six samples. `.workspace-scroll` `scrollTop` stays 0 through arm and place. 1× frame sampler during arm: 102 frames, 0 over 34 ms, max 17 ms.
+- Two failed places keep the banner text "The price moved. Check it and try again." The banner's `getAnimations()` replays and `.bet-bar` count stays 1. A successful place focuses `.bet-confirmation` ("Placed 1 on Away → returns 2. New balance: 999. Done") with `scrollTop` 0.
+- Done, then re-arm the same price inside the exit: `bet-bar-leaving` is set, transform y is about 203 and opacity about 0.22, then the class clears, the confirmation unmounts, and the bar reverses (y about 31 and falling). The two POSTs both send `selectionId: "away"`, price 1.95, stake 1, with idempotency keys `bedee2e3-735d-4e92-9d22-f259e85a814b` and `ed4b2a44-d085-4fbe-9208-98971d82a1a3`. Each key inserted a new wager row.
+- Filter "Runs": 3 visible markets, all three carrying `mp-fade` at 40 ms.
+- `?pick=baseball-moneyline:home`: `.mp-bug` y stays 148.1875 before and after the bar mounts.
+- CPU 4× during the signed-in upcoming flow: 43 frames, 0 over 34 ms, max 17 ms, no long-animation frames. CPU 6×: 42 frames, 0 over 34 ms, max 33 ms, no long frames.
+- Reduced motion. Bar entry is `transform: none`, opacity 0 then 1, transition-duration 0.12 s, transition-property opacity and colors. A `.bet-bar-leaving` probe is `transform: none`, opacity 0, duration 0.12 s. Replies transition-property has no block-size.
+- Recordings at `/tmp/m3-shots`: `arm-1x`, `place-1x`, `done-rearm-1x`, `tabs-1x`, `filter-1x`, `replies-1x`, `arm-25`, `filter-25`, `tabs-25`, `replies-25`.
+
+Review: not run (builder ticket; coordinator re-runs acceptance).
+FOLLOWUPS: none for the coordinator. `/` JS is one gzip byte over the M1 figure because the tab chrome is shared with the home layout. No phone.

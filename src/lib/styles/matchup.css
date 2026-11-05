@@ -686,6 +686,19 @@
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  transition: color 120ms /* --dur-fast */ var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Bold copy reserves the selected width so neighbours do not shift. */
+.mp-tabs button::before {
+  content: attr(data-label) / "";
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .mp-tabs button[aria-selected="true"] {
@@ -693,7 +706,7 @@
   font-weight: 600;
 }
 
-.mp-tabs button[aria-selected="true"]::after {
+.mp-tabs button::after {
   position: absolute;
   right: 10px;
   bottom: 0;
@@ -702,6 +715,12 @@
   border-radius: 4px 4px 0 0;
   background: var(--club);
   content: "";
+  opacity: 0;
+  transition: opacity 120ms /* --dur-fast */ var(--ease);
+}
+
+.mp-tabs button[aria-selected="true"]::after {
+  opacity: 1;
 }
 
 .mp-tab-panel {
@@ -987,8 +1006,35 @@
   box-shadow: 0 -12px 24px rgb(0 0 0 / 35%);
 }
 
+/* Client-only. .bet-slip is set after paint, so these stay out of the document. */
+.bet-slip .bet-bar {
+  transition:
+    transform var(--dur-expand) var(--ease-drawer),
+    opacity var(--dur-swap) var(--ease);
+}
+
+@starting-style {
+  .bet-slip .bet-bar {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.bet-slip .bet-bar.bet-bar-leaving {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: var(--dur-enter);
+}
+
 .bet-bar .wager-feedback:empty {
   display: none;
+}
+
+.bet-slip
+  .wager-feedback
+  > :is(.banner-neutral, .banner-positive, .banner-warning, .banner-negative) {
+  transition-property: opacity;
 }
 
 .bet-bar-pick {
@@ -1075,6 +1121,20 @@
   display: grid;
   gap: 8px;
   outline-offset: -2px;
+}
+
+.bet-slip .bet-confirmation {
+  transform-origin: 50% 100%;
+  transition:
+    opacity var(--dur-enter) var(--ease),
+    transform var(--dur-expand) var(--ease);
+}
+
+@starting-style {
+  .bet-slip .bet-confirmation {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
 }
 
 .mp-blocks {
@@ -1365,6 +1425,29 @@
   border-inline-start: 0.15rem solid var(--rule-strong);
   background: var(--slat);
   border-radius: 0 0.5rem 0.5rem 0;
+  overflow: clip;
+  transition:
+    block-size var(--dur-expand) var(--ease),
+    margin-block-end var(--dur-expand) var(--ease),
+    opacity var(--dur-swap) var(--ease),
+    display var(--dur-expand) allow-discrete;
+}
+
+.discussion-replies[hidden] {
+  display: none;
+  block-size: 0;
+  margin-block-end: 0;
+  opacity: 0;
+  transition-duration:
+    var(--dur-enter), var(--dur-enter), var(--dur-swap), var(--dur-enter);
+}
+
+@starting-style {
+  .discussion-replies:not([hidden]) {
+    block-size: 0;
+    margin-block-end: 0;
+    opacity: 0;
+  }
 }
 .discussion-replies .discussion-comment {
   padding: 0.85rem 0.65rem;
@@ -1521,6 +1604,15 @@
   color: var(--muted);
   font-size: 0.8rem;
   cursor: pointer;
+  transition:
+    background-color 120ms /* --dur-fast */ var(--ease),
+    border-color 120ms /* --dur-fast */ var(--ease),
+    color 120ms /* --dur-fast */ var(--ease),
+    transform 120ms /* --dur-fast */ var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.market-filters button:active {
+  transform: scale(0.97);
 }
 .market-filters button[aria-pressed="true"] {
   background: var(--club);

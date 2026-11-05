@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import Info from "@lucide/svelte/icons/info";
   import Trophy from "@lucide/svelte/icons/trophy";
   import type { MatchView } from "#lib/shared/game-view";
   import { useTranslation } from "./language.svelte";
+  import { fade } from "./motion";
   import ContextBlocks from "./matchup/context-blocks.svelte";
   import MatchChrome, { type MatchTab } from "./matchup/match-chrome.svelte";
   import StatusRibbon from "./matchup/status-ribbon.svelte";
@@ -21,6 +22,7 @@
 
   const i18n = useTranslation();
   let tab = $state<MatchTab>("overview");
+  let panel = $state<HTMLElement | null>(null);
 
   const homeTeam = $derived(view.identity.homeTeam);
   const awayTeam = $derived(view.identity.awayTeam);
@@ -78,9 +80,18 @@
     {/if}
   </h1>
 
-  <MatchChrome {view} {tab} onTabChange={(next) => (tab = next)} />
+  <MatchChrome
+    {view}
+    {tab}
+    onTabChange={(next, via) => {
+      if (next === tab) return;
+      tab = next;
+      if (via === "pointer") void tick().then(() => fade(panel, 0.6));
+    }}
+  />
 
   <div
+    bind:this={panel}
     class="mp-tab-panel"
     role="tabpanel"
     id={`match-panel-${tab}`}
