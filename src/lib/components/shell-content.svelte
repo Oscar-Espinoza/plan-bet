@@ -8,6 +8,7 @@
   import { cn } from "#lib/shared/utils";
   import { bandHeight } from "./band-height";
   import { CRUMB_SLOT_ID } from "./breadcrumb-portal.svelte";
+  import { fullCssReady } from "./full-css";
   import HydrateStore from "./hydrate-store.svelte";
   import { useTranslation } from "./language.svelte";
   import LanguageLinks from "./language-links.svelte";
@@ -34,12 +35,11 @@
   const gap = " ";
   const navigation = useNavigationPreview();
   let scroller = $state<HTMLDivElement | null>(null);
+  let delayElapsed = $state(false);
 
   const pending = $derived(navigation?.pending ?? null);
+  // The indicator follows the tap. Chrome follows the screen that is visible.
   const pathname = $derived(pending?.pathname ?? page.url.pathname);
-  const onGame = $derived(pathname.startsWith("/games/"));
-  const showTour = $derived(!pending && (pathname === "/" || onGame));
-  const showBuddy = $derived(!pending && pathname !== "/" && !onGame);
 
   type DestinationPreviewComponent = Component<{
     href: string;
@@ -47,6 +47,26 @@
   }>;
   let DestinationPreview = $state<DestinationPreviewComponent | null>(null);
   let BuddyLauncher = $state<Component | null>(null);
+
+  // The skeleton waits out a fast navigation. 100ms, then it can paint.
+  $effect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => (delayElapsed = true), 100);
+    return () => {
+      clearTimeout(timer);
+      delayElapsed = false;
+    };
+  });
+
+  const previewVisible = $derived(
+    Boolean(pending && DestinationPreview && delayElapsed),
+  );
+  const shellPath = $derived(
+    previewVisible && pending ? pending.pathname : page.url.pathname,
+  );
+  const onGame = $derived(shellPath.startsWith("/games/"));
+  const showTour = $derived(shellPath === "/" || onGame);
+  const showBuddy = $derived(shellPath !== "/" && !onGame);
 
   $effect(() => {
     if (pending && !DestinationPreview) {
@@ -58,7 +78,10 @@
 
   $effect(() => {
     if (showBuddy && !BuddyLauncher) {
-      void import("./buddy-launcher.svelte").then((module) => {
+      void Promise.all([
+        import("./buddy-launcher.svelte"),
+        fullCssReady(),
+      ]).then(([module]) => {
         BuddyLauncher = module.default;
       });
     }
@@ -70,9 +93,9 @@
   }
 
   $effect(() => {
-    const current = pending;
+    const visible = previewVisible;
     const element = scroller;
-    if (!current || !element) return;
+    if (!visible || !element) return;
     const previousTop = element.scrollTop;
     element.scrollTop = 0;
     return () => {
@@ -86,7 +109,13 @@
   <a class="skip-link" href="#main-content">{i18n.t("Skip to main content")}</a>
   <div class="workspace">
     <header class="topbar">
-      <div class="topbar-inner">
+      <div
+        class="topbar-inner"
+        data-account={page.data.account?.authConfigured &&
+        page.data.account?.signedIn
+          ? ""
+          : undefined}
+      >
         {#if onGame}
           <NavigationLink href="/" class="shell-back">
             <ArrowLeft aria-hidden="true" size={24} />
@@ -128,20 +157,18 @@
     {#key page.url.pathname}
       <div class="workspace-scroll" bind:this={scroller}>
         <main id="main-content" class="main-content" tabindex="-1">
-          {#if pending}
+          {#if previewVisible && pending && DestinationPreview}
+            {@const Preview = DestinationPreview}
             <div
               class="navigation-preview"
               data-navigation-preview={pending.pathname}
             >
-              {#if DestinationPreview}
-                {@const Preview = DestinationPreview}
-                <Preview href={pending.href} metadata={pending.metadata} />
-              {/if}
+              <Preview href={pending.href} metadata={pending.metadata} />
             </div>
           {/if}
           <div
             class="route-content"
-            hidden={Boolean(pending)}
+            hidden={previewVisible}
             inert={pending ? true : undefined}
           >
             {@render children()}
@@ -201,6 +228,8 @@
   {/if}
   {#if showBuddy && BuddyLauncher}
     {@const Launcher = BuddyLauncher}
-    <Launcher />
+    <div class="buddy-launcher-slot" inert={pending ? true : undefined}>
+      <Launcher />
+    </div>
   {/if}
 </div>

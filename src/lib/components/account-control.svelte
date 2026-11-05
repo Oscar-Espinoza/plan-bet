@@ -2,6 +2,7 @@
   import Coins from "@lucide/svelte/icons/coins";
   import { accountChip } from "#lib/state/account-chip.svelte";
   import NavigationLink from "./fast-link/navigation-link.svelte";
+  import { DURATION, fade } from "./motion";
   import Button from "./ui/button.svelte";
   import { useTranslation } from "./language.svelte";
 
@@ -45,6 +46,20 @@
   const shownBalance = $derived(
     signedIn ? (accountChip.balance ?? balance) : balance,
   );
+  let balanceNode = $state<HTMLSpanElement | null>(null);
+  // Plain variable: the first run, hydration, and a server-only change never settle.
+  let priorBalance: number | undefined;
+  $effect(() => {
+    const current = shownBalance;
+    const own = accountChip.balance;
+    const node = balanceNode;
+    const prior = priorBalance;
+    priorBalance = current;
+    if (prior === undefined || prior === current) return;
+    if (own === undefined || !node) return;
+    // motion.ts types the defaulted third argument as the swap literal.
+    fade(node, 0.6, DURATION.enter as (typeof DURATION)["swap"]);
+  });
   const formattedBalance = $derived(i18n.formatNumber(shownBalance));
   const record = $derived(`${won}-${lost}`);
   const openSuffix = $derived(
@@ -75,7 +90,7 @@
       )}
     >
       <Coins aria-hidden="true" size={18} />
-      <span>{formattedBalance}</span>
+      <span bind:this={balanceNode}>{formattedBalance}</span>
       <small class="account-control-detail">
         {record}{i18n.t(openSuffix)}
       </small>
