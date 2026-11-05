@@ -20,7 +20,7 @@
   }: {
     view?: MatchHeaderView;
     tab?: MatchTab;
-    onTabChange?: (tab: MatchTab) => void;
+    onTabChange?: (tab: MatchTab, via?: "pointer" | "keyboard") => void;
   } = $props();
 
   const i18n = useTranslation();
@@ -40,7 +40,7 @@
     event.preventDefault();
     const target = TABS[next];
     if (!target) return;
-    onTabChange(target.id);
+    onTabChange(target.id, "keyboard");
     requestAnimationFrame(() =>
       document.getElementById(`match-tab-${target.id}`)?.focus(),
     );
@@ -103,8 +103,10 @@
       aria-controls={onTabChange ? `match-panel-${id}` : undefined}
       aria-selected={tab === id}
       tabindex={onTabChange && tab === id ? 0 : -1}
+      data-label={i18n.t(label)}
       disabled={!onTabChange}
-      onclick={() => onTabChange?.(id)}
+      onclick={(event) =>
+        onTabChange?.(id, event.detail > 0 ? "pointer" : "keyboard")}
       onkeydown={(event) => moveTab(event, index)}
     >
       {i18n.t(label)}
