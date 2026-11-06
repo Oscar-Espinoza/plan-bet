@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
+  import type { boardMotion as BoardMotion } from "./board-motion";
   import { SvelteDate } from "svelte/reactivity";
   import CalendarDays from "@lucide/svelte/icons/calendar-days";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -89,28 +91,45 @@
   // The server already resolves URL > cookie > all. Capture it once: subsequent
   // same-route navigations must not reset the user's local selection.
   let sport = $state(initialSport);
+  let selectedSport = $state(sport);
   let board: HTMLDivElement;
+  let swap: ReturnType<typeof BoardMotion> | undefined;
+  let selection = 0;
+  onDestroy(() => {
+    selection++;
+    swap?.cancel();
+  });
 
-  function selectSport(value: SportFilter) {
+  async function selectSport(value: SportFilter, event: MouseEvent) {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
     document.cookie = sportPreferenceCookie(value);
-    if (value === sport) return;
-    sport = value;
-    // Svelte queues its DOM flush when sport changes, before this microtask.
-    queueMicrotask(() => {
-      for (const el of board.querySelectorAll(
-        ".live-section,.slate-groups,.slate-freshness",
-      )) {
-        for (const animation of el.getAnimations()) animation.cancel();
-        el.animate(
-          { opacity: [0.6, 1] },
-          {
-            duration: matchMedia("(prefers-reduced-motion)").matches
-              ? 120
-              : 150 /* --dur-swap */,
-            easing: "cubic-bezier(0.23, 1, 0.32, 1)",
-          },
-        );
-      }
+    if (value === selectedSport) return;
+    selectedSport = value;
+    const current = ++selection;
+    if (event.detail === 0) {
+      swap?.cancel();
+      sport = value;
+      return;
+    }
+    // Keep the swap controller out of the home page's first-load bundle.
+    let module: { boardMotion: typeof BoardMotion };
+    try {
+      module = await import("./board-motion");
+    } catch {
+      if (current === selection) sport = value;
+      return;
+    }
+    if (current !== selection) return;
+    swap ??= module.boardMotion(() => board);
+    void swap.run(() => {
+      sport = value;
     });
   }
 
@@ -187,7 +206,11 @@
 <div class="board" bind:this={board}>
   {#if nextUp}
     <h1 class="sr-only">{i18n.t("Upcoming games")}</h1>
-    <section class="next-up" aria-labelledby="next-match-heading">
+    <section
+      class="next-up"
+      aria-labelledby="next-match-heading"
+      inert={selectedSport !== sport}
+    >
       <div class="next-up-header">
         <h2 class="next-up-eyebrow" id="next-match-heading">
           {i18n.t("Next match")}
@@ -258,9 +281,12 @@
       <LocalLink
         href={filter.href}
         replaceHistory
-        class={cn("slate-chip", sport === filter.value && "slate-chip-active")}
-        aria-current={sport === filter.value ? "page" : undefined}
-        onclick={() => selectSport(filter.value)}
+        class={cn(
+          "slate-chip",
+          selectedSport === filter.value && "slate-chip-active",
+        )}
+        aria-current={selectedSport === filter.value ? "page" : undefined}
+        onclick={(event) => selectSport(filter.value, event)}
       >
         <span>{i18n.t(filter.label)}</span>
       </LocalLink>
@@ -269,7 +295,11 @@
   </nav>
 
   {#if liveGames.length > 0}
-    <section class="live-section" aria-labelledby="live-now-heading">
+    <section
+      class="live-section"
+      aria-labelledby="live-now-heading"
+      inert={selectedSport !== sport}
+    >
       <div class="section-heading">
         <h2 id="live-now-heading">
           <Radio aria-hidden="true" />
@@ -307,7 +337,7 @@
   {/if}
 
   {#if dayBuckets.length}
-    <div class="slate-groups">
+    <div class="slate-groups" inert={selectedSport !== sport}>
       {#each dayBuckets as group (group.key)}
         <section class="panel" aria-labelledby={`day-${group.key}`}>
           <div class="panel-header">
@@ -365,7 +395,7 @@
       {/each}
     </div>
   {:else}
-    <div class="panel">
+    <div class="panel slate-empty">
       <div class="mini-empty">
         <p>
           {i18n.t("No upcoming games were provided for this filter.")}
@@ -373,7 +403,7 @@
             <LocalLink
               href="/"
               replaceHistory
-              onclick={() => selectSport("all")}
+              onclick={(event) => selectSport("all", event)}
               >{i18n.t("Show all sports")}</LocalLink
             >
           {/if}

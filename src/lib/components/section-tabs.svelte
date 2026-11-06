@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { tick } from "svelte";
+  import { onDestroy } from "svelte";
   import { page } from "$app/state";
   import { useTranslation } from "./language.svelte";
-  import { fade } from "#lib/components/motion";
+  import { contentSwap } from "./content-swap";
   import type { Message } from "#lib/shared/locale";
 
   type Panel = { key: string; label: Message; content: Snippet };
@@ -34,6 +34,17 @@
     return first;
   };
   let active = $state(seed());
+  let displayed = $state(seed());
+  let viewport = $state<HTMLElement | null>(null);
+  let content = $state<HTMLElement | null>(null);
+  const swap = contentSwap(
+    () => {
+      const panel = document.getElementById(`${uid}-panel-${displayed}`);
+      return panel ? [panel] : [];
+    },
+    () => (viewport && content ? { container: viewport, content } : null),
+  );
+  onDestroy(swap.cancel);
   let seenParam = $state<string | null | undefined>(undefined);
 
   // Back/forward updates `page.url`. A click does not: the URL is mirrored
@@ -47,7 +58,7 @@
     if (param === seenParam) return;
     seenParam = param;
     const next = param && keys.includes(param) ? param : firstKey;
-    if (active !== next) active = next;
+    if (active !== next) select(next, false);
   });
 
   $effect(() => {
@@ -76,11 +87,15 @@
     event.preventDefault();
     const target = panels[(next + panels.length) % panels.length];
     if (!target) return;
-    active = target.key;
+    select(target.key, false);
     document.getElementById(`${uid}-tab-${target.key}`)?.focus();
   }
-  function select(key: string) {
+  function select(key: string, animate = true) {
+    if (key === active && key === displayed) return;
     active = key;
+    void swap.run(() => {
+      displayed = key;
+    }, animate);
   }
 </script>
 
@@ -94,27 +109,26 @@
       aria-selected={active === panel.key}
       tabindex={active === panel.key ? 0 : -1}
       data-label={i18n.t(panel.label)}
-      onclick={(event) => {
-        select(panel.key);
-        if (event.detail > 0)
-          void tick().then(() =>
-            fade(document.getElementById(`${uid}-panel-${panel.key}`), 0.6),
-          );
-      }}
+      onclick={(event) => select(panel.key, event.detail > 0)}
       onkeydown={(event) => onKeydown(event, index)}
     >
       {i18n.t(panel.label)}
     </button>
   {/each}
 </div>
-{#each panels as panel (panel.key)}
-  <div
-    role="tabpanel"
-    id={`${uid}-panel-${panel.key}`}
-    aria-labelledby={`${uid}-tab-${panel.key}`}
-    hidden={active !== panel.key}
-    tabindex="0"
-  >
-    {@render panel.content()}
+<div bind:this={viewport} class="tab-viewport">
+  <div bind:this={content} class="tab-content">
+    {#each panels as panel (panel.key)}
+      <div
+        role="tabpanel"
+        id={`${uid}-panel-${panel.key}`}
+        aria-labelledby={`${uid}-tab-${panel.key}`}
+        hidden={displayed !== panel.key}
+        inert={active !== displayed}
+        tabindex="0"
+      >
+        {@render panel.content()}
+      </div>
+    {/each}
   </div>
-{/each}
+</div>

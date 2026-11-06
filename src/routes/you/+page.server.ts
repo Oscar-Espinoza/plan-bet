@@ -105,6 +105,24 @@ export const load: PageServerLoad = async (event) => {
     hasMore: rows.hasMore,
   }));
 
+  // Commit the account surface with its actual panel sizes. These reads all
+  // start together; navigation retains the previous screen while they finish.
+  const [
+    resolvedSummary,
+    resolvedOpen,
+    resolvedSettled,
+    resolvedSlices,
+    resolvedHistory,
+    resetCount,
+  ] = await Promise.all([
+    standing,
+    open,
+    settled,
+    slices,
+    history,
+    summaryPromise.then((summary) => summary.resetCount),
+  ]);
+
   return {
     status: "ready" as const,
     title,
@@ -113,11 +131,11 @@ export const load: PageServerLoad = async (event) => {
     tab,
     filters,
     page,
-    summary: standing,
-    open,
-    settled,
-    slices,
-    history,
-    resetCount: summaryPromise.then((summary) => summary.resetCount),
+    summary: resolvedSummary,
+    open: resolvedOpen,
+    settled: resolvedSettled,
+    slices: resolvedSlices,
+    history: resolvedHistory,
+    resetCount,
   };
 };

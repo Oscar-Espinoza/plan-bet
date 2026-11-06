@@ -44,6 +44,13 @@ function isAppData(url: URL) {
   return url.pathname.includes("__data.json");
 }
 
+function isPublicPage(response: Response) {
+  // HttpOnly session cookies are not exposed to service workers. The server's
+  // response policy, not request cookie visibility, decides what may persist.
+  const policy = response.headers.get("cache-control") ?? "";
+  return /\bpublic\b/i.test(policy) && !/\b(private|no-store)\b/i.test(policy);
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(IMMUTABLE)));
   self.skipWaiting();
@@ -97,7 +104,7 @@ async function networkFirstPage(request: Request, url: URL): Promise<Response> {
   const cache = await caches.open(CACHE);
   try {
     const response = await fetch(request);
-    if (response.ok && response.status !== 206) {
+    if (response.ok && response.status !== 206 && isPublicPage(response)) {
       await cache.put(request, response.clone());
       if (url.pathname === "/" && isHtmlNavigation(request)) {
         await cache.put(OFFLINE_HOME, response.clone());
@@ -106,10 +113,10 @@ async function networkFirstPage(request: Request, url: URL): Promise<Response> {
     return response;
   } catch {
     const hit = await cache.match(request);
-    if (hit) return hit;
+    if (hit && isPublicPage(hit)) return hit;
     if (isHtmlNavigation(request)) {
       const home = await cache.match(OFFLINE_HOME);
-      if (home) return home;
+      if (home && isPublicPage(home)) return home;
     }
     return Response.error();
   }

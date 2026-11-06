@@ -101,6 +101,8 @@ function createAuth() {
         enabled: true,
         maxAge: 300,
         strategy: "compact",
+        // Changing the database must also invalidate cached local sessions.
+        version: envString("BETTER_AUTH_COOKIE_CACHE_VERSION") ?? "1",
       },
     },
     account: {

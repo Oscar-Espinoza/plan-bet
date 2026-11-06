@@ -257,23 +257,6 @@ a {
 .route-content[hidden] {
   display: none;
 }
-.navigation-preview {
-  animation: navigation-enter 120ms /* --dur-fast */ var(--ease);
-}
-@keyframes navigation-enter {
-  from {
-    opacity: 0.75;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .navigation-preview {
-    animation: none;
-  }
-}
-
 /* Primary navigation rides in the topbar from 1024px up; below that the
    bottom bar carries it. Exactly one copy is ever displayed, so exactly one
    is ever in the accessibility tree. */
@@ -348,6 +331,7 @@ a {
   min-height: 0;
   flex-direction: column;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior-y: contain;
 }
 
@@ -950,6 +934,7 @@ html.locale-pending .main-content {
 
 .next-up-team > span:last-child {
   grid-row: 2;
+  min-block-size: 2lh;
   max-width: 100%;
   text-align: center;
   text-wrap: balance;
@@ -1812,6 +1797,10 @@ dialog.buddy-panel[data-closing] {
 }
 
 @media (min-width: 1024px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   .app-shell {
     display: block;
     height: auto;
@@ -3462,6 +3451,13 @@ body {
 
 /* Overview / Wagers / Settings — every panel is already on the page, so a
    tab is a plain switch; only the history's filters and pages are URLs. */
+.tab-viewport,
+.tab-content {
+  /* Include child margins in the measured height and keep hidden panels
+     mounted, so a tab swap preserves the values in its forms. */
+  display: flow-root;
+}
+
 .section-tabs {
   display: flex;
   gap: 1.5rem;
@@ -3587,16 +3583,4 @@ a.settings-row svg {
 .form-block > .side-form {
   width: 100%;
   padding: 0;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 150ms; /* --dur-swap */
-    animation-timing-function: var(--ease);
-  }
-
-  ::view-transition {
-    pointer-events: none;
-  }
 }

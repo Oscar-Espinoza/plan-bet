@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { tick, type Snippet } from "svelte";
+  import { onDestroy, type Snippet } from "svelte";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import Info from "@lucide/svelte/icons/info";
   import Trophy from "@lucide/svelte/icons/trophy";
   import type { MatchView } from "#lib/shared/game-view";
   import { useTranslation } from "./language.svelte";
-  import { fade } from "./motion";
+  import { contentSwap } from "./content-swap";
   import ContextBlocks from "./matchup/context-blocks.svelte";
   import MatchChrome, { type MatchTab } from "./matchup/match-chrome.svelte";
   import StatusRibbon from "./matchup/status-ribbon.svelte";
@@ -23,6 +23,13 @@
   const i18n = useTranslation();
   let tab = $state<MatchTab>("overview");
   let panel = $state<HTMLElement | null>(null);
+  let viewport = $state<HTMLElement | null>(null);
+  let displayedTab = $state<MatchTab>("overview");
+  const swap = contentSwap(
+    () => (panel ? [panel] : []),
+    () => (viewport && panel ? { container: viewport, content: panel } : null),
+  );
+  onDestroy(swap.cancel);
 
   const homeTeam = $derived(view.identity.homeTeam);
   const awayTeam = $derived(view.identity.awayTeam);
@@ -84,76 +91,91 @@
     {view}
     {tab}
     onTabChange={(next, via) => {
-      if (next === tab) return;
+      if (next === tab && next === displayedTab) return;
       tab = next;
-      if (via === "pointer") void tick().then(() => fade(panel, 0.6));
+      void swap.run(() => {
+        displayedTab = next;
+      }, via === "pointer");
     }}
   />
 
-  <div
-    bind:this={panel}
-    class="mp-tab-panel"
-    role="tabpanel"
-    id={`match-panel-${tab}`}
-    aria-labelledby={`match-tab-${tab}`}
-  >
-    {#if tab === "overview"}
-      <div class="mp-overview">
-        <StatusRibbon status={view.timing.status} />
-        {#if result}
-          <div class="match-result-banner">
-            <Trophy aria-hidden="true" />
-            <p>
-              <strong>{i18n.t("Match finished")}</strong>
-              <span>
-                {#if winner}
-                  {i18n.t("{p0} wins {p1}–{p2}", {
-                    p0: winner,
-                    p1: result.homeScore,
-                    p2: result.awayScore,
-                  })}
-                {:else}
-                  {i18n.t("Draw {p0}–{p1}", {
-                    p0: result.homeScore,
-                    p1: result.awayScore,
-                  })}
-                {/if}
-              </span>
-            </p>
-          </div>
-        {/if}
-        {#if wageringPanel}
-          {@render wageringPanel()}
-        {/if}
-        {#if socialPanel}
-          {@render socialPanel()}
-        {/if}
-        <ContextBlocks blocks={[...form, ...standing]} {homeTeam} {awayTeam} />
+  <div bind:this={viewport} class="mp-tab-viewport">
+    <div
+      bind:this={panel}
+      class="mp-tab-panel"
+      role="tabpanel"
+      id={`match-panel-${displayedTab}`}
+      inert={tab !== displayedTab}
+      aria-labelledby={`match-tab-${displayedTab}`}
+    >
+      <!-- Keep resolved async panels and slip drafts alive between tabs. A
+           remount briefly restores their skeleton, which is too tall for
+           the resize target even when the original promise has resolved. -->
+      <div hidden={displayedTab !== "overview"}>
+        <div class="mp-overview">
+          <StatusRibbon status={view.timing.status} />
+          {#if result}
+            <div class="match-result-banner">
+              <Trophy aria-hidden="true" />
+              <p>
+                <strong>{i18n.t("Match finished")}</strong>
+                <span>
+                  {#if winner}
+                    {i18n.t("{p0} wins {p1}–{p2}", {
+                      p0: winner,
+                      p1: result.homeScore,
+                      p2: result.awayScore,
+                    })}
+                  {:else}
+                    {i18n.t("Draw {p0}–{p1}", {
+                      p0: result.homeScore,
+                      p1: result.awayScore,
+                    })}
+                  {/if}
+                </span>
+              </p>
+            </div>
+          {/if}
+          {#if wageringPanel}
+            {@render wageringPanel()}
+          {/if}
+          {#if socialPanel}
+            {@render socialPanel()}
+          {/if}
+          <ContextBlocks
+            blocks={[...form, ...standing]}
+            {homeTeam}
+            {awayTeam}
+          />
+        </div>
       </div>
-    {:else if tab === "stats"}
-      {#if stats.length}
-        <ContextBlocks blocks={stats} {homeTeam} {awayTeam} />
-      {:else}
+      {#if displayedTab === "stats"}
+        {#if stats.length}
+          <ContextBlocks blocks={stats} {homeTeam} {awayTeam} />
+        {:else}
+          {@render empty(
+            "stats",
+            "Stats unavailable",
+            "This provider has not supplied detailed statistics for this matchup.",
+          )}
+        {/if}
+      {:else if displayedTab === "lineups"}
         {@render empty(
-          "stats",
-          "Stats unavailable",
-          "This provider has not supplied detailed statistics for this matchup.",
+          "info",
+          "Lineups unavailable",
+          "Confirmed lineups have not been supplied for this matchup.",
         )}
+      {:else if displayedTab === "h2h"}
+        {#if headToHead.length}
+          <ContextBlocks blocks={headToHead} {homeTeam} {awayTeam} />
+        {:else}
+          {@render empty(
+            "info",
+            "Head-to-head unavailable",
+            "No reliable head-to-head record is available for these teams.",
+          )}
+        {/if}
       {/if}
-    {:else if tab === "lineups"}
-      {@render empty(
-        "info",
-        "Lineups unavailable",
-        "Confirmed lineups have not been supplied for this matchup.",
-      )}
-    {:else if headToHead.length}
-      <ContextBlocks blocks={headToHead} {homeTeam} {awayTeam} />
-    {:else}
-      {@render empty(
-        "info",
-        "Head-to-head unavailable",
-        "No reliable head-to-head record is available for these teams.",
-      )}
-    {/if}
+    </div>
   </div>
 </div>

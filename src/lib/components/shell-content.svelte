@@ -12,10 +12,7 @@
   import HydrateStore from "./hydrate-store.svelte";
   import { useTranslation } from "./language.svelte";
   import LanguageLinks from "./language-links.svelte";
-  import {
-    useNavigationPreview,
-    type PreviewMetadata,
-  } from "./navigation.svelte";
+  import { useNavigationPreview } from "./navigation.svelte";
   import TourBar from "./tour-bar.svelte";
   import LocalLink from "./fast-link/local-link.svelte";
   import NavigationLink from "./fast-link/navigation-link.svelte";
@@ -34,47 +31,12 @@
   const i18n = useTranslation();
   const gap = " ";
   const navigation = useNavigationPreview();
-  let scroller = $state<HTMLDivElement | null>(null);
-  let delayElapsed = $state(false);
-
   const pending = $derived(navigation?.pending ?? null);
-  // The indicator follows the tap. Chrome follows the screen that is visible.
   const pathname = $derived(pending?.pathname ?? page.url.pathname);
-
-  type DestinationPreviewComponent = Component<{
-    href: string;
-    metadata?: PreviewMetadata;
-  }>;
-  let DestinationPreview = $state<DestinationPreviewComponent | null>(null);
+  const onGame = $derived(page.url.pathname.startsWith("/games/"));
+  const showTour = $derived(page.url.pathname === "/" || onGame);
+  const showBuddy = $derived(page.url.pathname !== "/" && !onGame);
   let BuddyLauncher = $state<Component | null>(null);
-
-  // The skeleton waits out a fast navigation. 100ms, then it can paint.
-  $effect(() => {
-    if (!pending) return;
-    const timer = setTimeout(() => (delayElapsed = true), 100);
-    return () => {
-      clearTimeout(timer);
-      delayElapsed = false;
-    };
-  });
-
-  const previewVisible = $derived(
-    Boolean(pending && DestinationPreview && delayElapsed),
-  );
-  const shellPath = $derived(
-    previewVisible && pending ? pending.pathname : page.url.pathname,
-  );
-  const onGame = $derived(shellPath.startsWith("/games/"));
-  const showTour = $derived(shellPath === "/" || onGame);
-  const showBuddy = $derived(shellPath !== "/" && !onGame);
-
-  $effect(() => {
-    if (pending && !DestinationPreview) {
-      void import("./navigation-preview.svelte").then((module) => {
-        DestinationPreview = module.default;
-      });
-    }
-  });
 
   $effect(() => {
     if (showBuddy && !BuddyLauncher) {
@@ -91,17 +53,6 @@
     if (href === "/") return pathname === "/" || pathname.startsWith("/games/");
     return pathname === href || pathname.startsWith(`${href}/`);
   }
-
-  $effect(() => {
-    const visible = previewVisible;
-    const element = scroller;
-    if (!visible || !element) return;
-    const previousTop = element.scrollTop;
-    element.scrollTop = 0;
-    return () => {
-      element.scrollTop = previousTop;
-    };
-  });
 </script>
 
 <div class="app-shell">
@@ -155,20 +106,11 @@
       </div>
     </header>
     {#key page.url.pathname}
-      <div class="workspace-scroll" bind:this={scroller}>
+      <div class="workspace-scroll">
         <main id="main-content" class="main-content" tabindex="-1">
-          {#if previewVisible && pending && DestinationPreview}
-            {@const Preview = DestinationPreview}
-            <div
-              class="navigation-preview"
-              data-navigation-preview={pending.pathname}
-            >
-              <Preview href={pending.href} metadata={pending.metadata} />
-            </div>
-          {/if}
           <div
             class="route-content"
-            hidden={previewVisible}
+            aria-busy={pending ? true : undefined}
             inert={pending ? true : undefined}
           >
             {@render children()}

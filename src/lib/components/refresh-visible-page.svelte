@@ -38,9 +38,14 @@
       }
       last = Date.now();
       inFlight = true;
-      void refreshAll().finally(() => {
-        inFlight = false;
-      });
+      void import("./navigation-cache")
+        .then(async ({ clearNavigationCache }) => {
+          clearNavigationCache();
+          await refreshAll();
+        })
+        .finally(() => {
+          inFlight = false;
+        });
     };
     const timer = window.setInterval(refresh, INTERVAL);
     window.addEventListener("focus", refresh);

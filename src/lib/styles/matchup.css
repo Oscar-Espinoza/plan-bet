@@ -723,6 +723,10 @@
   opacity: 1;
 }
 
+.mp-tab-viewport {
+  display: flow-root;
+}
+
 .mp-tab-panel {
   padding: 14px 0 4px;
 }

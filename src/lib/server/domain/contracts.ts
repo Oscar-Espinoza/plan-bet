@@ -337,18 +337,21 @@ export type RecordSlices = z.infer<typeof recordSlicesSchema>;
 export const groupMemberRoleSchema = z.enum(["owner", "member"]);
 export type GroupMemberRole = z.infer<typeof groupMemberRoleSchema>;
 
+// Imported accounts use UUIDs; Better Auth creates opaque string IDs.
+const userIdSchema = z.string().min(1);
+
 export const groupSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1).max(80),
   slug: z.string().min(1),
-  createdByUserId: z.uuid(),
+  createdByUserId: userIdSchema,
   createdAt: z.iso.datetime(),
 });
 export type Group = z.infer<typeof groupSchema>;
 
 export const groupMemberSchema = z.object({
   groupId: z.uuid(),
-  userId: z.uuid(),
+  userId: userIdSchema,
   role: groupMemberRoleSchema,
   name: z.string().nullable(),
   email: z.string().nullable(),
@@ -380,7 +383,7 @@ export type GroupInvite = z.infer<typeof groupInviteSchema>;
 // group's wagers only — a read-time aggregate, never a stored column, same
 // as CreditSummary.
 export const groupLeaderboardEntrySchema = z.object({
-  userId: z.uuid(),
+  userId: userIdSchema,
   name: z.string().nullable(),
   netReturn: z.number().int(),
   wagerCount: z.number().int().nonnegative(),
@@ -420,7 +423,7 @@ export const gameCommentSchema = z.object({
   id: z.uuid(),
   parentCommentId: z.uuid().nullable().optional(),
   groupId: z.uuid(),
-  userId: z.uuid(),
+  userId: userIdSchema,
   authorName: z.string().nullable(),
   // The author's side on this game, in this group — what makes "you may
   // only vote across the aisle" legible next to the comment itself, rather

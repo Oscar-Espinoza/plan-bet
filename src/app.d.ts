@@ -82,6 +82,7 @@ declare global {
         JOBS?: JobsBinding;
         CRON_SECRET?: string;
         BETTER_AUTH_SECRET?: string;
+        BETTER_AUTH_COOKIE_CACHE_VERSION?: string;
         MATCHDAY_DATA_MODE?: string;
         MATCHDAY_MAINTENANCE?: string;
         PUBLIC_SITE_URL?: string;

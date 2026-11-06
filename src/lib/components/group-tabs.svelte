@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { tick } from "svelte";
+  import { onDestroy } from "svelte";
   import { page } from "$app/state";
   import { useTranslation } from "#lib/components/language.svelte";
-  import { fade } from "#lib/components/motion";
+  import { contentSwap } from "./content-swap";
 
   let {
     overview,
@@ -20,6 +20,28 @@
   const labels = ["Overview", "Members"] as const;
 
   let active = $state(page.url.searchParams.get("tab") === "members" ? 1 : 0);
+  let displayed = $state(
+    page.url.searchParams.get("tab") === "members" ? 1 : 0,
+  );
+  let viewport = $state<HTMLElement | null>(null);
+  let content = $state<HTMLElement | null>(null);
+  const swap = contentSwap(
+    () => {
+      const panel = document.getElementById(`${uid}-panel-${displayed}`);
+      return panel ? [panel] : [];
+    },
+    () => (viewport && content ? { container: viewport, content } : null),
+  );
+  onDestroy(swap.cancel);
+
+  function select(index: number, animate = true) {
+    if (index === active && index === displayed) return;
+    active = index;
+    void swap.run(() => {
+      displayed = index;
+    }, animate);
+  }
+
   let seenTab = $state<string | null | undefined>(undefined);
 
   $effect(() => {
@@ -34,7 +56,7 @@
     if (tab === seenTab) return;
     seenTab = tab;
     if (tab === "members") {
-      active = 1;
+      select(1, false);
       document.getElementById("invite")?.scrollIntoView({ block: "start" });
     }
   });
@@ -43,7 +65,7 @@
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const next = event.key === "Home" ? 0 : event.key === "End" ? 1 : 1 - index;
-    active = next;
+    select(next, false);
     document.getElementById(`${uid}-tab-${next}`)?.focus();
   }
 </script>
@@ -59,13 +81,7 @@
         aria-selected={active === index}
         tabindex={active === index ? 0 : -1}
         data-label={i18n.t(label)}
-        onclick={(event) => {
-          active = index;
-          if (event.detail > 0)
-            void tick().then(() =>
-              fade(document.getElementById(`${uid}-panel-${index}`), 0.6),
-            );
-        }}
+        onclick={(event) => select(index, event.detail > 0)}
         onkeydown={(event) => onKeydown(event, index)}
       >
         {i18n.t(label)}
@@ -76,14 +92,19 @@
     {@render action()}
   {/if}
 </div>
-{#each [overview, members] as content, index (index)}
-  <div
-    role="tabpanel"
-    id="{uid}-panel-{index}"
-    aria-labelledby="{uid}-tab-{index}"
-    hidden={active !== index}
-    tabindex="0"
-  >
-    {@render content()}
+<div bind:this={viewport} class="tab-viewport">
+  <div bind:this={content} class="tab-content">
+    {#each [overview, members] as panel, index (index)}
+      <div
+        role="tabpanel"
+        id="{uid}-panel-{index}"
+        aria-labelledby="{uid}-tab-{index}"
+        hidden={displayed !== index}
+        inert={active !== displayed}
+        tabindex="0"
+      >
+        {@render panel()}
+      </div>
+    {/each}
   </div>
-{/each}
+</div>

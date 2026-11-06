@@ -5,6 +5,7 @@
   import { useTranslation } from "./language.svelte";
   import { type PreviewMetadata } from "./navigation.svelte";
   import Skeleton from "./ui/skeleton.svelte";
+  import Breadcrumb from "./breadcrumb.svelte";
   import MatchChrome from "./matchup/match-chrome.svelte";
   import BetSlipSkeleton from "./matchup/bet-slip-skeleton.svelte";
   import StatusRibbon from "./matchup/status-ribbon.svelte";
@@ -12,12 +13,18 @@
   let { href, metadata }: { href: string; metadata?: PreviewMetadata } =
     $props();
   const i18n = useTranslation();
-  const pathname = $derived(href.split(/[?#]/)[0] ?? href);
+  const pathname = $derived(new URL(href, page.url.href).pathname);
   const signedIn = $derived(
     Boolean(page.data.account?.authConfigured && page.data.account?.signedIn),
   );
   const isYou = $derived(pathname === "/you");
   const isGroups = $derived(pathname === "/groups");
+  // This is a visual hint only. The requested route still performs the real
+  // session check and supplies the authoritative redirect and callback URL.
+  const isSignIn = $derived(
+    pathname === "/sign-in" ||
+      ((isYou || isGroups) && page.data.account?.authConfigured && !signedIn),
+  );
   const isNewGroup = $derived(pathname === "/groups/new");
   const isGroupDetail = $derived(
     pathname.startsWith("/groups/") &&
@@ -38,7 +45,33 @@
   );
 </script>
 
-{#if pathname.startsWith("/games/")}
+{#if isSignIn}
+  <header class="page-heading">
+    <Breadcrumb items={[{ label: i18n.t("Sign in") }]} />
+    <div>
+      <p class="eyebrow">{i18n.t("Account")}</p>
+      <h1 class="display-title">{i18n.t("Sign in")}</h1>
+      <p class="page-description">
+        {i18n.t(
+          "Signing in gives you a free-to-play credit ledger for the wager simulator. The rest of the workspace works without one.",
+        )}
+      </p>
+    </div>
+  </header>
+  <section class="panel" role="status" aria-label={i18n.t("Loading…")}>
+    <div class="panel-header">
+      <h2 class="panel-title">{i18n.t("Sign in")}</h2>
+    </div>
+    <div class="panel-body flex flex-col gap-3" aria-hidden="true">
+      {#each [0, 1] as choice (choice)}
+        <div
+          class="loading-panel"
+          style="min-height: var(--tap); height: var(--tap)"
+        ></div>
+      {/each}
+    </div>
+  </section>
+{:else if pathname.startsWith("/games/")}
   <div class="mp" role="status" aria-label={i18n.t("Loading game")}>
     <MatchChrome view={metadata?.match} />
     <div class="mp-tab-panel">

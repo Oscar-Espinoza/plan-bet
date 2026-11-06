@@ -1,19 +1,16 @@
 /**
  * Installed once, after hydration. Not on the `/` first-load graph.
  */
-let installed = false;
-let previewWarm: Promise<unknown> | null = null;
+import { installNavigationCache, warmCurrentPage } from "./navigation-cache";
 
-function warmPreview(event: Event) {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  if (!target.closest("a[href]")) return;
-  previewWarm ??= import("./navigation-preview.svelte");
-}
+let installed = false;
 
 export function install() {
   if (installed) return;
   installed = true;
+  installNavigationCache();
+  const initialHref = location.href;
+  window.setTimeout(() => warmCurrentPage(initialHref), 1000);
 
   window.addEventListener(
     "popstate",
@@ -27,13 +24,4 @@ export function install() {
 
   // One passive touchstart is enough for iOS to apply :active.
   document.addEventListener("touchstart", () => {}, { passive: true });
-
-  document.addEventListener("pointerdown", warmPreview, {
-    capture: true,
-    passive: true,
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    warmPreview(event);
-  });
 }

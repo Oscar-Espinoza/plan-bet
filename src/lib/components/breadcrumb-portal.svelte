@@ -14,10 +14,22 @@
   });
 
   function relocate(node: HTMLElement, target: HTMLElement) {
+    // A loading preview and its outgoing route can coexist. Only the newest
+    // breadcrumb belongs in the header; restore the prior one on cancellation.
+    const refresh = () => {
+      for (const child of target.children) {
+        if (child instanceof HTMLElement) {
+          child.style.display =
+            child === target.lastElementChild ? "contents" : "none";
+        }
+      }
+    };
     target.append(node);
+    refresh();
     return {
       destroy() {
         node.remove();
+        refresh();
       },
     };
   }

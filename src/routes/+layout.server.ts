@@ -50,6 +50,7 @@ export const load: LayoutServerLoad = async (event) => {
   }
 
   return {
+    cacheIdentity: `${account.ok ? account.userId : "anonymous"}:${event.locals.locale}:${event.locals.zone}`,
     locale: event.locals.locale,
     zone: event.locals.zone,
     requestTime: event.locals.requestTime,

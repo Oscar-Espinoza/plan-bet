@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from "svelte";
   import { onNavigate } from "$app/navigation";
-  import { fullCssReady } from "#lib/components/full-css";
   import "../app.css";
   import "#lib/styles/matchup.css";
   import AppShell from "#lib/components/app-shell.svelte";
@@ -15,29 +14,11 @@
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
   const image = $derived(`${data.siteUrl}/og.png`);
 
-  onNavigate(async (navigation) => {
-    if (typeof document === "undefined") return;
-    const w = window as Window & { __mpUaVT?: boolean };
-    const uaAnimated = navigation.type === "popstate" && w.__mpUaVT === true;
-    w.__mpUaVT = false;
-    // Critical CSS is this document's rules. Wait for the full sheet so the
-    // next page does not paint before those rules exist.
-    await fullCssReady();
-    if (!document.startViewTransition) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // An iOS edge swipe or Android predictive back has already animated.
-    if (uaAnimated) return;
-    // Query-only updates (current tab, history paging, ?pick, ?section)
-    // replace in place. A whole-page crossfade would freeze input.
-    if (navigation.from?.url.pathname === navigation.to?.url.pathname) return;
-
-    return new Promise<void>((resolve) => {
-      document.startViewTransition(async () => {
-        resolve();
-        await navigation.complete;
-      });
-    });
-  });
+  onNavigate((navigation) =>
+    import("#lib/components/navigation-motion").then((m) =>
+      m.navigate(navigation),
+    ),
+  );
 
   onMount(() => {
     void import("#lib/components/interaction-hooks").then((m) => m.install());

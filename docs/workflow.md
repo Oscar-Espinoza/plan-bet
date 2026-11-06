@@ -24,6 +24,16 @@ pnpm data:refresh:baseball
 
 Node 24.18.1 / pnpm 11 are pinned in `engines`. Scripts load `.env.local` via `--env-file-if-exists`.
 
+## Local accounts on Cloudflare
+
+For local sign-in, build and run `pnpm preview:local` at `http://localhost:3000`. The `local` Wrangler environment runs the app locally with remote bindings to the production D1 database and public KV match cache, as requested for this side project. Local account and group actions therefore persist in production. Wrangler must be signed into the Cloudflare account. Port 3000 matches the existing Google development callback.
+
+The gitignored `.env.local` needs `BETTER_AUTH_SECRET` and the existing `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` or GitHub pair. The migrated app does not read the legacy `AUTH_SECRET` name. Sign in again after switching from local D1: the local environment's `BETTER_AUTH_COOKIE_CACHE_VERSION` invalidates the old cached session. The header shows Sign in; `/groups` redirects signed-out visitors to `/sign-in`.
+
+Production jobs keep refreshing the shared match data, so no local jobs server is needed for this preview. `pnpm db:migrate:local` and the scenario verification scripts still target isolated local D1 under `--env preview`; do not point fixture-seeding scripts at the production-connected preview. To run that isolated app, use `pnpm exec wrangler dev --env preview --port 3000 --var PUBLIC_SITE_URL:http://localhost:3000 --var MATCHDAY_DATA_MODE:demo` after applying local migrations.
+
+OAuth callback URLs must match the app's origin and `/api/auth/callback/google` or `/api/auth/callback/github`. Never use the remote preview URL as the local auth base URL.
+
 ## Keeping it fast
 
 - No zod (or other validation libraries) in client components: the browser gets our own already-validated data, so narrow it with a type and a cheap check. `storage.ts` is a hand-written guard for the same reason.

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { navigating, page } from "$app/state";
-  import { tick } from "svelte";
+  import { navigating } from "$app/state";
   import { SvelteURLSearchParams } from "svelte/reactivity";
   import AlertTriangle from "@lucide/svelte/icons/alert-triangle";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -9,94 +8,24 @@
   import NavigationLink from "#lib/components/fast-link/navigation-link.svelte";
   import LanguageSwitch from "#lib/components/language-switch.svelte";
   import { useTranslation } from "#lib/components/language.svelte";
-  import { arrive } from "#lib/components/motion";
   import ResetBankroll from "#lib/components/reset-bankroll.svelte";
   import SectionTabs from "#lib/components/section-tabs.svelte";
   import Button from "#lib/components/ui/button.svelte";
   import Card from "#lib/components/ui/card.svelte";
   import StatusTag from "#lib/components/ui/status-tag.svelte";
-  import type { HistoryView, OpenWagersView } from "#lib/shared/wager-view";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
   const i18n = useTranslation();
 
-  const openMountedAt = performance.now();
-  const settledMountedAt = performance.now();
-  const historyMountedAt = performance.now();
-  let openShown = $state<OpenWagersView | undefined>();
-  let settledShown = $state<HistoryView | undefined>();
-  let historyShown = $state<HistoryView | undefined>();
-  let openArrived = $state(false);
-  let settledArrived = $state(false);
-  let historyArrived = $state(false);
-  let openRoot = $state<HTMLElement | null>(null);
-  let settledRoot = $state<HTMLElement | null>(null);
-  let historyRoot = $state<HTMLElement | null>(null);
-  let historyLoading = $state(false);
-  const reloading = $derived(
-    navigating.to?.url.pathname === "/you" || historyLoading,
+  const openShown = $derived(data.status === "ready" ? data.open : undefined);
+  const settledShown = $derived(
+    data.status === "ready" ? data.settled : undefined,
   );
-  let seenHistorySearch: string | undefined;
-
-  $effect(() => {
-    if (data.status !== "ready") return;
-    const request = data.open;
-    let active = true;
-    void request.then((value) => {
-      if (!active) return;
-      const first = openShown === undefined;
-      openShown = value;
-      if (first && !openArrived) {
-        openArrived = true;
-        void tick().then(() => arrive(openRoot, openMountedAt, 0.6));
-      }
-    });
-    return () => {
-      active = false;
-    };
-  });
-
-  $effect(() => {
-    if (data.status !== "ready") return;
-    const request = data.settled;
-    let active = true;
-    void request.then((value) => {
-      if (!active) return;
-      const first = settledShown === undefined;
-      settledShown = value;
-      if (first && !settledArrived) {
-        settledArrived = true;
-        void tick().then(() => arrive(settledRoot, settledMountedAt, 0.6));
-      }
-    });
-    return () => {
-      active = false;
-    };
-  });
-
-  $effect(() => {
-    if (data.status !== "ready") return;
-    const request = data.history;
-    const search = page.url.search;
-    historyLoading =
-      seenHistorySearch !== undefined && seenHistorySearch !== search;
-    seenHistorySearch = search;
-    let active = true;
-    void request.then((value) => {
-      if (!active) return;
-      historyLoading = false;
-      const first = historyShown === undefined;
-      historyShown = value;
-      if (first && !historyArrived) {
-        historyArrived = true;
-        void tick().then(() => arrive(historyRoot, historyMountedAt, 0.6));
-      }
-    });
-    return () => {
-      active = false;
-    };
-  });
+  const historyShown = $derived(
+    data.status === "ready" ? data.history : undefined,
+  );
+  const reloading = $derived(navigating.to?.url.pathname === "/you");
 
   function hitRateLabel(won: number, lost: number) {
     const decided = won + lost;
@@ -283,7 +212,7 @@
     <div class="section-grid">
       {#if openShown}
         {@const open = openShown}
-        <div bind:this={openRoot}>
+        <div>
           <Card titleId="open-wagers-heading">
             {#snippet title()}{i18n.t("Open wagers")}{/snippet}
             {#snippet headerExtra()}
@@ -319,7 +248,7 @@
 
       {#if settledShown}
         {@const settled = settledShown}
-        <div bind:this={settledRoot}>
+        <div>
           <Card titleId="just-settled-heading">
             {#snippet title()}{i18n.t("Just settled")}{/snippet}
             {#snippet headerExtra()}
@@ -456,11 +385,7 @@
           data.filters.outcome !== "all" ||
           data.filters.range !== "all" ||
           data.filters.scope !== "all"}
-        <div
-          class="stale-area"
-          aria-busy={reloading || undefined}
-          bind:this={historyRoot}
-        >
+        <div class="stale-area" aria-busy={reloading || undefined}>
           <BetsHistory
             items={history.items}
             emptyState={filtersActive
